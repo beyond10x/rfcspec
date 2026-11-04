@@ -1,0 +1,164 @@
+format: ess-protospec/1
+name: rfc868-time-tcp
+bounds:
+  max_steps: 32
+  max_states: 256
+  max_time_ms: 1000
+participants:
+- name: client
+  initial: idle
+  states:
+  - idle
+  - connecting
+  - received
+  - closed
+  inputs:
+  - name: connect
+    fields: []
+  - name: close
+    fields: []
+  transitions:
+  - name: D1-2-connect
+    from: idle
+    to: connecting
+    trigger:
+      kind: input
+      name: connect
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: connect
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: D1-2-connect
+      payload: {}
+  - name: D1-4-receive-time
+    from: connecting
+    to: received
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: time
+    effects:
+    - kind: emit
+      name: time-received
+  - name: D1-5-close
+    from: received
+    to: closed
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: fin
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: D1-5-close
+      payload: {}
+    - kind: close
+  - name: R-TCP-3-observe-close
+    from: connecting
+    to: closed
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: fin
+    effects:
+    - kind: emit
+      name: no-time
+    - kind: close
+- name: server
+  initial: listening
+  states:
+  - listening
+  - sent
+  - closed
+  transitions:
+  - name: D1-3-R-TCP-1-send-time
+    from: listening
+    to: sent
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: connect
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: time
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: D1-3-R-TCP-1-send-time
+      payload:
+        seconds:
+          kind: literal
+          value: 2629584000
+    - kind: emit
+      name: time-sent
+  - name: R-TCP-3-unable-close
+    from: listening
+    to: closed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: connect
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: fin
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R-TCP-3-unable-close
+      payload: {}
+    - kind: close
+  - name: D1-6-R-TCP-2-close
+    from: sent
+    to: closed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: fin
+    effects:
+    - kind: close
+messages:
+- name: connect
+  fields: []
+- name: time
+  fields:
+  - name: seconds
+    type: Integer
+- name: fin
+  fields: []
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties:
+- kind: event_count
+  name: time-sent-once
+  participant: server
+  event: time-sent
+  max: 1

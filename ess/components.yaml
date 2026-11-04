@@ -2,7 +2,7 @@ components:
   - component: rfcspec
     summary: >-
       The rfcspec binary. It reads locked sources into the catalogue, records proposals, writes
-      review decisions to a profile's overlay and records requirement statuses, all offline.
+      review decisions to a profile's overlay and records machines and requirement statuses, all offline.
     owns:
       domains:
         - rfcspec.catalogue
@@ -11,21 +11,35 @@ components:
     accepts:
       commands:
         - rfcspec.catalogue.ReadRfc
+        - rfcspec.catalogue.ClassifyRfc
         - rfcspec.catalogue.ReadSection
+        - rfcspec.catalogue.MarkSectionStale
+        - rfcspec.catalogue.ConfirmSection
         - rfcspec.catalogue.ExtractRequirement
         - rfcspec.catalogue.ProposeRequirement
-        - rfcspec.catalogue.MarkRequirementProposed
         - rfcspec.catalogue.AcceptRequirement
+        - rfcspec.catalogue.SetRequirementLevel
         - rfcspec.catalogue.RejectRequirement
         - rfcspec.catalogue.MarkRequirementStale
         - rfcspec.catalogue.ExtractDefinedTerm
+        - rfcspec.catalogue.MarkDefinedTermStale
+        - rfcspec.catalogue.ConfirmDefinedTerm
         - rfcspec.catalogue.ExtractGrammar
+        - rfcspec.catalogue.SetGrammarDialect
+        - rfcspec.catalogue.MarkGrammarStale
+        - rfcspec.catalogue.ConfirmGrammar
         - rfcspec.catalogue.ExtractLayout
+        - rfcspec.catalogue.MarkLayoutStale
+        - rfcspec.catalogue.ConfirmLayout
         - rfcspec.catalogue.ReadRegistry
         - rfcspec.catalogue.ExtractLimit
+        - rfcspec.catalogue.MarkLimitStale
+        - rfcspec.catalogue.ConfirmLimit
         - rfcspec.profile.DeclareProfile
+        - rfcspec.profile.ReviseProfile
         - rfcspec.profile.RecordMachine
         - rfcspec.profile.RecordStatus
+        - rfcspec.profile.RecordSatisfiedStatus
         - rfcspec.review.RecordProposal
         - rfcspec.review.DecideProposal
         - rfcspec.review.RecordDecision
@@ -38,6 +52,7 @@ components:
         - rfcspec.catalogue.RequirementExtracted
         - rfcspec.catalogue.RequirementProposed
         - rfcspec.catalogue.RequirementAccepted
+        - rfcspec.catalogue.RequirementLevelSet
         - rfcspec.catalogue.RequirementRejected
         - rfcspec.catalogue.RequirementStale
         - rfcspec.catalogue.DefinedTermExtracted
@@ -45,7 +60,20 @@ components:
         - rfcspec.catalogue.LayoutExtracted
         - rfcspec.catalogue.RegistryRead
         - rfcspec.catalogue.LimitExtracted
+        - rfcspec.catalogue.RfcClassified
+        - rfcspec.catalogue.GrammarDialectSet
+        - rfcspec.catalogue.SectionStale
+        - rfcspec.catalogue.SectionConfirmed
+        - rfcspec.catalogue.DefinedTermStale
+        - rfcspec.catalogue.DefinedTermConfirmed
+        - rfcspec.catalogue.GrammarStale
+        - rfcspec.catalogue.GrammarConfirmed
+        - rfcspec.catalogue.LayoutStale
+        - rfcspec.catalogue.LayoutConfirmed
+        - rfcspec.catalogue.LimitStale
+        - rfcspec.catalogue.LimitConfirmed
         - rfcspec.profile.ProfileDeclared
+        - rfcspec.profile.ProfileRevised
         - rfcspec.profile.MachineRecorded
         - rfcspec.profile.StatusRecorded
         - rfcspec.review.ProposalRecorded

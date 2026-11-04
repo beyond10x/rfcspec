@@ -1,0 +1,53 @@
+type: ess-scenario/1
+domain: rfcspec.catalogue
+scenario: propose-requirement-already-exists
+summary: A requirement from prose recorded a second time is refused, and the first record stays Accepted.
+
+timeline:
+  - at: 2026-11-04T09:00:00Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: telnet, item: rfc854/R1-1, text_digest: "0c"}
+      kind: Accept
+    outcome: recorded
+
+  - at: 2026-11-04T09:00:01Z
+    command: rfcspec.catalogue.ProposeRequirement
+    actor: rfcspec.review.Reviewer
+    input:
+      requirement_id: rfc854/R1-1
+      rfc: 854
+      section_id: rfc854/s/1
+      ordinal: 1
+      text: The server should echo the option.
+      span: {rfc: 854, section: "1", start: 0, end: 34, digest: "0c"}
+      party: server
+      decision: {profile: telnet, item: rfc854/R1-1, text_digest: "0c"}
+    outcome: proposed
+
+  - at: 2026-11-04T09:00:02Z
+    command: rfcspec.catalogue.ProposeRequirement
+    actor: rfcspec.review.Reviewer
+    input:
+      requirement_id: rfc854/R1-1
+      rfc: 854
+      section_id: rfc854/s/1
+      ordinal: 1
+      text: The server should echo the option.
+      span: {rfc: 854, section: "1", start: 0, end: 34, digest: "0c"}
+      party: server
+      decision: {profile: telnet, item: rfc854/R1-1, text_digest: "0c"}
+    outcome: already-exists
+    error:
+      name: rfcspec.catalogue.AlreadyExists
+
+assert:
+  - view: rfcspec.catalogue.Requirements
+    counts: {at_least: 1, at_most: 1}
+  - view: rfcspec.catalogue.Requirements
+    contains:
+      requirement_id: rfc854/R1-1
+      state: Accepted
+      source: Prose
+      party: server

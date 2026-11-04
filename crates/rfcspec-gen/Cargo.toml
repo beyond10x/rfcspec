@@ -1,0 +1,20 @@
+[package]
+name = "rfcspec-gen"
+description = "Generates a Rust codec crate from a profile's reviewed layout, with the RFC's own examples as tests."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+rfcspec-model = { path = "../rfcspec-model" }
+
+[dev-dependencies]
+rfcspec-doc = { path = "../rfcspec-doc" }
+rfcspec-extract = { path = "../rfcspec-extract" }
+tempfile = "3"
+
+[lints]
+workspace = true

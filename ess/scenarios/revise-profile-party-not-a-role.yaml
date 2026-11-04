@@ -1,0 +1,61 @@
+type: ess-scenario/1
+domain: rfcspec.profile
+scenario: revise-profile-party-not-a-role
+summary: Semantics that drop the role of a party in scope are refused, and the profile keeps its semantics.
+
+timeline:
+  - at: 2026-11-04T09:00:00Z
+    command: rfcspec.profile.DeclareProfile
+    actor: rfcspec.profile.Author
+    input:
+      profile: websocket
+      rfcs: []
+      parties: [client]
+      semantics:
+        - layer: Protocol
+          unit: Messages
+          delivery: {ordered: true, reliable: true, duplicates: false}
+          direction: FullDuplex
+          multiplexing: Single
+          exchange: Session
+          correlation: None
+          lifetime: Connection
+          roles: [client, server]
+    outcome: declared
+
+  - at: 2026-11-04T09:00:01Z
+    command: rfcspec.profile.ReviseProfile
+    actor: rfcspec.review.Reviewer
+    input:
+      profile: websocket
+      semantics:
+        - layer: Protocol
+          unit: Messages
+          delivery: {ordered: true, reliable: true, duplicates: false}
+          direction: FullDuplex
+          multiplexing: Single
+          exchange: Session
+          correlation: None
+          lifetime: Connection
+          roles: [server]
+      decision: {profile: websocket, item: websocket, text_digest: "0e"}
+    outcome: party-not-a-role
+    error:
+      name: rfcspec.profile.PartyNotARole
+      fields: {profile: websocket}
+
+assert:
+  - view: rfcspec.profile.Profiles
+    contains:
+      profile: websocket
+      parties: [client]
+      semantics:
+        - layer: Protocol
+          unit: Messages
+          delivery: {ordered: true, reliable: true, duplicates: false}
+          direction: FullDuplex
+          multiplexing: Single
+          exchange: Session
+          correlation: None
+          lifetime: Connection
+          roles: [client, server]
