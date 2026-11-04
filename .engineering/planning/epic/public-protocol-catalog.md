@@ -2,12 +2,16 @@
 format: aep.planning-md/3
 id: epic:public-protocol-catalog
 kind: epic
-status: draft
+status: implemented
 title: Public protocol catalogue under /docs/catalog
 summary: Every RFCspec profile listed and documented on the public site, generated from profiles/.
 relations:
 - depends_on: epic:rfc868-thin-slice
-revision: 1
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-04T23:34:09Z", actor: "human:timo", revision: 3, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-04T23:34:09Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "active", to: "implemented", at: "2026-11-04T23:50:42Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 ## Outcome
 
@@ -30,3 +34,12 @@ protocol RFCspec has turned into a specification: WebSocket, SIP, the Time Proto
 
 The profile layout and the catalogue, overlay and lowering commands of
 `epic:rfc868-thin-slice`; the Time Protocol is the first entry.
+
+## Acceptance
+
+On a clean checkout, `task check` exits 0 and `task website` builds, and the built site serves
+`/rfcspec/docs/catalog/` (index with one row for `time`: RFC 868, kind K1, stage S6, 4 MUST and
+2 SHOULD, 6 satisfied, conformance "no recorded run") and `/rfcspec/docs/catalog/time` (RFC 868
+linked to rfc-editor.org, two semantics rows `tcp` and `udp`, six requirement rows, "no ESS gap",
+four downloads byte-identical to `profiles/time/generated/`). Editing any generated catalogue
+file by one byte makes `task check` exit 1.

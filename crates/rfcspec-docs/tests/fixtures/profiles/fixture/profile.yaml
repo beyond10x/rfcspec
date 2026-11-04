@@ -1,0 +1,5 @@
+name: fixture
+rfcs:
+  - number: 9999
+    title: 'A {braced} <Fixture> | Protocol'
+    sections: ['1']

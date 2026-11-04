@@ -2,7 +2,7 @@ components:
   - component: rfcspec
     summary: >-
       The rfcspec binary. It reads locked sources into the catalogue, records proposals, writes
-      review decisions to a profile's overlay and records machines and requirement statuses, all offline.
+      review decisions to a profile's overlay and records machines, requirement statuses and runs, all offline.
     owns:
       domains:
         - rfcspec.catalogue
@@ -40,6 +40,7 @@ components:
         - rfcspec.profile.RecordMachine
         - rfcspec.profile.RecordStatus
         - rfcspec.profile.RecordSatisfiedStatus
+        - rfcspec.profile.RecordRun
         - rfcspec.review.RecordProposal
         - rfcspec.review.DecideProposal
         - rfcspec.review.RecordDecision
@@ -76,6 +77,7 @@ components:
         - rfcspec.profile.ProfileRevised
         - rfcspec.profile.MachineRecorded
         - rfcspec.profile.StatusRecorded
+        - rfcspec.profile.RunRecorded
         - rfcspec.review.ProposalRecorded
         - rfcspec.review.ProposalDecided
         - rfcspec.review.DecisionRecorded

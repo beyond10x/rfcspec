@@ -1,6 +1,6 @@
 [package]
 name = "rfcspec-docs"
-description = "Generates the derived pages of the RFCspec documentation site (design, status) and checks them for drift."
+description = "Generates the derived pages of the RFCspec documentation site (design, status, protocol catalogue) and checks them for drift."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 anyhow = "1"
 clap = { version = "4.5", features = ["derive"] }
+rfcspec-model = { path = "../rfcspec-model" }
 serde_json = "1"
 
 [lints]

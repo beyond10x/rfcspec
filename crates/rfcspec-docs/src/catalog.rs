@@ -1,0 +1,832 @@
+//! The protocol catalogue under `website/docs/catalog/`: an index with one row per profile
+//! directory under `profiles/`, one page per profile, and each profile's `generated/` files copied
+//! to `website/static/downloads/<name>/` as downloads. Everything here is a projection of the
+//! profile directories; nothing on the pages is written by hand.
+
+use std::{
+    collections::BTreeMap,
+    fmt, fs,
+    path::{Path, PathBuf},
+};
+
+use anyhow::{Context, Result, bail};
+use rfcspec_model::{
+    LOCK_FILE, Lock, OVERLAY_FILE, Overlay, PROFILE_FILE, Profile, RUNS_DIR, RunReport, Status,
+    newest, read_runs, read_yaml, sha256_hex, wire,
+};
+
+use crate::page::{Meta, SOURCE, cell, front_matter};
+
+/// The profile directories, relative to the repository root.
+pub const PROFILES: &str = "profiles";
+/// Where the catalogue pages land, relative to the repository root.
+pub const PAGES: &str = "website/docs/catalog";
+/// The catalogue index.
+pub const INDEX: &str = "website/docs/catalog/index.md";
+/// Where the downloads land, relative to the repository root.
+pub const DOWNLOADS: &str = "website/static/downloads";
+/// The route of the catalogue, under the site's base URL.
+pub const ROUTE: &str = "/docs/catalog";
+/// The gaps table of the design page.
+pub const GAPS: &str = "/docs/design#7-lowering-to-ess-and-the-gaps";
+
+/// The highest pipeline stage (design section 4) whose output is checked into a profile. S1 to S3
+/// store nothing in a profile and are never reported.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Stage {
+    /// `rfcspec.lock`, with every locked source present at its SHA-256.
+    S0,
+    /// `overlay.yaml`.
+    S4,
+    /// `generated/*.protospec.yaml`.
+    S5,
+    /// `generated/rust/Cargo.toml`.
+    S6,
+    /// A recorded run under `runs/`.
+    S7,
+}
+
+impl fmt::Display for Stage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+/// Whether every source of the profile's lock is present at its SHA-256.
+fn locked(dir: &Path) -> bool {
+    let Ok(lock) = read_yaml::<Lock>(&dir.join(LOCK_FILE)) else {
+        return false;
+    };
+    !lock.sources.is_empty()
+        && lock.sources.iter().all(|entry| {
+            fs::read(dir.join(&entry.file)).is_ok_and(|bytes| sha256_hex(&bytes) == entry.sha256)
+        })
+}
+
+fn has_file(dir: &Path, matches: impl Fn(&str) -> bool) -> bool {
+    fs::read_dir(dir).is_ok_and(|entries| {
+        entries
+            .filter_map(std::result::Result::ok)
+            .any(|entry| entry.path().is_file() && entry.file_name().to_str().is_some_and(&matches))
+    })
+}
+
+/// The stage a profile directory has reached, or `None` when it holds no stage's output.
+pub fn stage(dir: &Path) -> Option<Stage> {
+    [
+        (
+            Stage::S7,
+            has_file(&dir.join(RUNS_DIR), |n| n.ends_with(".json")),
+        ),
+        (Stage::S6, dir.join("generated/rust/Cargo.toml").is_file()),
+        (
+            Stage::S5,
+            has_file(&dir.join("generated"), |n| n.ends_with(".protospec.yaml")),
+        ),
+        (Stage::S4, dir.join(OVERLAY_FILE).is_file()),
+        (Stage::S0, locked(dir)),
+    ]
+    .into_iter()
+    .find_map(|(stage, reached)| reached.then_some(stage))
+}
+
+/// One file under a profile's `generated/`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Artifact {
+    /// Relative to `generated/`, `/`-separated.
+    pub path: String,
+    pub text: String,
+}
+
+/// One profile directory, read.
+#[derive(Clone, Debug)]
+pub struct Entry {
+    /// The directory's name.
+    pub name: String,
+    /// The directory, relative to the repository root, `/`-separated.
+    pub path: String,
+    pub profile: Profile,
+    pub overlay: Option<Overlay>,
+    pub stage: Option<Stage>,
+    pub generated: Vec<Artifact>,
+    /// The recorded runs, `(file name, report)`.
+    pub runs: Vec<(String, RunReport)>,
+}
+
+fn walk(base: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .map(|entry| entry.map(|e| e.path()))
+        .collect::<std::io::Result<_>>()?;
+    entries.sort();
+    for path in entries {
+        if path.is_dir() {
+            walk(base, &path, out)?;
+        } else {
+            out.push(path.strip_prefix(base).unwrap_or(&path).to_path_buf());
+        }
+    }
+    Ok(())
+}
+
+/// Every file under `dir`, relative to it, `/`-separated and sorted; none when `dir` is absent.
+pub fn files(dir: &Path) -> Result<Vec<String>> {
+    let mut out = Vec::new();
+    if dir.is_dir() {
+        walk(dir, dir, &mut out)?;
+    }
+    Ok(out
+        .iter()
+        .map(|path| {
+            path.components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .collect())
+}
+
+/// Read the profile directory `root/relative`.
+pub fn load(root: &Path, relative: &str) -> Result<Entry> {
+    let dir = root.join(relative);
+    let name = dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .with_context(|| format!("{relative} has no directory name"))?
+        .to_owned();
+    let profile: Profile = read_yaml(&dir.join(PROFILE_FILE))?;
+    let overlay = if dir.join(OVERLAY_FILE).is_file() {
+        Some(read_yaml(&dir.join(OVERLAY_FILE))?)
+    } else {
+        None
+    };
+    let generated = files(&dir.join("generated"))?
+        .into_iter()
+        .map(|path| {
+            let file = dir.join("generated").join(&path);
+            let bytes = fs::read(&file).with_context(|| format!("reading {}", file.display()))?;
+            let text = String::from_utf8(bytes).with_context(|| {
+                format!("{relative}/generated/{path} is not UTF-8 and is not published")
+            })?;
+            Ok(Artifact { path, text })
+        })
+        .collect::<Result<_>>()?;
+    Ok(Entry {
+        stage: stage(&dir),
+        runs: read_runs(&dir)?,
+        path: relative.trim_end_matches('/').to_owned(),
+        name,
+        profile,
+        overlay,
+        generated,
+    })
+}
+
+/// Every profile directory under `root/profiles/`, by name.
+pub fn entries(root: &Path) -> Result<Vec<Entry>> {
+    let dir = root.join(PROFILES);
+    let mut names: Vec<String> = fs::read_dir(&dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .filter_map(std::result::Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    names.sort();
+    names
+        .iter()
+        .map(|name| {
+            if name == "index" {
+                bail!("{PROFILES}/index would overwrite the catalogue index; rename it");
+            }
+            load(root, &format!("{PROFILES}/{name}"))
+        })
+        .collect()
+}
+
+/// Every catalogue file, by path relative to the repository root.
+pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
+    let entries = entries(root)?;
+    let mut out = BTreeMap::from([(INDEX.to_owned(), index(&entries))]);
+    for entry in &entries {
+        out.insert(format!("{PAGES}/{}.md", entry.name), page(entry));
+        for artifact in &entry.generated {
+            out.insert(
+                format!("{DOWNLOADS}/{}/{}", entry.name, artifact.path),
+                artifact.text.clone(),
+            );
+        }
+    }
+    Ok(out)
+}
+
+/// The rank of a BCP 14 level, so counts read MUST before SHOULD before MAY.
+fn rank(level: &str) -> usize {
+    [
+        "MUST",
+        "MUST NOT",
+        "REQUIRED",
+        "SHALL",
+        "SHALL NOT",
+        "SHOULD",
+        "SHOULD NOT",
+        "RECOMMENDED",
+        "NOT RECOMMENDED",
+        "MAY",
+        "OPTIONAL",
+    ]
+    .iter()
+    .position(|known| *known == level)
+    .unwrap_or(usize::MAX)
+}
+
+/// Requirement counts by level, `4 MUST, 2 SHOULD`; `none` without requirements.
+pub fn level_counts(overlay: Option<&Overlay>) -> String {
+    let mut counts: BTreeMap<(usize, &str), usize> = BTreeMap::new();
+    for requirement in overlay.map_or(&[][..], |o| &o.requirements) {
+        *counts
+            .entry((rank(&requirement.level), requirement.level.as_str()))
+            .or_default() += 1;
+    }
+    if counts.is_empty() {
+        return "none".into();
+    }
+    counts
+        .iter()
+        .map(|((_, level), n)| format!("{n} {level}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Requirement counts by status: satisfied, unsupported, not applicable.
+pub fn status_counts(overlay: Option<&Overlay>) -> [usize; 3] {
+    let mut counts = [0; 3];
+    for requirement in overlay.map_or(&[][..], |o| &o.requirements) {
+        counts[match requirement.status {
+            Status::Satisfied(_) => 0,
+            Status::Unsupported(_) => 1,
+            Status::NotApplicable(_) => 2,
+        }] += 1;
+    }
+    counts
+}
+
+fn kind(entry: &Entry) -> String {
+    entry
+        .overlay
+        .as_ref()
+        .and_then(|o| o.kind)
+        .map_or_else(|| "unclassified".into(), |k| k.to_string())
+}
+
+fn stage_cell(entry: &Entry) -> String {
+    entry.stage.map_or_else(|| "none".into(), |s| s.to_string())
+}
+
+/// The newest recorded run as `verdict` linked to its file, target and date; else `no recorded run`.
+fn conformance_cell(entry: &Entry) -> String {
+    match newest(&entry.runs) {
+        None => "no recorded run".into(),
+        Some((file, report)) => format!(
+            "[{}]({SOURCE}/{}/{RUNS_DIR}/{file}), {}, {}",
+            report.verdict,
+            entry.path,
+            cell(&report.target),
+            report.date()
+        ),
+    }
+}
+
+/// The catalogue index: one row per profile, in the order given.
+pub fn index(entries: &[Entry]) -> String {
+    let mut page = front_matter(&Meta {
+        title: "Protocol catalogue",
+        label: "All profiles",
+        description: "Every protocol RFCspec has turned into a specification, one row per profile: its RFCs, kind, stage reached, requirement counts and conformance verdict.",
+        position: 1,
+    });
+    page.push_str(&format!(
+        ":::note[Generated]\nThis page is generated by `rfcspec-docs` from the profile directories under [`{PROFILES}/`]({SOURCE}/{PROFILES}) on `main`.\n:::\n\n"
+    ));
+    page.push_str(
+        "One row per profile. Kind is the RFC's primary kind ([RFC kinds](/docs/concepts/rfc-kinds)). Stage is the highest pipeline stage whose output is checked into the profile: S0 locked sources, S4 the reviewed overlay, S5 the lowered ESS models, S6 generated code, S7 a recorded conformance run. Conformance is the overall verdict of the newest recorded run.\n\n",
+    );
+    if entries.is_empty() {
+        page.push_str("No profile yet.\n");
+        return page;
+    }
+    page.push_str("| Profile | RFCs | Kind | Stage | Requirements | Satisfied | Unsupported | Not applicable | Conformance |\n|---|---|---|---|---|---|---|---|---|\n");
+    for entry in entries {
+        let rfcs = entry
+            .profile
+            .rfcs
+            .iter()
+            .map(|rfc| format!("RFC {} {}", rfc.number, cell(&rfc.title)))
+            .collect::<Vec<_>>()
+            .join("; ");
+        let [satisfied, unsupported, not_applicable] = status_counts(entry.overlay.as_ref());
+        page.push_str(&format!(
+            "| [{}]({ROUTE}/{}) | {rfcs} | {} | {} | {} | {satisfied} | {unsupported} | {not_applicable} | {} |\n",
+            cell(&entry.name),
+            entry.name,
+            kind(entry),
+            stage_cell(entry),
+            level_counts(entry.overlay.as_ref()),
+            conformance_cell(entry),
+        ));
+    }
+    page
+}
+
+/// The gap a reason names, `ess-gap G<n>`, by its number.
+pub fn gap(reason: &str) -> Option<u32> {
+    let rest = reason.split_once("ess-gap")?.1.trim_start();
+    let digits: String = rest
+        .strip_prefix('G')?
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
+/// What a generated file is, for the downloads table.
+fn artifact_kind(entry: &Entry, path: &str) -> String {
+    if path.starts_with("rust/") {
+        return "generated Rust crate".into();
+    }
+    match path.strip_suffix(".protospec.yaml") {
+        Some(machine)
+            if !machine.contains('/')
+                && entry
+                    .overlay
+                    .as_ref()
+                    .is_some_and(|o| o.machines.iter().any(|m| m.name == machine)) =>
+        {
+            format!("`ess-protospec/1` model of machine `{machine}`")
+        }
+        Some(_) => "`ess-protospec/1` model".into(),
+        None => "generated file".into(),
+    }
+}
+
+fn status_cells(status: &Status) -> (&'static str, &str) {
+    match status {
+        Status::Satisfied(element) => ("satisfied", element),
+        Status::Unsupported(reason) => ("unsupported", reason),
+        Status::NotApplicable(reason) => ("not applicable", reason),
+    }
+}
+
+/// The page of one profile.
+pub fn page(entry: &Entry) -> String {
+    let titles = entry
+        .profile
+        .rfcs
+        .iter()
+        .map(|rfc| format!("RFC {} {}", rfc.number, rfc.title))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let mut page = front_matter(&Meta {
+        title: &entry.name,
+        label: &entry.name,
+        description: &format!(
+            "The {} profile of the RFCspec protocol catalogue ({titles}): its RFCs, communication semantics, requirement matrix, ESS gaps, conformance and downloads.",
+            entry.name
+        ),
+        position: 10,
+    });
+    page.push_str(&format!(
+        ":::note[Generated]\nThis page is generated by `rfcspec-docs` from [`{path}/`]({SOURCE}/{path}) on `main`.\n:::\n\n",
+        path = entry.path
+    ));
+    page.push_str(&format!(
+        "Part of the [protocol catalogue]({ROUTE}). Kind {}, stage reached {}, conformance {}.\n\n",
+        kind(entry),
+        stage_cell(entry),
+        conformance_cell(entry)
+    ));
+    rfcs(&mut page, entry);
+    semantics(&mut page, entry);
+    matrix(&mut page, entry);
+    gaps(&mut page, entry);
+    conformance(&mut page, entry);
+    downloads(&mut page, entry);
+    page
+}
+
+fn rfcs(page: &mut String, entry: &Entry) {
+    page.push_str("## RFCs\n\n| RFC | Title | Sections in scope | Kind |\n|---|---|---|---|\n");
+    for rfc in &entry.profile.rfcs {
+        let sections = if rfc.sections.is_empty() {
+            "the whole RFC".to_owned()
+        } else {
+            cell(&rfc.sections.join("; "))
+        };
+        let kind = entry
+            .overlay
+            .as_ref()
+            .filter(|o| o.rfc == rfc.number)
+            .and_then(|o| o.kind)
+            .map_or_else(
+                || "unclassified".to_owned(),
+                |k| format!("{k} {}", k.label()),
+            );
+        page.push_str(&format!(
+            "| [RFC {n}](https://www.rfc-editor.org/rfc/rfc{n}) | {} | {sections} | {} |\n",
+            cell(&rfc.title),
+            cell(&kind),
+            n = rfc.number,
+        ));
+    }
+    page.push('\n');
+}
+
+fn semantics(page: &mut String, entry: &Entry) {
+    page.push_str("## Communication semantics\n\n");
+    if entry.profile.semantics.is_empty() {
+        page.push_str("No communication semantics declared.\n\n");
+        return;
+    }
+    page.push_str("One row per layer, as `profile.yaml` declares them ([communication semantics](/docs/concepts/communication-semantics)).\n\n| Layer | Unit | Delivery | Direction | Multiplexing | Exchange | Correlation | Lifetime | Over | Roles |\n|---|---|---|---|---|---|---|---|---|---|\n");
+    for layer in &entry.profile.semantics {
+        page.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |\n",
+            cell(&layer.layer),
+            wire(&layer.unit),
+            layer.delivery.describe(),
+            wire(&layer.direction),
+            wire(&layer.multiplexing),
+            wire(&layer.exchange),
+            wire(&layer.correlation),
+            wire(&layer.lifetime),
+            layer
+                .over
+                .as_ref()
+                .map_or_else(|| "not declared".to_owned(), |o| cell(&o.describe())),
+            cell(&layer.roles.join(", ")),
+        ));
+    }
+    page.push('\n');
+}
+
+fn matrix(page: &mut String, entry: &Entry) {
+    page.push_str("## Requirement matrix\n\n");
+    let Some(overlay) = &entry.overlay else {
+        page.push_str("No reviewed overlay yet.\n\n");
+        return;
+    };
+    page.push_str(&format!(
+        "One row per requirement of [`overlay.yaml`]({SOURCE}/{}/{OVERLAY_FILE}), in its order. The source is the line span in RFC {}.\n\n| Id | Level | Transports | Quote | Source | Status | Element or reason |\n|---|---|---|---|---|---|---|\n",
+        entry.path, overlay.rfc
+    ));
+    for requirement in &overlay.requirements {
+        let transports = if requirement.transports.is_empty() {
+            "all".to_owned()
+        } else {
+            requirement.transports.join(", ")
+        };
+        let (status, detail) = status_cells(&requirement.status);
+        page.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {status} | {} |\n",
+            cell(&requirement.id),
+            cell(&requirement.level),
+            cell(&transports),
+            cell(&requirement.quote),
+            requirement.span,
+            cell(detail),
+        ));
+    }
+    page.push('\n');
+}
+
+fn gaps(page: &mut String, entry: &Entry) {
+    page.push_str("## ESS gaps\n\n");
+    let mut by_gap: BTreeMap<u32, Vec<&str>> = BTreeMap::new();
+    let mut other: Vec<(&str, &str)> = Vec::new();
+    for requirement in entry.overlay.iter().flat_map(|o| &o.requirements) {
+        if let Status::Unsupported(reason) = &requirement.status {
+            match gap(reason) {
+                Some(n) => by_gap.entry(n).or_default().push(&requirement.id),
+                None => other.push((&requirement.id, reason)),
+            }
+        }
+    }
+    if by_gap.is_empty() && other.is_empty() {
+        page.push_str("No ESS gap: every requirement in scope lowers.\n\n");
+        return;
+    }
+    if by_gap.is_empty() {
+        page.push_str("No ESS gap.\n\n");
+    } else {
+        page.push_str(&format!(
+            "Requirements marked unsupported because ESS cannot carry their rule yet, by gap of the [gaps table]({GAPS}).\n\n| Gap | Requirements |\n|---|---|\n"
+        ));
+        for (n, ids) in &by_gap {
+            page.push_str(&format!(
+                "| [G{n}]({GAPS}) | {} |\n",
+                ids.iter().map(|id| cell(id)).collect::<Vec<_>>().join(", ")
+            ));
+        }
+        page.push('\n');
+    }
+    if !other.is_empty() {
+        page.push_str("### Unsupported, no ESS gap\n\n| Requirement | Reason |\n|---|---|\n");
+        for (id, reason) in other {
+            page.push_str(&format!("| {} | {} |\n", cell(id), cell(reason)));
+        }
+        page.push('\n');
+    }
+}
+
+fn conformance(page: &mut String, entry: &Entry) {
+    page.push_str("## Conformance\n\n");
+    match newest(&entry.runs) {
+        None => page.push_str(&format!(
+            "There is no recorded run: no report under `{}/{RUNS_DIR}/`.\n\n",
+            entry.path
+        )),
+        Some((file, report)) => page.push_str(&format!(
+            "The newest recorded run of `rfcspec verify`, of {} under `{}/{RUNS_DIR}/`.\n\n| Verdict | Target | Date | rfcspec | Report |\n|---|---|---|---|---|\n| {} | {} | {} | {} | [{}]({SOURCE}/{}/{RUNS_DIR}/{file}) |\n\n",
+            entry.runs.len(),
+            entry.path,
+            report.verdict,
+            cell(&report.target),
+            report.date(),
+            cell(&report.rfcspec),
+            cell(file),
+            entry.path,
+        )),
+    }
+}
+
+fn downloads(page: &mut String, entry: &Entry) {
+    page.push_str("## Downloads\n\n");
+    if entry.generated.is_empty() {
+        page.push_str("No generated artifacts yet.\n");
+        return;
+    }
+    page.push_str(&format!(
+        "The files under [`{path}/generated/`]({SOURCE}/{path}/generated), copied unchanged.\n\n| File | What | Bytes | SHA-256 |\n|---|---|---|---|\n",
+        path = entry.path
+    ));
+    for artifact in &entry.generated {
+        page.push_str(&format!(
+            "| [`{path}`](pathname://{base}downloads/{name}/{path}) | {} | {} | `{}` |\n",
+            artifact_kind(entry, &artifact.path),
+            artifact.text.len(),
+            sha256_hex(artifact.text.as_bytes()),
+            path = artifact.path,
+            base = crate::page::BASE_URL,
+            name = entry.name,
+        ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn repository() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    const FIXTURES: &str = "crates/rfcspec-docs/tests/fixtures/profiles";
+
+    fn time() -> Entry {
+        load(&repository(), "profiles/time").unwrap()
+    }
+
+    fn fixture() -> Entry {
+        load(&repository(), &format!("{FIXTURES}/fixture")).unwrap()
+    }
+
+    /// The table rows of the section headed `heading`, header and separator dropped.
+    fn rows<'a>(page: &'a str, heading: &str) -> Vec<&'a str> {
+        let section = page.split(heading).nth(1).unwrap_or_default();
+        let section = section.split("\n## ").next().unwrap_or_default();
+        section
+            .lines()
+            .filter(|l| l.starts_with('|'))
+            .skip(2)
+            .collect()
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = repository()
+            .join("target/rfcspec-docs")
+            .join(format!("catalog-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_stage_is_the_highest_output_checked_in() {
+        let dir = scratch("stage");
+        assert_eq!(stage(&dir), None);
+        let time = repository().join("profiles/time");
+        let copy = |file: &str| {
+            fs::create_dir_all(dir.join(file).parent().unwrap()).unwrap();
+            fs::copy(time.join(file), dir.join(file)).unwrap();
+        };
+        copy("profile.yaml");
+        copy(LOCK_FILE);
+        assert_eq!(stage(&dir), None, "a locked source must be present");
+        fs::create_dir_all(dir.join("sources")).unwrap();
+        fs::write(dir.join("sources/rfc868.txt"), "not the RFC\n").unwrap();
+        assert_eq!(stage(&dir), None, "a locked source must match its SHA-256");
+        copy("sources/rfc868.txt");
+        assert_eq!(stage(&dir), Some(Stage::S0));
+        copy(OVERLAY_FILE);
+        assert_eq!(stage(&dir), Some(Stage::S4));
+        copy("generated/tcp.protospec.yaml");
+        assert_eq!(stage(&dir), Some(Stage::S5));
+        copy("generated/rust/Cargo.toml");
+        assert_eq!(stage(&dir), Some(Stage::S6));
+        fs::create_dir_all(dir.join(RUNS_DIR)).unwrap();
+        fs::write(dir.join("runs/notes.txt"), "").unwrap();
+        assert_eq!(stage(&dir), Some(Stage::S6), "only a .json report is a run");
+        fs::write(dir.join("runs/tcp-127.0.0.1-37.json"), "{}").unwrap();
+        assert_eq!(stage(&dir), Some(Stage::S7));
+        fs::remove_dir_all(dir).unwrap();
+        assert_eq!(time_stage(), Some(Stage::S6));
+    }
+
+    fn time_stage() -> Option<Stage> {
+        stage(&repository().join("profiles/time"))
+    }
+
+    #[test]
+    fn the_index_lists_each_profile_in_name_order_with_counts_and_stage() {
+        let mut entries = vec![time(), fixture()];
+        entries.sort_by(|a, b| a.name.cmp(&b.name));
+        let page = index(&entries);
+        let rows = rows(&page, "newest recorded run.");
+        assert_eq!(rows.len(), 2, "{page}");
+        assert_eq!(
+            rows[0],
+            "| [fixture](/docs/catalog/fixture) | RFC 9999 A \\{braced\\} &lt;Fixture> \\| Protocol | unclassified | S4 | 1 MUST, 1 SHOULD, 1 MAY | 1 | 1 | 1 | no recorded run |"
+        );
+        assert_eq!(
+            rows[1],
+            "| [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | no recorded run |"
+        );
+        assert!(crate::page::passive_problems(&page).is_empty(), "{page}");
+    }
+
+    #[test]
+    fn the_matrix_has_one_row_per_overlay_requirement() {
+        for entry in [time(), fixture()] {
+            let page = page(&entry);
+            assert_eq!(
+                rows(&page, "## Requirement matrix").len(),
+                entry.overlay.as_ref().unwrap().requirements.len(),
+                "{page}"
+            );
+        }
+        let page = page(&time());
+        assert!(page.contains("| R-TCP-1 | MUST | tcp | When the connection is established, the server returns a 32-bit time value | lines 44-45 | satisfied | tcp.server.D1-3-R-TCP-1-send-time |"), "{page}");
+        assert!(page.contains("| R-TIME-1 | MUST | tcp, udp |"), "{page}");
+    }
+
+    #[test]
+    fn the_rfcs_link_to_the_rfc_editor() {
+        let page = page(&time());
+        assert_eq!(
+            rows(&page, "## RFCs"),
+            [
+                "| [RFC 868](https://www.rfc-editor.org/rfc/rfc868) | Time Protocol | Time Protocol; The Time | K1 wire protocol |"
+            ]
+        );
+        assert!(rows(&self::page(&fixture()), "## RFCs")[0].ends_with("| unclassified |"));
+    }
+
+    #[test]
+    fn gaps_are_grouped_and_an_unsupported_reason_without_a_gap_is_kept() {
+        let time = page(&time());
+        assert!(time.contains("## ESS gaps\n\nNo ESS gap: every requirement in scope lowers.\n"));
+        let fixture = page(&fixture());
+        assert_eq!(
+            rows(&fixture, "## ESS gaps")[0],
+            format!("| [G1]({GAPS}) | R-FIX-1 |")
+        );
+        let mut entry = self::fixture();
+        let overlay = entry.overlay.as_mut().unwrap();
+        overlay.requirements[1].status = Status::Unsupported("no model of the clock".into());
+        overlay.requirements.push(overlay.requirements[0].clone());
+        overlay.requirements[3].id = "R-FIX-4".into();
+        overlay.requirements[3].status = Status::Unsupported("needs ess-gap G12 and more".into());
+        let page = page(&entry);
+        assert!(
+            page.contains(&format!(
+                "| [G1]({GAPS}) | R-FIX-1 |\n| [G12]({GAPS}) | R-FIX-4 |\n"
+            )),
+            "{page}"
+        );
+        assert!(page.contains("### Unsupported, no ESS gap\n\n| Requirement | Reason |\n|---|---|\n| R-FIX-2 | no model of the clock |\n"), "{page}");
+        assert_eq!(gap("ess-gap G1"), Some(1));
+        assert_eq!(gap("ess-gap"), None);
+        assert_eq!(gap("an ess-gap Gx"), None);
+    }
+
+    #[test]
+    fn quotes_with_braces_tags_and_pipes_stay_passive() {
+        let page = page(&fixture());
+        assert!(
+            page.contains(
+                "| R-FIX-3 | MAY | all | A client MAY send \\{x\\}, &lt;Tag> or a \\| pipe. |"
+            ),
+            "{page}"
+        );
+        assert!(crate::page::passive_problems(&page).is_empty(), "{page}");
+        assert!(crate::page::passive_problems(&self::page(&time())).is_empty());
+    }
+
+    #[test]
+    fn a_profile_without_generated_files_has_no_downloads() {
+        let page = page(&fixture());
+        assert!(
+            page.ends_with("## Downloads\n\nNo generated artifacts yet.\n"),
+            "{page}"
+        );
+        assert!(fixture().generated.is_empty());
+    }
+
+    #[test]
+    fn the_time_downloads_list_every_generated_file_with_size_and_digest() {
+        let entry = time();
+        let page = page(&entry);
+        let rows = rows(&page, "## Downloads");
+        let paths: Vec<&str> = entry.generated.iter().map(|a| a.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            [
+                "rust/Cargo.toml",
+                "rust/src/lib.rs",
+                "tcp.protospec.yaml",
+                "udp.protospec.yaml"
+            ]
+        );
+        assert_eq!(rows.len(), 4, "{page}");
+        let tcp =
+            fs::read(repository().join("profiles/time/generated/tcp.protospec.yaml")).unwrap();
+        assert!(rows.contains(&format!(
+            "| [`tcp.protospec.yaml`](pathname:///rfcspec/downloads/time/tcp.protospec.yaml) | `ess-protospec/1` model of machine `tcp` | {} | `{}` |",
+            tcp.len(),
+            sha256_hex(&tcp)
+        ).as_str()), "{page}");
+        assert!(rows[0].contains("| generated Rust crate |"), "{page}");
+    }
+
+    #[test]
+    fn a_non_utf8_generated_file_is_refused_by_name() {
+        let root = scratch("binary");
+        fs::create_dir_all(root.join("p/generated")).unwrap();
+        fs::write(root.join("p/profile.yaml"), "name: p\nrfcs: []\n").unwrap();
+        fs::write(root.join("p/generated/blob.bin"), [0xff, 0xfe]).unwrap();
+        let error = format!("{:#}", load(&root, "p").unwrap_err());
+        assert!(
+            error.contains("p/generated/blob.bin is not UTF-8"),
+            "{error}"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn semantics_show_one_row_per_layer_or_a_sentence() {
+        let page = page(&time());
+        assert_eq!(
+            rows(&page, "## Communication semantics"),
+            [
+                "| tcp | bytes | ordered, reliable, no duplicates | simplex | single | one-shot | none | connection | not declared | client, server |",
+                "| udp | datagrams | unordered, lossy, duplicates | half-duplex | single | request-response | none | connectionless | not declared | client, server |",
+            ]
+        );
+        assert!(
+            self::page(&fixture())
+                .contains("## Communication semantics\n\nNo communication semantics declared.\n")
+        );
+    }
+
+    #[test]
+    fn the_newest_recorded_run_is_the_conformance_verdict() {
+        let entry = load(&repository(), &format!("{FIXTURES}/recorded")).unwrap();
+        assert_eq!(entry.stage, Some(Stage::S7));
+        assert_eq!(entry.runs.len(), 2);
+        let link = format!("{SOURCE}/{FIXTURES}/recorded/runs/tcp-127.0.0.1-37.json");
+        let page = page(&entry);
+        assert!(page.contains(&format!("| fail | tcp://127.0.0.1:37 | 2026-11-03 | 0.0.0 | [tcp-127.0.0.1-37.json]({link}) |")), "{page}");
+        let index = index(&[entry]);
+        assert!(
+            index.contains(&format!(
+                "| S7 | none | 0 | 0 | 0 | [fail]({link}), tcp://127.0.0.1:37, 2026-11-03 |"
+            )),
+            "{index}"
+        );
+        assert!(self::page(&time()).contains("There is no recorded run"));
+        assert!(index_of_time().contains("| no recorded run |"));
+    }
+
+    fn index_of_time() -> String {
+        index(&[time()])
+    }
+}

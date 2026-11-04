@@ -1,0 +1,109 @@
+format: ess-protospec/1
+name: rfc868-time-udp
+bounds:
+  max_steps: 32
+  max_states: 256
+  max_time_ms: 1000
+participants:
+- name: client
+  initial: idle
+  states:
+  - idle
+  - waiting
+  - received
+  inputs:
+  - name: request
+    fields: []
+  transitions:
+  - name: D2-2-send-request
+    from: idle
+    to: waiting
+    trigger:
+      kind: input
+      name: request
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: D2-2-send-request
+      payload: {}
+  - name: D2-5-receive-time
+    from: waiting
+    to: received
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: time
+    effects:
+    - kind: emit
+      name: time-received
+- name: server
+  initial: listening
+  states:
+  - listening
+  - replied
+  - discarded
+  transitions:
+  - name: D2-3-D2-4-R-UDP-1-reply-time
+    from: listening
+    to: replied
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: request
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: time
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: D2-3-D2-4-R-UDP-1-reply-time
+      payload:
+        seconds:
+          kind: literal
+          value: 2629584000
+    - kind: emit
+      name: time-sent
+  - name: R-UDP-2-discard
+    from: listening
+    to: discarded
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: request
+messages:
+- name: request
+  fields: []
+- name: time
+  fields:
+  - name: seconds
+    type: Integer
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties:
+- kind: event_count
+  name: time-sent-once
+  participant: server
+  event: time-sent
+  max: 1

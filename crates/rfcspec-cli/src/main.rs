@@ -2,6 +2,8 @@
 //! `rfcspec`: RFCs as executable specifications. Each subcommand is one pipeline stage
 //! (`docs/design/rfcspec.md` section 4) over one profile directory.
 
+mod checks;
+
 use std::{
     path::{Path, PathBuf},
     process::ExitCode,
@@ -48,10 +50,15 @@ enum Command {
         #[arg(long)]
         rfc: u32,
     },
-    /// S4: check the profile's overlay against the catalogue and the locked source.
+    /// S4: check the profile's overlay against the catalogue and the locked source, its
+    /// communication semantics against the overlay's machines, and every recorded run under
+    /// `runs/` against the current overlay.
     Check {
-        #[arg(long)]
-        profile: PathBuf,
+        #[arg(long, required_unless_present = "all", conflicts_with = "all")]
+        profile: Option<PathBuf>,
+        /// Check every directory under this one as a profile; fail when one of them fails.
+        #[arg(long, value_name = "DIR")]
+        all: Option<PathBuf>,
     },
     /// S5: lower the overlay's machines to ess-protospec/1 models, one per transport.
     Lower {
@@ -91,6 +98,10 @@ enum Command {
         /// How long to wait for the server to send and close, in seconds.
         #[arg(long, default_value_t = 10)]
         timeout: u64,
+        /// Also record the run as an `rfcspec-run/1` report: at this `.json` path, or as
+        /// `<target-slug>.json` in this directory, such as `profiles/time/runs`.
+        #[arg(long, value_name = "PATH")]
+        report: Option<PathBuf>,
     },
 }
 
@@ -164,7 +175,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
             target,
             tolerance,
             timeout,
+            report,
         } => {
+            let overlay_bytes = std::fs::read(profile.join(OVERLAY_FILE))?;
             let overlay: Overlay = read_yaml(&profile.join(OVERLAY_FILE))?;
             let options = rfcspec_conformance::Options {
                 tolerance: Duration::from_secs(tolerance),
@@ -172,29 +185,80 @@ fn run(cli: Cli) -> Result<ExitCode> {
             };
             let rows = rfcspec_conformance::verify(&overlay, &target, options)?;
             print!("{}", rfcspec_conformance::render(&rows));
-            return Ok(ExitCode::from(rfcspec_conformance::exit_code(&rows)));
+            let code = rfcspec_conformance::exit_code(&rows);
+            if let Some(path) = report {
+                let path = rfcspec_conformance::report_path(&path, &target);
+                let report = rfcspec_conformance::report(
+                    &target,
+                    rfcspec_conformance::now_unix(),
+                    &overlay_bytes,
+                    rows,
+                );
+                rfcspec_conformance::write_report(&path, &report)?;
+                eprintln!(
+                    "rfcspec verify: recorded {} as {}",
+                    report.verdict,
+                    path.display()
+                );
+            }
+            return Ok(ExitCode::from(code));
         }
-        Command::Check { profile } => {
-            let loaded = Loaded::from(&profile)?;
-            let problems =
-                rfcspec_extract::check(&loaded.overlay, &loaded.catalogue, &loaded.source);
-            if !problems.is_empty() {
-                for problem in &problems {
-                    eprintln!("rfcspec check: {problem}");
+        Command::Check { profile, all } => {
+            let profiles = match (profile, all) {
+                (Some(profile), _) => vec![profile],
+                (None, Some(all)) => checks::profiles(&all)?,
+                (None, None) => bail!("give --profile or --all"),
+            };
+            let mut failed = Vec::new();
+            for profile in &profiles {
+                if !check(profile) {
+                    failed.push(profile.display().to_string());
+                }
+            }
+            if !failed.is_empty() {
+                if profiles.len() > 1 {
+                    eprintln!(
+                        "rfcspec check: {} of {} profiles fail: {}",
+                        failed.len(),
+                        profiles.len(),
+                        failed.join(", ")
+                    );
                 }
                 return Ok(ExitCode::FAILURE);
             }
-            println!(
-                "{}: overlay holds ({} requirements, {} layouts, {} machines, {} findings)",
-                profile.display(),
-                loaded.overlay.requirements.len(),
-                loaded.overlay.layouts.len(),
-                loaded.overlay.machines.len(),
-                loaded.overlay.findings.len()
-            );
         }
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// Check one profile, print what holds or every problem, and say whether it passed.
+fn check(profile: &Path) -> bool {
+    let problems = match Loaded::from(profile) {
+        Err(error) => vec![format!("{}: {error:#}", profile.display())],
+        Ok(loaded) => {
+            let mut problems =
+                rfcspec_extract::check(&loaded.overlay, &loaded.catalogue, &loaded.source);
+            problems.extend(checks::semantics(profile, &loaded.profile, &loaded.overlay));
+            problems.extend(checks::runs(profile));
+            if problems.is_empty() {
+                println!(
+                    "{}: overlay holds ({} requirements, {} layouts, {} machines, {} findings, {} layers, {} recorded runs)",
+                    profile.display(),
+                    loaded.overlay.requirements.len(),
+                    loaded.overlay.layouts.len(),
+                    loaded.overlay.machines.len(),
+                    loaded.overlay.findings.len(),
+                    loaded.profile.semantics.len(),
+                    checks::run_files(profile).len(),
+                );
+            }
+            problems
+        }
+    };
+    for problem in &problems {
+        eprintln!("rfcspec check: {problem}");
+    }
+    problems.is_empty()
 }
 
 /// A locked source read into its normalized document, refused unless the profile names the RFC.

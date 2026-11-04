@@ -8,6 +8,18 @@ use std::{collections::BTreeMap, fs, path::Path};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+mod run;
+mod semantics;
+
+pub use run::{
+    RUN_FORMAT, RUNS_DIR, RunReport, RunRow, Verdict, is_must_level, newest, overall, read_runs,
+    sha256_hex, target_slug, utc,
+};
+pub use semantics::{
+    Correlation, Delivery, Direction, Endpoint, Exchange, LayerSemantics, Layering, Lifetime,
+    Multiplexing, Unit, wire,
+};
+
 /// The file name of a profile.
 pub const PROFILE_FILE: &str = "profile.yaml";
 /// The file name of a profile's lock.
@@ -15,12 +27,16 @@ pub const LOCK_FILE: &str = "rfcspec.lock";
 /// The file name of a profile's overlay.
 pub const OVERLAY_FILE: &str = "overlay.yaml";
 
-/// A profile: the RFCs and the sections of each that are in scope.
+/// A profile: the RFCs and the sections of each that are in scope, and the communication
+/// semantics of each layer (design section 6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
     pub name: String,
     pub rfcs: Vec<ProfileRfc>,
+    /// One entry per layer; each transport is its own layer.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub semantics: Vec<LayerSemantics>,
 }
 
 /// One RFC of a profile.
@@ -183,6 +199,9 @@ pub struct NumericExample {
 pub struct Overlay {
     pub format: String,
     pub rfc: u32,
+    /// The RFC's primary kind (design section 2.3), absent until classified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<RfcKind>,
     pub requirements: Vec<Requirement>,
     pub layouts: Vec<Layout>,
     pub machines: Vec<Machine>,
@@ -191,6 +210,42 @@ pub struct Overlay {
 
 /// The overlay format.
 pub const OVERLAY_FORMAT: &str = "rfcspec-overlay/1";
+
+/// The primary kind of an RFC (design section 2.3), `rfcspec.catalogue.RfcKind`, by its wire
+/// spelling `K1` to `K8`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum RfcKind {
+    K1,
+    K2,
+    K3,
+    K4,
+    K5,
+    K6,
+    K7,
+    K8,
+}
+
+impl RfcKind {
+    /// What the kind names, as design section 2.3 lists it.
+    pub fn label(self) -> &'static str {
+        match self {
+            RfcKind::K1 => "wire protocol",
+            RfcKind::K2 => "data format or encoding",
+            RfcKind::K3 => "algorithm or transform",
+            RfcKind::K4 => "extension or update",
+            RfcKind::K5 => "registry procedure",
+            RfcKind::K6 => "management data model",
+            RfcKind::K7 => "architecture, requirements, BCP, informational",
+            RfcKind::K8 => "not a specification",
+        }
+    }
+}
+
+impl std::fmt::Display for RfcKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
 
 /// An accepted requirement.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -445,5 +500,27 @@ mod tests {
         );
         let status: Status = from_yaml("{satisfied: layout.time}").unwrap();
         assert_eq!(status, Status::Satisfied("layout.time".into()));
+    }
+
+    const OVERLAY_HEAD: &str = "format: rfcspec-overlay/1\nrfc: 1\nrequirements: []\nlayouts: []\nmachines: []\nfindings: []\n";
+
+    #[test]
+    fn an_overlay_kind_is_optional_and_an_unknown_kind_is_refused() {
+        let none: Overlay = from_yaml(OVERLAY_HEAD).unwrap();
+        assert_eq!(none.kind, None);
+        let k1: Overlay = from_yaml(&format!("kind: K1\n{OVERLAY_HEAD}")).unwrap();
+        assert_eq!(k1.kind, Some(RfcKind::K1));
+        assert_eq!(k1.kind.unwrap().to_string(), "K1");
+        assert!(from_yaml::<Overlay>(&format!("kind: K9\n{OVERLAY_HEAD}")).is_err());
+        assert!(from_yaml::<Overlay>(&format!("kind: k1\n{OVERLAY_HEAD}")).is_err());
+    }
+
+    #[test]
+    fn the_time_overlay_is_k1() {
+        let overlay: Overlay = read_yaml(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../profiles/time/overlay.yaml"),
+        )
+        .unwrap();
+        assert_eq!(overlay.kind, Some(RfcKind::K1));
     }
 }

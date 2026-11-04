@@ -12,7 +12,7 @@ timeline:
       rfcs: []
       parties: [client]
       semantics:
-        - layer: Protocol
+        - layer: tcp
           unit: Messages
           delivery: {ordered: true, reliable: true, duplicates: false}
           direction: FullDuplex
@@ -29,7 +29,7 @@ timeline:
     input:
       profile: websocket
       semantics:
-        - layer: Protocol
+        - layer: tcp
           unit: Messages
           delivery: {ordered: true, reliable: true, duplicates: false}
           direction: FullDuplex
@@ -50,7 +50,7 @@ assert:
       profile: websocket
       parties: [client]
       semantics:
-        - layer: Protocol
+        - layer: tcp
           unit: Messages
           delivery: {ordered: true, reliable: true, duplicates: false}
           direction: FullDuplex

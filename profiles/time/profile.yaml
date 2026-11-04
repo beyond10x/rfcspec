@@ -3,3 +3,22 @@ rfcs:
   - number: 868
     title: Time Protocol
     sections: [Time Protocol, The Time]
+semantics:
+  - layer: tcp
+    unit: bytes
+    delivery: {ordered: true, reliable: true, duplicates: false}
+    direction: simplex
+    multiplexing: single
+    exchange: one-shot
+    correlation: none
+    lifetime: connection
+    roles: [client, server]
+  - layer: udp
+    unit: datagrams
+    delivery: {ordered: false, reliable: false, duplicates: true}
+    direction: half-duplex
+    multiplexing: single
+    exchange: request-response
+    correlation: none
+    lifetime: connectionless
+    roles: [client, server]

@@ -1,0 +1,5 @@
+format: rfcspec-lock/1
+sources:
+- rfc: 9999
+  file: sources/rfc9999.txt
+  sha256: 5c9f53a54fd1a23437cee50967d2fe2f11a8a854cc2bd5901657d6fc00f9b185

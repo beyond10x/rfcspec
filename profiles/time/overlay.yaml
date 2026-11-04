@@ -1,5 +1,6 @@
 format: rfcspec-overlay/1
 rfc: 868
+kind: K1
 requirements:
   - id: R-TCP-1
     source: prose

@@ -131,23 +131,14 @@ types:
         wire: association
         summary: An association with timers.
 
-  - name: rfcspec.profile.Layer
-    kind: enum
+  - name: rfcspec.profile.LayerName
+    kind: newtype
+    of: String
     naming:
-      summary: The layers of the stack a profile declares semantics for.
-    variants:
-      - name: Transport
-        wire: transport
-      - name: Stream
-        wire: stream
-      - name: Connection
-        wire: connection
-      - name: Protocol
-        wire: protocol
-      - name: Exchange
-        wire: exchange
-      - name: Application
-        wire: application
+      summary: >-
+        The name of a layer a profile declares semantics for. Each transport is its own layer, so
+        a protocol over TCP and UDP declares the layers tcp and udp, and a machine runs over the
+        layer its transport names.
 
   - name: rfcspec.profile.LayerSemantics
     kind: struct
@@ -157,7 +148,7 @@ types:
         sentences and accepted by a reviewer.
     fields:
       - name: layer
-        type: rfcspec.profile.Layer
+        type: rfcspec.profile.LayerName
       - name: unit
         type: rfcspec.profile.Unit
       - name: delivery
@@ -231,6 +222,50 @@ types:
       - name: digest
         type: rfcspec.catalogue.Digest
 
+  - name: rfcspec.profile.RunVerdict
+    kind: enum
+    naming:
+      summary: A verdict of design section 11, for one requirement row or for a whole run.
+    variants:
+      - name: Pass
+        wire: pass
+      - name: Fail
+        wire: fail
+      - name: Inconclusive
+        wire: inconclusive
+        summary: Satisfied without a passing observation, or not observable from the target.
+      - name: OutOfScope
+        wire: out-of-scope
+        summary: The requirement applies to a transport the target does not speak.
+
+  - name: rfcspec.profile.RunRow
+    kind: struct
+    naming:
+      summary: One requirement of the overlay as one recorded run judged it.
+    fields:
+      - name: requirement
+        type: rfcspec.catalogue.ItemId
+      - name: level
+        type: String
+      - name: verdict
+        type: rfcspec.profile.RunVerdict
+      - name: detail
+        type: String
+
+  - name: rfcspec.profile.RunKey
+    kind: struct
+    naming:
+      summary: A recorded run's identity, the profile, the target slug and the UTC time of the run.
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: target_slug
+        type: String
+        summary: The target with every run of characters other than letters, digits and dots made one dash.
+      - name: time
+        type: String
+        summary: UTC, YYYY-MM-DDTHH:MM:SSZ.
+
 entities:
   - name: rfcspec.profile.Profile
     naming:
@@ -264,10 +299,48 @@ entities:
         target: rfcspec.profile.Status
         cardinality: many
         via: profile
+      - name: runs
+        kind: owns
+        target: rfcspec.profile.Run
+        cardinality: many
+        via: profile
     lifecycle:
       initial: Declared
       states: [Declared]
       terminal: [Declared]
+
+  - name: rfcspec.profile.Run
+    naming:
+      summary: >-
+        One recorded run of rfcspec verify against a target, an rfcspec-run/1 report under the
+        profile's runs/. It pins the overlay it was judged against by digest; a run whose digest
+        differs from the current overlay is stale and fails rfcspec check. The newest run is the
+        profile's conformance verdict in the catalogue.
+    identity:
+      name: key
+      type: rfcspec.profile.RunKey
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+        summary: The key's profile.
+      - name: target
+        type: String
+        summary: The target as given on the command line.
+      - name: rfcspec_version
+        type: String
+      - name: overlay_digest
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the overlay the run was judged against.
+      - name: verdict
+        type: rfcspec.profile.RunVerdict
+        summary: Fail when a MUST-level row fails, inconclusive when none fails but one is inconclusive, else pass.
+      - name: rows
+        type: List<rfcspec.profile.RunRow>
+        summary: One row per requirement of the overlay, in its order.
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
 
   - name: rfcspec.profile.Machine
     naming:
@@ -364,9 +437,12 @@ actors:
   - name: rfcspec.profile.Verification
     naming:
       display: Verification
-      summary: Stage S7, the only stage that records a requirement satisfied, with the tests that show it.
+      summary: >-
+        Stage S7, the only stage that records a requirement satisfied, with the tests that show
+        it, and the stage that records a run against a target as a report.
     may:
       - rfcspec.profile.RecordSatisfiedStatus
+      - rfcspec.profile.RecordRun
 
 errors:
   - name: rfcspec.profile.PartyNotARole
@@ -710,6 +786,49 @@ commands:
           evidence: input.evidence
         summary: The requirement is satisfied in the profile.
 
+  - name: rfcspec.profile.RecordRun
+    naming:
+      wire: record-run
+      display: Record a run
+      summary: >-
+        rfcspec verify --report writes the run against a target as a deterministic report under
+        the profile's runs/, with the overlay digest it was judged against.
+    input:
+      - name: key
+        type: rfcspec.profile.RunKey
+      - name: target
+        type: String
+      - name: rfcspec_version
+        type: String
+      - name: overlay_digest
+        type: rfcspec.catalogue.Digest
+      - name: verdict
+        type: rfcspec.profile.RunVerdict
+      - name: rows
+        type: List<rfcspec.profile.RunRow>
+    outcomes:
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.profile.AlreadyExists
+        summary: The profile already holds a run of this target at this time, and nothing was recorded.
+      - name: recorded
+        creates: rfcspec.profile.Run
+        instance: key
+        emits:
+          - rfcspec.profile.RunRecorded
+        payload:
+          rfcspec.profile.RunRecorded:
+            key: input.key
+            verdict: input.verdict
+        sets:
+          profile: input.key.profile
+          target: input.target
+          rfcspec_version: input.rfcspec_version
+          overlay_digest: input.overlay_digest
+          verdict: input.verdict
+          rows: input.rows
+        summary: The run is recorded in the profile.
+
 events:
   - name: rfcspec.profile.ProfileDeclared
     fields:
@@ -733,7 +852,34 @@ events:
       - name: kind
         type: rfcspec.profile.StatusKind
 
+  - name: rfcspec.profile.RunRecorded
+    fields:
+      - name: key
+        type: rfcspec.profile.RunKey
+      - name: verdict
+        type: rfcspec.profile.RunVerdict
+
 views:
+  - name: rfcspec.profile.Runs
+    source: rfcspec.profile.Run
+    consistency: read_your_writes
+    naming:
+      wire: runs
+      display: Recorded runs
+    fields:
+      - name: key
+        type: rfcspec.profile.RunKey
+      - name: state
+        type: rfcspec.profile.Run.State
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: target
+        type: String
+      - name: overlay_digest
+        type: rfcspec.catalogue.Digest
+      - name: verdict
+        type: rfcspec.profile.RunVerdict
+
   - name: rfcspec.profile.Statuses
     source: rfcspec.profile.Status
     consistency: read_your_writes

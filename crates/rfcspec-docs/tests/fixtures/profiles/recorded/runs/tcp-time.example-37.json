@@ -1,0 +1,16 @@
+{
+  "format": "rfcspec-run/1",
+  "target": "tcp://time.example:37",
+  "time": "2026-11-02T08:00:00Z",
+  "rfcspec": "0.0.0",
+  "overlay_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "verdict": "pass",
+  "rows": [
+    {
+      "requirement": "R-TCP-1",
+      "level": "MUST",
+      "verdict": "pass",
+      "detail": "received 4 octets"
+    }
+  ]
+}
