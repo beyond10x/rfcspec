@@ -9,8 +9,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rfcspec_conformance::{Options, Row, Verdict, exit_code, local_1900, verify};
-use rfcspec_model::{Overlay, read_yaml};
+use rfcspec_conformance::{
+    Options, Row, Verdict, exit_code, local_1900, report, report_path, verify, write_report,
+};
+use rfcspec_model::{Overlay, RunReport, read_runs, read_yaml, sha256_hex};
 
 #[derive(Clone, Copy)]
 enum Server {
@@ -148,4 +150,85 @@ fn only_tcp_targets_are_verified() {
         .unwrap_err()
         .to_string();
     assert!(error.contains("only tcp://"), "{error}");
+}
+
+/// A fresh directory under the workspace's build directory, not the system temporary one.
+fn scratch(name: &str) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/rfcspec-conformance")
+        .join(format!("{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn overlay_bytes() -> Vec<u8> {
+    std::fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/time/overlay.yaml"),
+    )
+    .unwrap()
+}
+
+/// Run against a server, write the report into `runs/` of a scratch profile, read it back.
+fn recorded(server: Server, name: &str) -> (String, RunReport) {
+    let (target, _) = start(server);
+    let rows = verify(&overlay(), &target, options()).unwrap();
+    let profile = scratch(name);
+    let path = report_path(&profile.join("runs"), &target);
+    write_report(
+        &path,
+        &report(&target, 1_793_793_600, &overlay_bytes(), rows),
+    )
+    .unwrap();
+    let mut runs = read_runs(&profile).unwrap();
+    assert_eq!(runs.len(), 1);
+    std::fs::remove_dir_all(profile).unwrap();
+    let (file, report) = runs.remove(0);
+    assert_eq!(report.target, target);
+    (file, report)
+}
+
+#[test]
+fn a_report_of_the_correct_server_is_an_overall_pass() {
+    let (file, report) = recorded(Server::Correct, "report-correct");
+    assert!(file.starts_with("tcp-127.0.0.1-"), "{file}");
+    assert_eq!(report.verdict, Verdict::Pass);
+    assert_eq!(report.time, "2026-11-04T12:00:00Z");
+    assert_eq!(report.rfcspec, rfcspec_conformance::VERSION);
+    assert_eq!(report.overlay_sha256, sha256_hex(&overlay_bytes()));
+    assert_eq!(report.rows.len(), overlay().requirements.len());
+}
+
+#[test]
+fn a_report_of_the_five_octet_server_is_an_overall_fail() {
+    let (_, report) = recorded(Server::FiveOctets, "report-five");
+    assert_eq!(report.verdict, Verdict::Fail);
+}
+
+#[test]
+fn the_same_run_at_an_injected_time_writes_the_same_bytes() {
+    let rows = run(Server::Correct);
+    let target = "tcp://127.0.0.1:37";
+    let first = report(target, 1_793_793_600, &overlay_bytes(), rows.clone())
+        .to_json()
+        .unwrap();
+    let second = report(target, 1_793_793_600, &overlay_bytes(), rows)
+        .to_json()
+        .unwrap();
+    assert_eq!(first, second);
+    assert!(first.ends_with("}\n"));
+    assert!(first.starts_with("{\n  \"format\": \"rfcspec-run/1\",\n  \"target\": \"tcp://127.0.0.1:37\",\n  \"time\": \"2026-11-04T12:00:00Z\",\n"), "{first}");
+}
+
+#[test]
+fn a_report_path_is_a_json_file_or_a_directory_for_the_target_slug() {
+    let target = "tcp://127.0.0.1:37";
+    assert_eq!(
+        report_path(&PathBuf::from("profiles/time/runs"), target),
+        PathBuf::from("profiles/time/runs/tcp-127.0.0.1-37.json")
+    );
+    assert_eq!(
+        report_path(&PathBuf::from("x/run.json"), target),
+        PathBuf::from("x/run.json")
+    );
 }

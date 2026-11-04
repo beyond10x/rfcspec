@@ -107,11 +107,11 @@ fn task_commands(task: &str) -> Vec<String> {
 }
 
 #[test]
-fn task_check_runs_check_lower_check_and_explores_both_models() {
+fn task_check_runs_check_on_every_profile_lower_check_and_explores_both_models() {
     assert!(task_commands("check").contains(&"task: time".to_string()));
     let time = task_commands("time").join("\n");
     for expected in [
-        "-- check --profile profiles/time",
+        "-- check --all profiles",
         "-- lower --profile profiles/time --check",
         "--path profiles/time/generated/tcp.protospec.yaml --inputs profiles/time/witnesses/tcp.inputs.json | grep -q '\"verdict\": \"passed\"'",
         "--path profiles/time/generated/udp.protospec.yaml --inputs profiles/time/witnesses/udp.inputs.json | grep -q '\"verdict\": \"passed\"'",

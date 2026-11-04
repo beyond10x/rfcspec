@@ -36,7 +36,7 @@ tasks:
   time:
     desc: Check the time profile's overlay, its lowered models and their exploration, and its generated codec and tests.
     cmds:
-      - cargo run -q --locked -p rfcspec-cli -- check --profile profiles/time
+      - cargo run -q --locked -p rfcspec-cli -- check --all profiles
       - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/time --check
       - cmd: >-
           ess protocol explore --path profiles/time/generated/tcp.protospec.yaml

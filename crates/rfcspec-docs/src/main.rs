@@ -5,12 +5,16 @@
 //! It generates:
 //!
 //! - the design page (`website/docs/design.md`) from `docs/design/rfcspec.md` ([`design`]);
-//! - the status page and data (`website/docs/status.md`, `website/data/status.json`) ([`status`]).
+//! - the status page and data (`website/docs/status.md`, `website/data/status.json`) ([`status`]);
+//! - the protocol catalogue (`website/docs/catalog/`) and its downloads
+//!   (`website/static/downloads/`) from `profiles/` ([`catalog`]).
+//!
+//! The catalogue directories hold nothing else: a file there that `generate` would not write is
+//! reported `unexpected` by `generate --check` and deleted by `generate`.
 //!
 //! `generate --check` also refuses a hand-written page that an MDX reader would execute: a brace
-//! or a capitalised tag outside code ([`passive_problems`]).
+//! or a capitalised tag outside code ([`page::passive_problems`]).
 mod design;
-mod page;
 mod routes;
 mod status;
 
@@ -22,6 +26,7 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
+use rfcspec_docs::{catalog, page};
 
 #[derive(Parser)]
 #[command(about = "Generate and check the derived pages of the RFCspec documentation site")]
@@ -34,8 +39,8 @@ struct Cli {
 enum Action {
     /// Regenerate the derived pages of website/ from the repository, or check them for drift.
     Generate {
-        /// Write nothing; fail when a generated file is missing, stale or edited by hand, or a
-        /// hand-written page is not passive Markdown.
+        /// Write nothing; fail when a generated file is missing, stale, edited by hand or
+        /// unexpected, or a hand-written page is not passive Markdown.
         #[arg(long)]
         check: bool,
         /// Repository root.
@@ -54,70 +59,94 @@ enum Action {
     },
 }
 
+/// Whether a file under an owned directory, by path from the repository root, is generated output.
+type Owned = fn(&str) -> bool;
+
+/// The directories only `generate` writes, relative to the repository root, and whether a file
+/// there is generated output: every Markdown page under the catalogue, every download.
+const OWNED: &[(&str, Owned)] = &[
+    (catalog::PAGES, |path| path.ends_with(".md")),
+    (catalog::DOWNLOADS, |_| true),
+];
+
 /// Every generated file, by path relative to the repository root.
-fn outputs(root: &Path) -> Result<BTreeMap<&'static str, String>> {
+fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
     let design = fs::read_to_string(root.join(design::SOURCE))
         .with_context(|| format!("reading {}", design::SOURCE))?;
-    Ok(BTreeMap::from([
-        (design::PAGE, design::render(&design)?),
-        (status::PAGE, status::page()),
-        (status::DATA, status::data()),
-    ]))
+    let mut out = BTreeMap::from([
+        (design::PAGE.to_owned(), design::render(&design)?),
+        (status::PAGE.to_owned(), status::page()),
+        (status::DATA.to_owned(), status::data()),
+    ]);
+    out.extend(catalog::outputs(root)?);
+    Ok(out)
 }
 
 /// Every generated file that is missing or differs from what the repository generates.
-fn drift(root: &Path, outputs: &BTreeMap<&'static str, String>) -> Vec<String> {
+fn drift(root: &Path, outputs: &BTreeMap<String, String>) -> Vec<String> {
     outputs
         .iter()
-        .filter_map(
-            |(path, content)| match fs::read_to_string(root.join(path)) {
-                Err(_) => Some(format!("missing {path}")),
-                Ok(found) if &found != content => Some(format!("stale or edited {path}")),
-                Ok(_) => None,
-            },
-        )
+        .filter_map(|(path, content)| match fs::read(root.join(path)) {
+            Err(_) => Some(format!("missing {path}")),
+            Ok(found) if found != content.as_bytes() => Some(format!("stale or edited {path}")),
+            Ok(_) => None,
+        })
         .collect()
 }
 
-/// Where `text`, a Markdown page, holds a brace or a capitalised tag outside code, by the first
-/// line of the paragraph that holds it. Code spans may wrap lines, so a paragraph is read whole.
-fn passive_problems(text: &str) -> Vec<usize> {
-    let body_start = if text.starts_with("---\n") {
-        text.lines()
-            .skip(1)
-            .position(|line| line == "---")
-            .map_or(0, |n| n + 2)
-    } else {
-        0
-    };
-    let mut problems = Vec::new();
-    let body: String = text
-        .lines()
-        .skip(body_start)
-        .map(|line| format!("{line}\n"))
-        .collect();
-    for (first, block) in page::blocks(&body).0 {
-        let page::Block::Prose(paragraph) = block else {
-            continue;
-        };
-        let first = first + body_start;
-        let segments: Vec<&str> = paragraph.split('`').collect();
-        let paired = segments.len() % 2 == 1;
-        let prose: String = segments
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| !paired || i % 2 == 0)
-            .map(|(_, s)| s.replace("\\{", "").replace("\\}", ""))
-            .collect();
-        let tag = prose
-            .as_bytes()
-            .windows(2)
-            .any(|w| w[0] == b'<' && (w[1].is_ascii_uppercase() || w[1] == b'{'));
-        if prose.contains('{') || prose.contains('}') || tag {
-            problems.push(first + 1);
+/// Every file in a directory `generate` owns that it would not write.
+fn unexpected(root: &Path, outputs: &BTreeMap<String, String>) -> Result<Vec<String>> {
+    let mut found = Vec::new();
+    for (dir, owned) in OWNED {
+        for file in catalog::files(&root.join(dir))? {
+            let path = format!("{dir}/{file}");
+            if owned(&path) && !outputs.contains_key(&path) {
+                found.push(path);
+            }
         }
     }
-    problems
+    Ok(found)
+}
+
+/// Write every generated file and delete the unexpected ones, with the directories they leave
+/// empty.
+fn write(root: &Path, outputs: &BTreeMap<String, String>) -> Result<Vec<String>> {
+    let removed = unexpected(root, outputs)?;
+    for path in &removed {
+        let target = root.join(path);
+        fs::remove_file(&target).with_context(|| format!("deleting {path}"))?;
+        let mut dir = target.parent();
+        while let Some(parent) = dir {
+            if !OWNED
+                .iter()
+                .any(|(owned, _)| parent.starts_with(root.join(owned)))
+                || fs::remove_dir(parent).is_err()
+            {
+                break;
+            }
+            dir = parent.parent();
+        }
+    }
+    for (path, content) in outputs {
+        let target = root.join(path);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&target, content).with_context(|| format!("writing {path}"))?;
+    }
+    Ok(removed)
+}
+
+/// What `generate --check` reports: drift, unexpected files and pages that are not passive.
+fn problems(root: &Path, outputs: &BTreeMap<String, String>) -> Result<Vec<String>> {
+    let mut problems = drift(root, outputs);
+    problems.extend(
+        unexpected(root, outputs)?
+            .into_iter()
+            .map(|path| format!("unexpected {path}")),
+    );
+    problems.extend(passive_check(root)?);
+    Ok(problems)
 }
 
 /// Every Markdown page under `website/docs` with a line that is not passive.
@@ -125,13 +154,16 @@ fn passive_check(root: &Path) -> Result<Vec<String>> {
     let mut problems = Vec::new();
     let mut stack = vec![root.join("website/docs")];
     while let Some(dir) = stack.pop() {
+        if !dir.is_dir() {
+            continue;
+        }
         for entry in fs::read_dir(&dir).with_context(|| format!("reading {}", dir.display()))? {
             let path = entry?.path();
             if path.is_dir() {
                 stack.push(path);
             } else if path.extension().is_some_and(|e| e == "md") {
                 let text = fs::read_to_string(&path)?;
-                for line in passive_problems(&text) {
+                for line in page::passive_problems(&text) {
                     let relative = path.strip_prefix(root).unwrap_or(&path);
                     problems.push(format!(
                         "{}:{line}: a brace or capitalised tag outside code",
@@ -181,8 +213,7 @@ fn main() -> Result<()> {
         Action::Generate { check, root } => {
             let outputs = outputs(&root)?;
             if check {
-                let mut problems = drift(&root, &outputs);
-                problems.extend(passive_check(&root)?);
+                let problems = problems(&root, &outputs)?;
                 if !problems.is_empty() {
                     bail!(
                         "the documentation has drifted; run `task docs-generate`:\n  {}",
@@ -191,12 +222,8 @@ fn main() -> Result<()> {
                 }
                 println!("website: {} generated files current", outputs.len());
             } else {
-                for (path, content) in &outputs {
-                    let target = root.join(path);
-                    if let Some(parent) = target.parent() {
-                        fs::create_dir_all(parent)?;
-                    }
-                    fs::write(&target, content).with_context(|| format!("writing {path}"))?;
+                for path in write(&root, &outputs)? {
+                    println!("website: deleted unexpected {path}");
                 }
                 println!("website: wrote {} files", outputs.len());
             }
@@ -249,7 +276,10 @@ mod tests {
     #[test]
     fn a_missing_or_edited_page_is_drift() {
         let root = scratch("drift");
-        let outputs = BTreeMap::from([("a.md", "A\n".to_owned()), ("b.md", "B\n".to_owned())]);
+        let outputs = BTreeMap::from([
+            ("a.md".to_owned(), "A\n".to_owned()),
+            ("b.md".to_owned(), "B\n".to_owned()),
+        ]);
         fs::write(root.join("b.md"), "B, edited\n").unwrap();
         assert_eq!(
             drift(&root, &outputs),
@@ -261,9 +291,124 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    /// A scratch repository root holding the design document and a copy of `profiles/time`.
+    fn repository_with_time(name: &str) -> PathBuf {
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let root = scratch(name);
+        let files = [design::SOURCE.to_owned()].into_iter().chain(
+            catalog::files(&repository.join("profiles/time"))
+                .unwrap()
+                .into_iter()
+                .map(|file| format!("profiles/time/{file}")),
+        );
+        for file in files {
+            fs::create_dir_all(root.join(&file).parent().unwrap()).unwrap();
+            fs::copy(repository.join(&file), root.join(&file)).unwrap();
+        }
+        root
+    }
+
+    fn check(root: &Path) -> Vec<String> {
+        problems(root, &outputs(root).unwrap()).unwrap()
+    }
+
     #[test]
-    fn braces_and_capitalised_tags_outside_code_are_refused() {
-        let text = "---\ntitle: {x}\n---\n\nfine `{a}` and \\{b\\}\n\nbad {c}\n\nbad <Tag>\n\nfine a < b and `{wrapped\nspan}`\n\n```\n{d}\n```\n";
-        assert_eq!(passive_problems(text), [7, 9]);
+    fn the_catalogue_is_generated_from_profiles_and_its_drift_is_reported_by_name() {
+        let root = repository_with_time("catalog-drift");
+        let outputs = outputs(&root).unwrap();
+        for path in [
+            catalog::INDEX,
+            "website/docs/catalog/time.md",
+            "website/static/downloads/time/tcp.protospec.yaml",
+            "website/static/downloads/time/udp.protospec.yaml",
+            "website/static/downloads/time/rust/Cargo.toml",
+            "website/static/downloads/time/rust/src/lib.rs",
+        ] {
+            assert!(outputs.contains_key(path), "{path}");
+        }
+        assert!(
+            check(&root).contains(&format!("missing {}", catalog::INDEX)),
+            "a missing index is drift"
+        );
+        assert!(write(&root, &outputs).unwrap().is_empty());
+        assert_eq!(check(&root), Vec::<String>::new());
+
+        for path in [
+            catalog::INDEX,
+            "website/docs/catalog/time.md",
+            "website/static/downloads/time/rust/src/lib.rs",
+        ] {
+            let mut bytes = fs::read(root.join(path)).unwrap();
+            bytes.push(b'\n');
+            fs::write(root.join(path), &bytes).unwrap();
+            assert_eq!(check(&root), [format!("stale or edited {path}")], "{path}");
+            fs::write(root.join(path), &outputs[path]).unwrap();
+
+            fs::remove_file(root.join(path)).unwrap();
+            assert_eq!(check(&root), [format!("missing {path}")], "{path}");
+            fs::write(root.join(path), &outputs[path]).unwrap();
+        }
+
+        let generated = root.join("profiles/time/generated/tcp.protospec.yaml");
+        let mut source = fs::read_to_string(&generated).unwrap();
+        source.push_str("# changed\n");
+        fs::write(&generated, &source).unwrap();
+        assert_eq!(
+            check(&root),
+            [
+                "stale or edited website/docs/catalog/time.md",
+                "stale or edited website/static/downloads/time/tcp.protospec.yaml"
+            ],
+            "a changed source makes its copy and the page that lists its digest stale"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_orphaned_page_or_download_is_unexpected_and_deleted_by_generate() {
+        let root = repository_with_time("catalog-orphan");
+        write(&root, &outputs(&root).unwrap()).unwrap();
+        let orphans = [
+            "website/docs/catalog/gone.md",
+            "website/docs/catalog/notes/extra.md",
+            "website/static/downloads/gone/rust/Cargo.toml",
+            "website/static/downloads/time/old.protospec.yaml",
+        ];
+        for orphan in orphans {
+            fs::create_dir_all(root.join(orphan).parent().unwrap()).unwrap();
+            fs::write(root.join(orphan), "x\n").unwrap();
+        }
+        fs::write(root.join("website/docs/catalog/_category_.json"), "{}").unwrap();
+        let mut expected: Vec<String> = orphans.iter().map(|o| format!("unexpected {o}")).collect();
+        expected.sort();
+        let mut found = check(&root);
+        found.sort();
+        assert_eq!(found, expected);
+
+        let mut removed = write(&root, &outputs(&root).unwrap()).unwrap();
+        removed.sort();
+        assert_eq!(removed, orphans);
+        for orphan in orphans {
+            assert!(!root.join(orphan).exists(), "{orphan}");
+        }
+        assert!(!root.join("website/static/downloads/gone").exists());
+        assert!(!root.join("website/docs/catalog/notes").exists());
+        assert!(root.join("website/docs/catalog/_category_.json").exists());
+        assert_eq!(check(&root), Vec::<String>::new());
+
+        fs::remove_dir_all(root.join("profiles/time")).unwrap();
+        assert!(check(&root).contains(&"unexpected website/docs/catalog/time.md".to_owned()));
+        write(&root, &outputs(&root).unwrap()).unwrap();
+        assert!(!root.join("website/docs/catalog/time.md").exists());
+        assert!(!root.join("website/static/downloads/time").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn the_repository_catalogue_is_current() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let outputs = catalog::outputs(&root).unwrap();
+        assert!(drift(&root, &outputs).is_empty());
+        assert!(unexpected(&root, &outputs).unwrap().is_empty());
     }
 }

@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-04T23:50:40Z",
+  "actor": "human:timo",
+  "artifact": "story:catalog-index",
+  "kind": "story",
+  "revision": 13,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "task check"
+  }
+}

@@ -5,46 +5,54 @@
 //! codec. The expected value comes from the local clock, never from the generated code.
 
 use std::{
-    fmt,
+    fs,
     io::{ErrorKind, Read},
     net::{TcpStream, ToSocketAddrs},
+    path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result, bail};
-use rfcspec_model::{Overlay, Requirement};
+use rfcspec_model::{Overlay, Requirement, RunReport, target_slug};
+/// One row of the requirement matrix, and its verdict.
+pub use rfcspec_model::{RunRow as Row, Verdict};
 
 /// Seconds from 00:00 1 January 1900 GMT to the Unix epoch: RFC 868's own first example,
 /// "the time 2,208,988,800 corresponds to 00:00 1 Jan 1970 GMT".
 const SECONDS_1900_TO_1970: u64 = 2_208_988_800;
 
-/// A row's verdict.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Verdict {
-    Pass,
-    Fail,
-    Inconclusive,
-    OutOfScope,
+/// The version recorded in every report this crate writes.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The report of one run: `rows` judged at `unix` seconds against `target`, on the overlay whose
+/// bytes are `overlay`. The same arguments always give the same bytes.
+pub fn report(target: &str, unix: u64, overlay: &[u8], rows: Vec<Row>) -> RunReport {
+    RunReport::new(target, unix, VERSION, overlay, rows)
 }
 
-impl fmt::Display for Verdict {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Verdict::Pass => "pass",
-            Verdict::Fail => "fail",
-            Verdict::Inconclusive => "inconclusive",
-            Verdict::OutOfScope => "out of scope",
-        })
+/// Where `--report <path>` writes: `path` itself when it names a `.json` file, else
+/// `<path>/<target-slug>.json`.
+pub fn report_path(path: &Path, target: &str) -> PathBuf {
+    if path.extension().is_some_and(|e| e == "json") {
+        path.to_path_buf()
+    } else {
+        path.join(format!("{}.json", target_slug(target)))
     }
 }
 
-/// One row of the requirement matrix.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Row {
-    pub requirement: String,
-    pub level: String,
-    pub verdict: Verdict,
-    pub detail: String,
+/// Write `report` to `path`, creating its directory.
+pub fn write_report(path: &Path, report: &RunReport) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, report.to_json()?).with_context(|| format!("writing {}", path.display()))
+}
+
+/// The local clock as Unix seconds.
+pub fn now_unix() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs())
 }
 
 /// How the probe judges what it observes.

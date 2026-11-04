@@ -1,0 +1,24 @@
+format: rfcspec-overlay/1
+rfc: 9999
+requirements:
+  - id: R-FIX-1
+    source: prose
+    level: MUST
+    quote: A server MUST reject a length outside 1 to 125.
+    span: {start: 1, end: 1}
+    status: {unsupported: 'ess-gap G1: guards beyond equality'}
+  - id: R-FIX-2
+    source: prose
+    level: SHOULD
+    quote: A server SHOULD log the rejection.
+    span: {start: 1, end: 1}
+    status: {not-applicable: logging is outside the protocol}
+  - id: R-FIX-3
+    source: prose
+    level: MAY
+    quote: 'A client MAY send {x}, <Tag> or a | pipe.'
+    span: {start: 1, end: 1}
+    status: {satisfied: layout.fixture}
+layouts: []
+machines: []
+findings: []

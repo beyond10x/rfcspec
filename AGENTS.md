@@ -19,12 +19,12 @@ The RFC 868 thin slice runs every stage except S3 (AI proposals) end to end for 
 | path | what |
 |---|---|
 | `docs/design/rfcspec.md` | the design: decisions (§0), pipeline, catalogue, communication semantics, ESS gaps, WebSocket example, milestones (§14) |
-| `ess/` | RFCspec's own ESS specification: the catalogue and review nouns |
+| `ess/` | RFCspec's own ESS specification: the catalogue, profile (semantics, statuses, recorded runs) and review nouns |
 | `examples/websocket/` | the WebSocket closing-handshake model (`ess-protospec/1`) and its exploration witness |
 | `crates/rfcspec-{model,source,doc,extract,ess,gen,conformance}/` | the pipeline stages S0–S2 and S4–S7 (design §13) for plain-text RFCs |
 | `crates/rfcspec-cli/` | the `rfcspec` binary: `fetch`, `read`, `extract`, `check`, `lower`, `generate`, `verify` |
-| `profiles/time/` | RFC 868: locked source, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate) |
-| `crates/rfcspec-docs/` | generates the site's derived pages (design, status) and binds a built site to its commit |
+| `profiles/time/` | RFC 868: locked source, `profile.yaml` with the semantics of the `tcp` and `udp` layers, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate); a profile may hold recorded runs (`runs/*.json`, `rfcspec-run/1`, written by `rfcspec verify --report`) |
+| `crates/rfcspec-docs/` | generates the site's derived pages (design, status, and the protocol catalogue `website/docs/catalog/` with its downloads `website/static/downloads/`, both from `profiles/`) and binds a built site to its commit |
 | `website/` | the Docusaurus site published at `https://beyond10x.github.io/rfcspec/`; `website/static/pitch/` is a standalone slide deck |
 | `.engineering/` | the AEP planning store (`aep.project/5`) |
 
@@ -36,7 +36,7 @@ task check
 
 Steps (`Taskfile.yml`): `aep plan artifact validate`, `ess specify validate --path ess`, bounded
 exploration of every model under `examples/` must report `"verdict": "passed"`,
-the `time` task (`rfcspec check`, `rfcspec lower --check`, exploration of both
+the `time` task (`rfcspec check --all profiles`, which also fails on a stale recorded run, `rfcspec lower --check`, exploration of both
 Time Protocol models, `rfcspec generate --check`, `cargo test -p rfc868-time`),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:

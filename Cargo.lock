@@ -364,6 +364,7 @@ dependencies = [
  "clap",
  "rfcspec-conformance",
  "rfcspec-doc",
+ "rfcspec-docs",
  "rfcspec-ess",
  "rfcspec-extract",
  "rfcspec-gen",
@@ -395,6 +396,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rfcspec-model",
  "serde_json",
 ]
 
@@ -436,6 +438,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
 ]
 
 [[package]]

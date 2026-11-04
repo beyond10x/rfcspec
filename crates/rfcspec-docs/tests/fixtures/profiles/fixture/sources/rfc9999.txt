@@ -1,0 +1,1 @@
+A fixture source, read only by the tests of rfcspec-docs.

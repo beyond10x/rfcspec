@@ -106,6 +106,47 @@ pub fn cell(text: &str) -> String {
     passive(&text.split_whitespace().collect::<Vec<_>>().join(" ")).replace('|', "\\|")
 }
 
+/// Where `text`, a Markdown page, holds a brace or a capitalised tag outside code, by the first
+/// line of the paragraph that holds it. Code spans may wrap lines, so a paragraph is read whole.
+pub fn passive_problems(text: &str) -> Vec<usize> {
+    let body_start = if text.starts_with("---\n") {
+        text.lines()
+            .skip(1)
+            .position(|line| line == "---")
+            .map_or(0, |n| n + 2)
+    } else {
+        0
+    };
+    let mut problems = Vec::new();
+    let body: String = text
+        .lines()
+        .skip(body_start)
+        .map(|line| format!("{line}\n"))
+        .collect();
+    for (first, block) in blocks(&body).0 {
+        let Block::Prose(paragraph) = block else {
+            continue;
+        };
+        let first = first + body_start;
+        let segments: Vec<&str> = paragraph.split('`').collect();
+        let paired = segments.len() % 2 == 1;
+        let prose: String = segments
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !paired || i % 2 == 0)
+            .map(|(_, s)| s.replace("\\{", "").replace("\\}", ""))
+            .collect();
+        let tag = prose
+            .as_bytes()
+            .windows(2)
+            .any(|w| w[0] == b'<' && (w[1].is_ascii_uppercase() || w[1] == b'{'));
+        if prose.contains('{') || prose.contains('}') || tag {
+            problems.push(first + 1);
+        }
+    }
+    problems
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +178,19 @@ mod tests {
     #[test]
     fn cells_escape_pipes_and_join_lines() {
         assert_eq!(cell("a | b\n  c"), "a \\| b c");
+    }
+
+    #[test]
+    fn a_cell_with_braces_a_tag_and_a_pipe_stays_passive() {
+        let escaped = cell("send {x}, <Tag> | y");
+        assert_eq!(escaped, "send \\{x\\}, &lt;Tag> \\| y");
+        assert!(passive_problems(&format!("| a | {escaped} |\n")).is_empty());
+        assert_eq!(passive_problems("| a | send {x}, <Tag> |\n"), [1]);
+    }
+
+    #[test]
+    fn braces_and_capitalised_tags_outside_code_are_refused() {
+        let text = "---\ntitle: {x}\n---\n\nfine `{a}` and \\{b\\}\n\nbad {c}\n\nbad <Tag>\n\nfine a < b and `{wrapped\nspan}`\n\n```\n{d}\n```\n";
+        assert_eq!(passive_problems(text), [7, 9]);
     }
 }
