@@ -1,0 +1,51 @@
+type: ess-scenario/1
+domain: rfcspec.review
+scenario: confirm-decision-already-exists
+summary: A confirmation under a key the overlay already holds is refused, and nothing is recorded.
+
+timeline:
+  - at: 2026-11-04T09:00:00Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0a"}
+      kind: Accept
+    outcome: recorded
+
+  - at: 2026-11-04T09:00:01Z
+    command: rfcspec.review.MarkDecisionStale
+    actor: rfcspec.catalogue.Reader
+    input:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0a"}
+    outcome: stale
+
+  - at: 2026-11-04T09:00:02Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0b"}
+      kind: Accept
+    outcome: recorded
+
+  - at: 2026-11-04T09:00:03Z
+    command: rfcspec.review.ConfirmDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0b"}
+      confirms: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0a"}
+      kind: Accept
+    outcome: already-exists
+    error:
+      name: rfcspec.review.AlreadyExists
+
+assert:
+  - view: rfcspec.review.Decisions
+    counts: {at_least: 2, at_most: 2}
+  - view: rfcspec.review.Decisions
+    contains:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0a"}
+      state: Stale
+  - view: rfcspec.review.Decisions
+    contains:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0b"}
+      state: Current

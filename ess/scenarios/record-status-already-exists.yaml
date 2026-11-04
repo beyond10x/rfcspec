@@ -1,0 +1,44 @@
+type: ess-scenario/1
+domain: rfcspec.profile
+scenario: record-status-already-exists
+summary: A second status for one requirement in one profile is refused, and the first stays.
+
+timeline:
+  - at: 2026-11-04T09:00:00Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0d"}
+      kind: Accept
+    outcome: recorded
+
+  - at: 2026-11-04T09:00:01Z
+    command: rfcspec.profile.RecordStatus
+    actor: rfcspec.profile.Lowering
+    input:
+      key: {profile: websocket, requirement: rfc6455/R5.5.1-1}
+      kind: Unsupported
+      reason: G1
+      decision: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0d"}
+    outcome: recorded
+
+  - at: 2026-11-04T09:00:02Z
+    command: rfcspec.profile.RecordStatus
+    actor: rfcspec.profile.Lowering
+    input:
+      key: {profile: websocket, requirement: rfc6455/R5.5.1-1}
+      kind: NotApplicable
+      reason: out of scope
+      decision: {profile: websocket, item: rfc6455/R5.5.1-1, text_digest: "0d"}
+    outcome: already-exists
+    error:
+      name: rfcspec.profile.AlreadyExists
+
+assert:
+  - view: rfcspec.profile.Statuses
+    counts: {at_least: 1, at_most: 1}
+  - view: rfcspec.profile.Statuses
+    contains:
+      key: {profile: websocket, requirement: rfc6455/R5.5.1-1}
+      kind: Unsupported
+      reason: G1

@@ -1,0 +1,20 @@
+[package]
+name = "rfcspec-ess"
+description = "Lowers a profile overlay's machines to ess-protospec/1 models, one per transport."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+rfcspec-model = { path = "../rfcspec-model" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

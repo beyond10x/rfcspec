@@ -1,0 +1,5 @@
+format: rfcspec-lock/1
+sources:
+- rfc: 868
+  file: sources/rfc868.txt
+  sha256: 42d96cd4e0743f947be4dfe69a507aa1ab23fa0a1846ae9be67164ebba6bc2f8

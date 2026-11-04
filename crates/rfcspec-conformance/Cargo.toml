@@ -1,0 +1,16 @@
+[package]
+name = "rfcspec-conformance"
+description = "Probes a live target and prints one requirement-matrix row per requirement of a profile."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+rfc868-time = { path = "../../profiles/time/generated/rust" }
+rfcspec-model = { path = "../rfcspec-model" }
+
+[lints]
+workspace = true

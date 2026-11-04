@@ -5,11 +5,12 @@ tasks:
     cmds: [{task: check}]
 
   check:
-    desc: Validate the plan and ess/, explore the example protocol models, check the generated docs, then format, lint and test.
+    desc: Validate the plan and ess/, explore the example protocol models, check the time profile and the generated docs, then format, lint and test.
     cmds:
       - task: plan
       - task: spec
       - task: examples
+      - task: time
       - task: docs-check
       - cargo fmt --all --check
       - cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -31,6 +32,20 @@ tasks:
       - cmd: >-
           ess protocol explore --path examples/websocket/close.protospec.yaml
           --inputs examples/websocket/close.inputs.json | grep -q '"verdict": "passed"'
+
+  time:
+    desc: Check the time profile's overlay, its lowered models and their exploration, and its generated codec and tests.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- check --profile profiles/time
+      - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/time --check
+      - cmd: >-
+          ess protocol explore --path profiles/time/generated/tcp.protospec.yaml
+          --inputs profiles/time/witnesses/tcp.inputs.json | grep -q '"verdict": "passed"'
+      - cmd: >-
+          ess protocol explore --path profiles/time/generated/udp.protospec.yaml
+          --inputs profiles/time/witnesses/udp.inputs.json | grep -q '"verdict": "passed"'
+      - cargo run -q --locked -p rfcspec-cli -- generate --check
+      - cargo test -q --locked -p rfc868-time
 
   docs-generate:
     desc: Rewrite the generated pages under website/docs/.

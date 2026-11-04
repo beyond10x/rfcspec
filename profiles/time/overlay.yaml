@@ -1,0 +1,181 @@
+format: rfcspec-overlay/1
+rfc: 868
+requirements:
+  - id: R-TCP-1
+    source: prose
+    level: MUST
+    transports: [tcp]
+    quote: When the connection is established, the server returns a 32-bit time value
+    span: {start: 44, end: 45}
+    status: {satisfied: tcp.server.D1-3-R-TCP-1-send-time}
+    probe: tcp-octets
+  - id: R-TCP-2
+    source: prose
+    level: MUST
+    transports: [tcp]
+    quote: the server returns a 32-bit time value and closes the connection.
+    span: {start: 45, end: 46}
+    status: {satisfied: tcp.server.D1-6-R-TCP-2-close}
+    probe: tcp-close
+  - id: R-TCP-3
+    source: prose
+    level: SHOULD
+    transports: [tcp]
+    quote: If the server is unable to determine the time at its site, it should either refuse the connection or close it without sending anything.
+    span: {start: 46, end: 48}
+    status: {satisfied: tcp.server.R-TCP-3-unable-close}
+  - id: R-UDP-1
+    source: prose
+    level: MUST
+    transports: [udp]
+    quote: When a datagram arrives, the server returns a datagram containing the 32-bit time value.
+    span: {start: 76, end: 78}
+    status: {satisfied: udp.server.D2-3-D2-4-R-UDP-1-reply-time}
+  - id: R-UDP-2
+    source: prose
+    level: SHOULD
+    transports: [udp]
+    quote: If the server is unable to determine the time at its site, it should discard the arriving datagram and make no reply.
+    span: {start: 78, end: 79}
+    status: {satisfied: udp.server.R-UDP-2-discard}
+  - id: R-TIME-1
+    source: prose
+    level: MUST
+    transports: [tcp, udp]
+    quote: The time is the number of seconds since 00:00 (midnight) 1 January 1900 GMT
+    span: {start: 83, end: 84}
+    status: {satisfied: layout.time}
+    probe: tcp-value
+layouts:
+  - name: time
+    quote: 'S: Send the time as a 32 bit binary number.'
+    span: {start: 36, end: 36}
+    epoch: '1900-01-01'
+    fields:
+      - {name: seconds, bits: 32, signed: false, order: big-endian}
+machines:
+  - name: tcp
+    transport: tcp
+    messages:
+      - {name: connect}
+      - {name: time, fields: {seconds: Integer}}
+      - {name: fin}
+    participants:
+      - name: client
+        party: U
+        initial: idle
+        states: [idle, connecting, received, closed]
+        inputs: [connect, close]
+        transitions:
+          - implements: [D1-2]
+            label: connect
+            from: idle
+            to: connecting
+            on: {input: connect}
+            effects:
+              - {send: {message: connect}}
+          - implements: [D1-4]
+            label: receive-time
+            from: connecting
+            to: received
+            on: {receive: time}
+            effects:
+              - {emit: time-received}
+          - implements: [D1-5]
+            label: close
+            from: received
+            to: closed
+            on: {input: close}
+            effects:
+              - {send: {message: fin}}
+              - {close: true}
+          - implements: [R-TCP-3]
+            label: observe-close
+            from: connecting
+            to: closed
+            on: {receive: fin}
+            effects:
+              - {emit: no-time}
+              - {close: true}
+      - name: server
+        party: S
+        initial: listening
+        states: [listening, sent, closed]
+        transitions:
+          - implements: [D1-3, R-TCP-1]
+            label: send-time
+            from: listening
+            to: sent
+            on: {receive: connect}
+            effects:
+              - {send: {message: time, payload: {seconds: 2629584000}}}
+              - {emit: time-sent}
+          - implements: [R-TCP-3]
+            label: unable-close
+            from: listening
+            to: closed
+            on: {receive: connect}
+            effects:
+              - {send: {message: fin}}
+              - {close: true}
+          - implements: [D1-6, R-TCP-2]
+            label: close
+            from: sent
+            to: closed
+            on: {receive: fin}
+            effects:
+              - {close: true}
+    properties:
+      - {name: time-sent-once, participant: server, event: time-sent, max: 1}
+  - name: udp
+    transport: udp
+    messages:
+      - {name: request}
+      - {name: time, fields: {seconds: Integer}}
+    participants:
+      - name: client
+        party: U
+        initial: idle
+        states: [idle, waiting, received]
+        inputs: [request]
+        transitions:
+          - implements: [D2-2]
+            label: send-request
+            from: idle
+            to: waiting
+            on: {input: request}
+            effects:
+              - {send: {message: request}}
+          - implements: [D2-5]
+            label: receive-time
+            from: waiting
+            to: received
+            on: {receive: time}
+            effects:
+              - {emit: time-received}
+      - name: server
+        party: S
+        initial: listening
+        states: [listening, replied, discarded]
+        transitions:
+          - implements: [D2-3, D2-4, R-UDP-1]
+            label: reply-time
+            from: listening
+            to: replied
+            on: {receive: request}
+            effects:
+              - {send: {message: time, payload: {seconds: 2629584000}}}
+              - {emit: time-sent}
+          - implements: [R-UDP-2]
+            label: discard
+            from: listening
+            to: discarded
+            on: {receive: request}
+    properties:
+      - {name: time-sent-once, participant: server, event: time-sent, max: 1}
+findings:
+  - id: F-1
+    item: E5
+    quote: and -1,297,728,000 corresponds to 00:00 17 Nov 1858 GMT.
+    span: {start: 97, end: 97}
+    finding: -1297728000 is negative, so it cannot be a 32-bit unsigned value; 17 Nov 1858 lies before the 1900 epoch the time counts from. The example is no test vector.

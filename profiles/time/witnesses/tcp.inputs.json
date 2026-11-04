@@ -1,0 +1,4 @@
+[
+  {"kind":"input","participant":"client","name":"connect","payload":{}},
+  {"kind":"input","participant":"client","name":"close","payload":{}}
+]

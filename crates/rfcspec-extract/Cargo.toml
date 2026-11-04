@@ -1,0 +1,17 @@
+[package]
+name = "rfcspec-extract"
+description = "Extracts the mechanical catalogue of an RFC and checks a reviewed overlay against it and its source."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rfcspec-model = { path = "../rfcspec-model" }
+
+[dev-dependencies]
+rfcspec-doc = { path = "../rfcspec-doc" }
+
+[lints]
+workspace = true

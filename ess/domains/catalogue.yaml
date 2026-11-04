@@ -1,9 +1,9 @@
 domain: rfcspec.catalogue
 
 summary: >-
-  The rfcspec/1 catalogue: what an RFC states, read from a locked source, each item with a span
-  back to the text it came from. The catalogue is data about the RFC, not yet a specification of
-  a system.
+  The rfcspec/1 catalogue: what an RFC states, read from a locked source. Every item carries its
+  provenance, either a span of an RFC or an IANA source. The catalogue is data about the RFC, not
+  yet a specification of a system.
 
 naming:
   wire: catalogue
@@ -16,11 +16,35 @@ types:
     naming:
       summary: The RFC Editor's number of the document.
 
+  - name: rfcspec.catalogue.ItemId
+    kind: newtype
+    of: String
+    alphabet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/.-_"
+    naming:
+      summary: >-
+        The stable id of a catalogue or profile item, its kind in the spelling. Section
+        rfc<N>/s/<anchor-or-number>; Requirement rfc<N>/R<section>-<ordinal>, the ordinal counting
+        requirements in document order within the section; DefinedTerm rfc<N>/term/<slug>;
+        Grammar rfc<N>/grammar/<slug>; Layout rfc<N>/layout/<slug>; Limit rfc<N>/limit/<slug>.
+        A whole RFC is rfc<N> and a whole profile <profile>. A published RFC's ids never shift.
+        Machines and statuses are keyed by structs (profile and slug, profile and requirement),
+        not by an item id.
+
   - name: rfcspec.catalogue.Digest
     kind: newtype
     of: String
+    alphabet: "0123456789abcdef"
     naming:
-      summary: A SHA-256 digest.
+      summary: A SHA-256 digest in lower-case hexadecimal.
+
+  - name: rfcspec.catalogue.YearMonth
+    kind: newtype
+    of: String
+    alphabet: "0123456789-"
+    invariants:
+      - value.count == 7
+    naming:
+      summary: A month written YYYY-MM; the index gives month and year.
 
   - name: rfcspec.catalogue.SourceFormat
     kind: enum
@@ -36,8 +60,8 @@ types:
     kind: struct
     naming:
       summary: >-
-        Where a catalogue item came from: the RFC, the section anchor (XML) or number (text), a
-        byte range in the normalized text, and the SHA-256 of the spanned text.
+        Provenance in an RFC: the RFC, the section anchor (XML) or number (text), a byte range in
+        the normalized text, and the SHA-256 of the spanned text.
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -55,60 +79,22 @@ types:
       - start >= 0
       - end >= start
 
-  - name: rfcspec.catalogue.SectionId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        A section within one RFC. The design keys a section by the pair of its RFC and its anchor
-        or number. UNMAPPED: how that pair is written as one identity value.
-
-  - name: rfcspec.catalogue.RequirementId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        R<section>-<ordinal> within an RFC, qualified by the RFC when crossing, as in 6455:R5.1-3.
-        The ordinal counts requirements in document order within the section. A published RFC's
-        ids never shift.
-
-  - name: rfcspec.catalogue.TermId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        A defined term within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written
-        as one identity value.
-
-  - name: rfcspec.catalogue.GrammarId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        A grammar within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
-        identity value.
-
-  - name: rfcspec.catalogue.LayoutId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        A layout within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
-        identity value.
-
-  - name: rfcspec.catalogue.LimitId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        A limit within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
-        identity value.
-
   - name: rfcspec.catalogue.RegistryId
     kind: newtype
     of: String
     naming:
       summary: The IANA identifier of a registry, such as close-code-number.
+
+  - name: rfcspec.catalogue.IanaSource
+    kind: struct
+    naming:
+      summary: Provenance in IANA's registry XML, the form a registry carries instead of a span.
+    fields:
+      - name: registry_id
+        type: rfcspec.catalogue.RegistryId
+      - name: digest
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the locked registry file.
 
   - name: rfcspec.catalogue.PartyName
     kind: newtype
@@ -175,7 +161,9 @@ types:
   - name: rfcspec.catalogue.AbnfDialect
     kind: enum
     naming:
-      summary: The ABNF dialect a grammar is written in, proposed per figure and reviewed (design section 8.3).
+      summary: >-
+        The ABNF dialect a grammar is written in, proposed per figure and reviewed (design section
+        8.3). The bits dialect is the bit-level case, as in RFC 6455 section 5.2.
     variants:
       - name: Rfc5234
         wire: rfc5234
@@ -183,6 +171,54 @@ types:
         wire: rfc2616
       - name: Bits
         wire: bits
+
+  - name: rfcspec.catalogue.LengthUnit
+    kind: enum
+    variants:
+      - name: Bits
+        wire: bits
+      - name: Octets
+        wire: octets
+
+  - name: rfcspec.catalogue.DependentLength
+    kind: struct
+    naming:
+      summary: A field's length read from another field of the layout.
+    fields:
+      - name: field
+        type: String
+      - name: unit
+        type: rfcspec.catalogue.LengthUnit
+
+  - name: rfcspec.catalogue.Presence
+    kind: struct
+    naming:
+      summary: A field is present when another field of the layout equals the value.
+    fields:
+      - name: field
+        type: String
+      - name: equals
+        type: Integer
+
+  - name: rfcspec.catalogue.ConstraintKind
+    kind: enum
+    variants:
+      - name: Equals
+        wire: equals
+      - name: Range
+        wire: range
+      - name: OneOf
+        wire: one_of
+
+  - name: rfcspec.catalogue.FieldConstraint
+    kind: struct
+    naming:
+      summary: A constraint on a field's value; a range gives its lower and upper bound.
+    fields:
+      - name: kind
+        type: rfcspec.catalogue.ConstraintKind
+      - name: values
+        type: List<Integer>
 
   - name: rfcspec.catalogue.LayoutField
     kind: struct
@@ -195,14 +231,11 @@ types:
         type: Optional<Integer>
         summary: The bit width, absent where the length depends on another field.
       - name: length
-        type: Optional<String>
-        summary: "A dependent length. UNMAPPED: the design does not say how it is expressed."
+        type: Optional<rfcspec.catalogue.DependentLength>
       - name: presence
-        type: Optional<String>
-        summary: "A presence condition. UNMAPPED: the design does not say how it is expressed."
+        type: Optional<rfcspec.catalogue.Presence>
       - name: constraints
-        type: List<String>
-        summary: "UNMAPPED: the design does not say how a field constraint is expressed."
+        type: List<rfcspec.catalogue.FieldConstraint>
 
   - name: rfcspec.catalogue.RegistryPolicy
     kind: enum
@@ -216,12 +249,22 @@ types:
       - name: Closed
         wire: closed
 
+  - name: rfcspec.catalogue.ValueKind
+    kind: enum
+    variants:
+      - name: Number
+        wire: number
+      - name: Name
+        wire: name
+
   - name: rfcspec.catalogue.RegistryEntry
     kind: struct
     fields:
       - name: value
         type: String
-        summary: "UNMAPPED: registry values are numbers in some registries and names in others; the design gives no type."
+        summary: The registry value; a number is written in decimal.
+      - name: value_kind
+        type: rfcspec.catalogue.ValueKind
       - name: name
         type: String
       - name: reference
@@ -270,8 +313,7 @@ entities:
         type: Optional<String>
         summary: Many index entries carry no area.
       - name: date
-        type: String
-        summary: "UNMAPPED: the design names a date and not its precision or encoding."
+        type: rfcspec.catalogue.YearMonth
       - name: format_read
         type: rfcspec.catalogue.SourceFormat
       - name: digest
@@ -281,38 +323,18 @@ entities:
         type: Optional<rfcspec.catalogue.RfcKind>
         summary: The RFC's primary kind, absent until classified.
       - name: obsoletes
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
         summary: >-
-          Update graph edges from the index. The design says fetch lists updated-by RFCs as
-          candidates and never adds them silently. UNMAPPED: whether an edge may name an RFC
-          that has not been read into the catalogue.
+          Update graph edges from the index name RFC numbers, not catalogue entries, so they may
+          name an RFC that was never read. Fetch lists updated-by RFCs as candidates and never
+          adds them silently.
       - name: obsoleted_by
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
       - name: updates
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
       - name: updated_by
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
     relations:
-      - name: obsoletes
-        kind: references
-        target: rfcspec.catalogue.Rfc
-        cardinality: many
-        via: obsoletes
-      - name: obsoleted_by
-        kind: references
-        target: rfcspec.catalogue.Rfc
-        cardinality: many
-        via: obsoleted_by
-      - name: updates
-        kind: references
-        target: rfcspec.catalogue.Rfc
-        cardinality: many
-        via: updates
-      - name: updated_by
-        kind: references
-        target: rfcspec.catalogue.Rfc
-        cardinality: many
-        via: updated_by
       - name: sections
         kind: owns
         target: rfcspec.catalogue.Section
@@ -348,7 +370,7 @@ entities:
       summary: A section of an RFC, from the XML section tree or recovered from the text's table of contents and numbering.
     identity:
       name: section_id
-      type: rfcspec.catalogue.SectionId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -358,7 +380,7 @@ entities:
       - name: title
         type: String
       - name: parent
-        type: Optional<rfcspec.catalogue.SectionId>
+        type: Optional<rfcspec.catalogue.ItemId>
       - name: span
         type: rfcspec.catalogue.Span
     relations:
@@ -374,8 +396,23 @@ entities:
         via: section_id
     lifecycle:
       initial: Read
-      states: [Read]
-      terminal: [Read]
+      states:
+        - name: Read
+          wire: read
+          summary: Read from the locked source; its span matches the spanned text.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; it is not used until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Read]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+        - name: confirm
+          from: [Stale]
+          to: Read
+          summary: A reviewer confirmed it against the changed text under a Current decision.
 
   - name: rfcspec.catalogue.Requirement
     naming:
@@ -384,19 +421,20 @@ entities:
         them from prose for RFCs before BCP 14. The lifecycle is the requirement's review state.
     identity:
       name: requirement_id
-      type: rfcspec.catalogue.RequirementId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: ordinal
         type: Integer
       - name: level
         type: Optional<rfcspec.catalogue.Bcp14Level>
         summary: >-
-          The BCP 14 keyword of the sentence. UNMAPPED: the design does not say whether a
-          requirement proposed from prose before BCP 14 carries a level.
+          The BCP 14 keyword of the sentence. A requirement from a BCP 14 source always carries
+          one; a prose requirement has none until a reviewer sets it (a lower-case should is
+          proposed as SHOULD).
       - name: party
         type: Optional<rfcspec.catalogue.PartyName>
         summary: The party the requirement binds, proposed in S3 and set only by a review decision.
@@ -406,6 +444,8 @@ entities:
         type: rfcspec.catalogue.Span
       - name: source
         type: rfcspec.catalogue.RequirementSource
+    invariants:
+      - any: [source == Prose, defined(level)]
     relations:
       - name: rfc
         kind: references
@@ -417,10 +457,7 @@ entities:
       states:
         - name: Extracted
           wire: extracted
-          summary: Found by S2 or newly proposed; no review decision applies.
-        - name: Proposed
-          wire: proposed
-          summary: An S3 proposal about it is recorded and awaits review.
+          summary: Found by S2; no review decision applies.
         - name: Accepted
           wire: accepted
           summary: A review decision accepted it, possibly edited.
@@ -432,17 +469,14 @@ entities:
           summary: Its span no longer matches after re-import; its decisions are not applied until a reviewer confirms them.
       terminal: []
       transitions:
-        - name: propose
-          from: [Extracted]
-          to: Proposed
         - name: accept
-          from: [Extracted, Proposed, Stale]
+          from: [Extracted, Stale]
           to: Accepted
         - name: reject
-          from: [Extracted, Proposed, Stale]
+          from: [Extracted, Stale]
           to: Rejected
         - name: mark_stale
-          from: [Extracted, Proposed, Accepted, Rejected]
+          from: [Extracted, Accepted, Rejected]
           to: Stale
           summary: Re-import found the spanned text changed; the id is kept.
 
@@ -453,7 +487,7 @@ entities:
         become named procedures in machines.
     identity:
       name: term_id
-      type: rfcspec.catalogue.TermId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -463,15 +497,30 @@ entities:
         type: rfcspec.catalogue.Span
     lifecycle:
       initial: Read
-      states: [Read]
-      terminal: [Read]
+      states:
+        - name: Read
+          wire: read
+          summary: Read from the locked source; its span matches the spanned text.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; it is not used until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Read]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+        - name: confirm
+          from: [Stale]
+          to: Read
+          summary: A reviewer confirmed it against the changed text under a Current decision.
 
   - name: rfcspec.catalogue.Grammar
     naming:
       summary: ABNF rules of an RFC, kept verbatim.
     identity:
       name: grammar_id
-      type: rfcspec.catalogue.GrammarId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -482,27 +531,37 @@ entities:
         summary: The ABNF rules verbatim.
       - name: uses
         type: List<rfcspec.catalogue.RuleImport>
-      - name: bit_level
-        type: Boolean
-        summary: The ABNF operates on groups of bits, as RFC 6455 section 5.2 does.
       - name: dialect
         type: Optional<rfcspec.catalogue.AbnfDialect>
-        summary: >-
-          Proposed in S3 and reviewed. UNMAPPED: the design has both this dialect, with a bits
-          value, and the bit_level flag; how the two relate is not stated.
+        summary: Proposed in S3 and reviewed; absent until then.
       - name: span
         type: rfcspec.catalogue.Span
     lifecycle:
       initial: Read
-      states: [Read]
-      terminal: [Read]
+      states:
+        - name: Read
+          wire: read
+          summary: Read from the locked source; its span matches the spanned text.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; it is not used until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Read]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+        - name: confirm
+          from: [Stale]
+          to: Read
+          summary: A reviewer confirmed it against the changed text under a Current decision.
 
   - name: rfcspec.catalogue.Layout
     naming:
       summary: A packet diagram parsed to fields with bit widths, dependent lengths, presence conditions and constraints.
     identity:
       name: layout_id
-      type: rfcspec.catalogue.LayoutId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -514,16 +573,29 @@ entities:
         type: rfcspec.catalogue.Span
     lifecycle:
       initial: Read
-      states: [Read]
-      terminal: [Read]
+      states:
+        - name: Read
+          wire: read
+          summary: Read from the locked source; its span matches the spanned text.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; it is not used until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Read]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+        - name: confirm
+          from: [Stale]
+          to: Read
+          summary: A reviewer confirmed it against the changed text under a Current decision.
 
   - name: rfcspec.catalogue.Registry
     naming:
       summary: >-
         An IANA registry read from IANA's XML, never from the RFC's IANA section; lowered to an
-        enum with an open or closed policy. UNMAPPED: the design says every catalogue item carries
-        a span, and a registry is read from IANA XML rather than an RFC; whether and how a
-        registry carries provenance is not stated.
+        enum with an open or closed policy. Its provenance is the IANA form, not a span.
     identity:
       name: registry_id
       type: rfcspec.catalogue.RegistryId
@@ -532,6 +604,8 @@ entities:
         type: List<rfcspec.catalogue.RegistryEntry>
       - name: policy
         type: rfcspec.catalogue.RegistryPolicy
+      - name: source
+        type: rfcspec.catalogue.IanaSource
     lifecycle:
       initial: Read
       states: [Read]
@@ -539,10 +613,12 @@ entities:
 
   - name: rfcspec.catalogue.Limit
     naming:
-      summary: A quantity the RFC leaves to the implementation, with any stated minimum or maximum.
+      summary: >-
+        A quantity the RFC leaves to the implementation, with any stated minimum or maximum and
+        the reaction the RFC states for exceeding it.
     identity:
       name: limit_id
-      type: rfcspec.catalogue.LimitId
+      type: rfcspec.catalogue.ItemId
     fields:
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
@@ -552,12 +628,34 @@ entities:
         type: Optional<Integer>
       - name: maximum
         type: Optional<Integer>
+      - name: reaction
+        type: Optional<String>
+        summary: >-
+          The RFC's stated reaction to a value past the limit, verbatim, such as failing the
+          connection; the limit's span cites it. Absent where the RFC states none.
       - name: span
         type: rfcspec.catalogue.Span
+    invariants:
+      - any: [not defined(minimum), not defined(maximum), minimum <= maximum]
     lifecycle:
       initial: Read
-      states: [Read]
-      terminal: [Read]
+      states:
+        - name: Read
+          wire: read
+          summary: Read from the locked source; its span matches the spanned text.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; it is not used until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Read]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+        - name: confirm
+          from: [Stale]
+          to: Read
+          summary: A reviewer confirmed it against the changed text under a Current decision.
 
 actors:
   - name: rfcspec.catalogue.Reader
@@ -574,6 +672,11 @@ actors:
       - rfcspec.catalogue.ReadRegistry
       - rfcspec.catalogue.ExtractLimit
       - rfcspec.catalogue.MarkRequirementStale
+      - rfcspec.catalogue.MarkSectionStale
+      - rfcspec.catalogue.MarkDefinedTermStale
+      - rfcspec.catalogue.MarkGrammarStale
+      - rfcspec.catalogue.MarkLayoutStale
+      - rfcspec.catalogue.MarkLimitStale
       - rfcspec.review.MarkDecisionStale
 
 errors:
@@ -587,7 +690,47 @@ errors:
     summary: No requirement has this id.
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.RfcNotFound
+    summary: No RFC has this number.
+    fields:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+
+  - name: rfcspec.catalogue.ItemNotFound
+    summary: No catalogue item of the command's kind has this id.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.ItemNotStale
+    summary: The item is current, so there is nothing to confirm and nothing moved.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.AlreadyExists
+    summary: An item with this identity is already in the catalogue, and nothing was recorded.
+    fields: []
+
+  - name: rfcspec.catalogue.ProseNotExtracted
+    summary: A prose requirement enters the catalogue only through a proposal and a review decision.
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LevelNotSettable
+    summary: The requirement's level was read from a BCP 14 source and is not set by review.
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LimitBoundsInverted
+    summary: The limit's minimum exceeds its maximum.
+    fields:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
 
 commands:
   - name: rfcspec.catalogue.ReadRfc
@@ -607,19 +750,20 @@ commands:
       - name: area
         type: Optional<String>
       - name: date
-        type: String
+        type: rfcspec.catalogue.YearMonth
+        example: "2011-12"
       - name: format_read
         type: rfcspec.catalogue.SourceFormat
       - name: digest
         type: rfcspec.catalogue.Digest
       - name: obsoletes
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
       - name: obsoleted_by
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
       - name: updates
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
       - name: updated_by
-        type: List<rfcspec.catalogue.RfcNumber>
+        type: List<Integer>
     outcomes:
       - name: read
         creates: rfcspec.catalogue.Rfc
@@ -643,6 +787,57 @@ commands:
           updates: input.updates
           updated_by: input.updated_by
         summary: The RFC is in the catalogue, unclassified.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: The RFC is already in the catalogue, and nothing was recorded.
+
+  - name: rfcspec.catalogue.ClassifyRfc
+    naming:
+      wire: classify-rfc
+      display: Classify an RFC
+      summary: A reviewer sets the RFC's primary kind under a Current decision (design sections 2.3 and 9).
+    input:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+      - name: kind
+        type: rfcspec.catalogue.RfcKind
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the RFC is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the RFC is unchanged.
+      - name: classified
+        updates: rfcspec.catalogue.Rfc
+        instance: number
+        emits:
+          - rfcspec.catalogue.RfcClassified
+        payload:
+          rfcspec.catalogue.RfcClassified:
+            number: input.number
+            kind: input.kind
+        sets:
+          kind: input.kind
+        summary: The RFC carries the kind.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RfcNotFound
+        payload:
+          rfcspec.catalogue.RfcNotFound:
+            number: input.number
+        summary: No RFC has this number.
 
   - name: rfcspec.catalogue.ReadSection
     naming:
@@ -650,7 +845,7 @@ commands:
       display: Read a section
     input:
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: anchor
@@ -658,7 +853,7 @@ commands:
       - name: title
         type: String
       - name: parent
-        type: Optional<rfcspec.catalogue.SectionId>
+        type: Optional<rfcspec.catalogue.ItemId>
       - name: span
         type: rfcspec.catalogue.Span
     outcomes:
@@ -677,19 +872,125 @@ commands:
           parent: input.parent
           span: input.span
         summary: The section is in the catalogue under its RFC.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: >-
+          The section is already in the catalogue, and nothing was recorded. Re-import skips a
+          section whose digest is unchanged before it calls.
+
+  - name: rfcspec.catalogue.MarkSectionStale
+    naming:
+      wire: mark-section-stale
+      display: Mark a section stale
+      summary: Re-import found that the section's span no longer matches; the section keeps its id and records the new span.
+    input:
+      - name: section_id
+        type: rfcspec.catalogue.ItemId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.Section.mark_stale
+        instance: section_id
+        emits:
+          - rfcspec.catalogue.SectionStale
+        payload:
+          rfcspec.catalogue.SectionStale:
+            section_id: input.section_id
+        sets:
+          span: input.span
+        summary: The section is Stale until a reviewer confirms it.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.section_id
+        summary: No section has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale section stays stale.
+
+  - name: rfcspec.catalogue.ConfirmSection
+    naming:
+      wire: confirm-section
+      display: Confirm a stale section
+      summary: A reviewer confirms a stale section against its changed text under a Current decision on that text.
+    input:
+      - name: section_id
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the section's span, and the section is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the section is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.section_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the section is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the section is unchanged.
+      - name: confirmed
+        moves: rfcspec.catalogue.Section.confirm
+        instance: section_id
+        emits:
+          - rfcspec.catalogue.SectionConfirmed
+        payload:
+          rfcspec.catalogue.SectionConfirmed:
+            section_id: input.section_id
+        summary: The section is current again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.section_id
+        summary: No section has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.ItemNotStale
+        payload:
+          rfcspec.catalogue.ItemNotStale:
+            item: input.section_id
+        summary: Only a stale section is confirmed.
 
   - name: rfcspec.catalogue.ExtractRequirement
     naming:
       wire: extract-requirement
       display: Extract a requirement
-      summary: S2 records a requirement found mechanically in XML, plain text or an ABNF comment.
+      summary: >-
+        S2 records a requirement found mechanically in XML, plain text or an ABNF comment. A prose
+        requirement enters only through a proposal and a review decision.
     input:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: ordinal
         type: Integer
       - name: level
@@ -701,6 +1002,13 @@ commands:
       - name: source
         type: rfcspec.catalogue.RequirementSource
     outcomes:
+      - name: prose
+        when: source == Prose
+        error: rfcspec.catalogue.ProseNotExtracted
+        payload:
+          rfcspec.catalogue.ProseNotExtracted:
+            requirement_id: input.requirement_id
+        summary: A prose requirement is not extracted mechanically, and nothing was recorded.
       - name: extracted
         creates: rfcspec.catalogue.Requirement
         instance: requirement_id
@@ -717,30 +1025,84 @@ commands:
           text: input.text
           span: input.span
           source: input.source
-        summary: The requirement is in the catalogue, Extracted, with no party.
+        summary: The requirement is in the catalogue, Extracted, with its level and no party.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: >-
+          The requirement is already in the catalogue, and nothing was recorded. Re-import skips a
+          requirement whose digest is unchanged before it calls.
 
   - name: rfcspec.catalogue.ProposeRequirement
     naming:
       wire: propose-requirement
-      display: Propose a requirement from prose
-      summary: S3 proposes a requirement from the prose of an RFC before BCP 14.
+      display: Record a requirement from prose
+      summary: >-
+        A reviewer records a requirement S3 proposed from the prose of an RFC before BCP 14, under
+        a Current accept or edit decision on its text.
     input:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: ordinal
         type: Integer
       - name: text
         type: String
       - name: span
         type: rfcspec.catalogue.Span
+      - name: party
+        type: Optional<rfcspec.catalogue.PartyName>
+      - name: decision
+        type: rfcspec.review.DecisionKey
     outcomes:
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: >-
+          The requirement is already in the catalogue, and nothing was recorded. Re-import skips a
+          requirement whose digest is unchanged before it calls.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and nothing was recorded.
+      - name: other-item
+        when_related:
+          via: input.decision
+          predicate:
+            any:
+              - item != input.requirement_id
+              - text_digest != input.span.digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item or text, and nothing was recorded.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and nothing was recorded.
+      - name: kind-mismatch
+        when_related:
+          via: input.decision
+          predicate:
+            all: [kind != Accept, kind != Edit]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: Only an accept or edit decision records a requirement from prose.
       - name: proposed
         creates: rfcspec.catalogue.Requirement
-        into: Proposed
+        into: Accepted
         instance: requirement_id
         emits:
           - rfcspec.catalogue.RequirementProposed
@@ -754,51 +1116,65 @@ commands:
           text: input.text
           span: input.span
           source: Prose
+          party: input.party
         summary: >-
-          The requirement is in the catalogue, Proposed, with source prose; it needs review.
-
-  - name: rfcspec.catalogue.MarkRequirementProposed
-    naming:
-      wire: mark-requirement-proposed
-      display: Mark a requirement proposed
-      summary: >-
-        An S3 proposal about the requirement, such as its party, is recorded. The proposal itself
-        changes nothing on the requirement.
-    input:
-      - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
-    outcomes:
-      - name: proposed
-        moves: rfcspec.catalogue.Requirement.propose
-        instance: requirement_id
-        emits:
-          - rfcspec.catalogue.RequirementProposed
-        payload:
-          rfcspec.catalogue.RequirementProposed:
-            requirement_id: input.requirement_id
-        summary: The requirement awaits review.
-      - name: unknown
-        unknown_instance: true
-        error: rfcspec.catalogue.RequirementNotFound
-        summary: No requirement has this id.
-      - name: wrong-state
-        wrong_state: true
-        error: rfcspec.catalogue.RequirementStateConflict
-        summary: Only an Extracted requirement becomes Proposed.
+          The requirement is in the catalogue, Accepted under the decision, with source prose, the
+          party the decision gives and no level until a reviewer sets it.
 
   - name: rfcspec.catalogue.AcceptRequirement
     naming:
       wire: accept-requirement
       display: Accept a requirement
       summary: >-
-        A review decision accepts the requirement, possibly edited; a reviewer's confirmation of
-        a stale requirement is an accept.
+        A review decision accepts the requirement, possibly edited. A stale requirement is
+        accepted only under a Current decision on its changed text, which ConfirmDecision records.
     input:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
       - name: party
         type: Optional<rfcspec.catalogue.PartyName>
+      - name: decision
+        type: rfcspec.review.DecisionKey
     outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the requirement's span, and the requirement is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the requirement is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.requirement_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the requirement is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the requirement is unchanged.
+      - name: kind-mismatch
+        when_related:
+          via: input.decision
+          predicate:
+            all: [kind != Accept, kind != Edit]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: Only an accept or edit decision accepts a requirement, and the requirement is unchanged.
       - name: accepted
         moves: rfcspec.catalogue.Requirement.accept
         instance: requirement_id
@@ -819,14 +1195,134 @@ commands:
         error: rfcspec.catalogue.RequirementStateConflict
         summary: The requirement is already Accepted or Rejected.
 
+  - name: rfcspec.catalogue.SetRequirementLevel
+    naming:
+      wire: set-requirement-level
+      display: Set a requirement's level
+      summary: >-
+        A reviewer sets the BCP 14 level of a requirement proposed from prose, under a Current
+        decision on its text; a lower-case should is proposed as SHOULD. A level read from a BCP 14
+        source is never overwritten.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
+      - name: level
+        type: rfcspec.catalogue.Bcp14Level
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: not-prose
+        when_subject:
+          predicate: source != Prose
+        error: rfcspec.catalogue.LevelNotSettable
+        payload:
+          rfcspec.catalogue.LevelNotSettable:
+            requirement_id: input.requirement_id
+        summary: The level was read from a BCP 14 source, and it stays.
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the requirement's span, and the requirement is unchanged.
+      - name: wrong-state
+        when_subject:
+          predicate:
+            any: [state == Rejected, state == Stale]
+        error: rfcspec.catalogue.RequirementStateConflict
+        payload:
+          rfcspec.catalogue.RequirementStateConflict:
+            state: {subject: state}
+        summary: A Rejected or Stale requirement takes no level.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the requirement is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.requirement_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the requirement is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the requirement is unchanged.
+      - name: set
+        updates: rfcspec.catalogue.Requirement
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementLevelSet
+        payload:
+          rfcspec.catalogue.RequirementLevelSet:
+            requirement_id: input.requirement_id
+            level: input.level
+        sets:
+          level: input.level
+        summary: The requirement carries the level.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RequirementNotFound
+        summary: No requirement has this id.
+
   - name: rfcspec.catalogue.RejectRequirement
     naming:
       wire: reject-requirement
       display: Reject a requirement
+      summary: >-
+        A review decision rejects the requirement. A stale requirement is rejected only under a
+        Current decision on its changed text, which ConfirmDecision records.
     input:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
     outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the requirement's span, and the requirement is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the requirement is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.requirement_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the requirement is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the requirement is unchanged.
+      - name: kind-mismatch
+        when_related: {via: input.decision, predicate: kind != Reject}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: Only a reject decision rejects a requirement, and the requirement is unchanged.
       - name: rejected
         moves: rfcspec.catalogue.Requirement.reject
         instance: requirement_id
@@ -854,7 +1350,7 @@ commands:
         requirement keeps its id and records the new span.
     input:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
       - name: span
         type: rfcspec.catalogue.Span
     outcomes:
@@ -884,7 +1380,7 @@ commands:
       display: Extract a defined term
     input:
       - name: term_id
-        type: rfcspec.catalogue.TermId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: name
@@ -905,6 +1401,110 @@ commands:
           name: input.name
           span: input.span
         summary: The defined term is in the catalogue.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: >-
+          The term is already in the catalogue, and nothing was recorded. Re-import skips a term
+          whose digest is unchanged before it calls.
+
+  - name: rfcspec.catalogue.MarkDefinedTermStale
+    naming:
+      wire: mark-defined-term-stale
+      display: Mark a defined term stale
+      summary: Re-import found that the term's span no longer matches; the term keeps its id and records the new span.
+    input:
+      - name: term_id
+        type: rfcspec.catalogue.ItemId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.DefinedTerm.mark_stale
+        instance: term_id
+        emits:
+          - rfcspec.catalogue.DefinedTermStale
+        payload:
+          rfcspec.catalogue.DefinedTermStale:
+            term_id: input.term_id
+        sets:
+          span: input.span
+        summary: The term is Stale until a reviewer confirms it.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.term_id
+        summary: No defined term has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale term stays stale.
+
+  - name: rfcspec.catalogue.ConfirmDefinedTerm
+    naming:
+      wire: confirm-defined-term
+      display: Confirm a stale defined term
+      summary: A reviewer confirms a stale term against its changed text under a Current decision on that text.
+    input:
+      - name: term_id
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the term's span, and the term is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the term is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.term_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the term is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the term is unchanged.
+      - name: confirmed
+        moves: rfcspec.catalogue.DefinedTerm.confirm
+        instance: term_id
+        emits:
+          - rfcspec.catalogue.DefinedTermConfirmed
+        payload:
+          rfcspec.catalogue.DefinedTermConfirmed:
+            term_id: input.term_id
+        summary: The term is current again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.term_id
+        summary: No defined term has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.ItemNotStale
+        payload:
+          rfcspec.catalogue.ItemNotStale:
+            item: input.term_id
+        summary: Only a stale term is confirmed.
 
   - name: rfcspec.catalogue.ExtractGrammar
     naming:
@@ -912,7 +1512,7 @@ commands:
       display: Extract a grammar
     input:
       - name: grammar_id
-        type: rfcspec.catalogue.GrammarId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: name
@@ -921,8 +1521,6 @@ commands:
         type: String
       - name: uses
         type: List<rfcspec.catalogue.RuleImport>
-      - name: bit_level
-        type: Boolean
       - name: span
         type: rfcspec.catalogue.Span
     outcomes:
@@ -939,9 +1537,172 @@ commands:
           name: input.name
           rules: input.rules
           uses: input.uses
-          bit_level: input.bit_level
           span: input.span
         summary: The grammar is in the catalogue with its rules verbatim and no dialect yet.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: The grammar is already in the catalogue, and nothing was recorded.
+
+  - name: rfcspec.catalogue.SetGrammarDialect
+    naming:
+      wire: set-grammar-dialect
+      display: Set a grammar's dialect
+      summary: A reviewer sets the ABNF dialect S3 proposed for the figure, under a Current decision on its text (design section 8.3).
+    input:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+      - name: dialect
+        type: rfcspec.catalogue.AbnfDialect
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the grammar's span, and the grammar is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the grammar is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.grammar_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the grammar is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the grammar is unchanged.
+      - name: set
+        updates: rfcspec.catalogue.Grammar
+        instance: grammar_id
+        emits:
+          - rfcspec.catalogue.GrammarDialectSet
+        payload:
+          rfcspec.catalogue.GrammarDialectSet:
+            grammar_id: input.grammar_id
+            dialect: input.dialect
+        sets:
+          dialect: input.dialect
+        summary: The grammar carries the dialect.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.grammar_id
+        summary: No grammar has this id.
+
+  - name: rfcspec.catalogue.MarkGrammarStale
+    naming:
+      wire: mark-grammar-stale
+      display: Mark a grammar stale
+      summary: Re-import found that the grammar's span no longer matches; the grammar keeps its id and records the new span.
+    input:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.Grammar.mark_stale
+        instance: grammar_id
+        emits:
+          - rfcspec.catalogue.GrammarStale
+        payload:
+          rfcspec.catalogue.GrammarStale:
+            grammar_id: input.grammar_id
+        sets:
+          span: input.span
+        summary: The grammar is Stale until a reviewer confirms it.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.grammar_id
+        summary: No grammar has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale grammar stays stale.
+
+  - name: rfcspec.catalogue.ConfirmGrammar
+    naming:
+      wire: confirm-grammar
+      display: Confirm a stale grammar
+      summary: A reviewer confirms a stale grammar against its changed text under a Current decision on that text.
+    input:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the grammar's span, and the grammar is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the grammar is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.grammar_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the grammar is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the grammar is unchanged.
+      - name: confirmed
+        moves: rfcspec.catalogue.Grammar.confirm
+        instance: grammar_id
+        emits:
+          - rfcspec.catalogue.GrammarConfirmed
+        payload:
+          rfcspec.catalogue.GrammarConfirmed:
+            grammar_id: input.grammar_id
+        summary: The grammar is current again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.grammar_id
+        summary: No grammar has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.ItemNotStale
+        payload:
+          rfcspec.catalogue.ItemNotStale:
+            item: input.grammar_id
+        summary: Only a stale grammar is confirmed.
 
   - name: rfcspec.catalogue.ExtractLayout
     naming:
@@ -949,7 +1710,7 @@ commands:
       display: Extract a layout
     input:
       - name: layout_id
-        type: rfcspec.catalogue.LayoutId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: name
@@ -973,6 +1734,108 @@ commands:
           fields: input.fields
           span: input.span
         summary: The layout is in the catalogue.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: The layout is already in the catalogue, and nothing was recorded.
+
+  - name: rfcspec.catalogue.MarkLayoutStale
+    naming:
+      wire: mark-layout-stale
+      display: Mark a layout stale
+      summary: Re-import found that the layout's span no longer matches; the layout keeps its id and records the new span.
+    input:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.Layout.mark_stale
+        instance: layout_id
+        emits:
+          - rfcspec.catalogue.LayoutStale
+        payload:
+          rfcspec.catalogue.LayoutStale:
+            layout_id: input.layout_id
+        sets:
+          span: input.span
+        summary: The layout is Stale until a reviewer confirms it.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.layout_id
+        summary: No layout has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale layout stays stale.
+
+  - name: rfcspec.catalogue.ConfirmLayout
+    naming:
+      wire: confirm-layout
+      display: Confirm a stale layout
+      summary: A reviewer confirms a stale layout against its changed text under a Current decision on that text.
+    input:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the layout's span, and the layout is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the layout is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.layout_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the layout is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the layout is unchanged.
+      - name: confirmed
+        moves: rfcspec.catalogue.Layout.confirm
+        instance: layout_id
+        emits:
+          - rfcspec.catalogue.LayoutConfirmed
+        payload:
+          rfcspec.catalogue.LayoutConfirmed:
+            layout_id: input.layout_id
+        summary: The layout is current again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.layout_id
+        summary: No layout has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.ItemNotStale
+        payload:
+          rfcspec.catalogue.ItemNotStale:
+            item: input.layout_id
+        summary: Only a stale layout is confirmed.
 
   - name: rfcspec.catalogue.ReadRegistry
     naming:
@@ -986,6 +1849,8 @@ commands:
         type: List<rfcspec.catalogue.RegistryEntry>
       - name: policy
         type: rfcspec.catalogue.RegistryPolicy
+      - name: source
+        type: rfcspec.catalogue.IanaSource
     outcomes:
       - name: read
         creates: rfcspec.catalogue.Registry
@@ -998,7 +1863,12 @@ commands:
         sets:
           entries: input.entries
           policy: input.policy
-        summary: The registry is in the catalogue.
+          source: input.source
+        summary: The registry is in the catalogue with its IANA source.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: The registry is already in the catalogue, and nothing was recorded.
 
   - name: rfcspec.catalogue.ExtractLimit
     naming:
@@ -1006,7 +1876,7 @@ commands:
       display: Extract a limit
     input:
       - name: limit_id
-        type: rfcspec.catalogue.LimitId
+        type: rfcspec.catalogue.ItemId
       - name: rfc
         type: rfcspec.catalogue.RfcNumber
       - name: name
@@ -1015,9 +1885,19 @@ commands:
         type: Optional<Integer>
       - name: maximum
         type: Optional<Integer>
+      - name: reaction
+        type: Optional<String>
       - name: span
         type: rfcspec.catalogue.Span
     outcomes:
+      - name: bounds-inverted
+        when:
+          all: [defined(minimum), defined(maximum), "coalesce(minimum, 0) > coalesce(maximum, 0)"]
+        error: rfcspec.catalogue.LimitBoundsInverted
+        payload:
+          rfcspec.catalogue.LimitBoundsInverted:
+            limit_id: input.limit_id
+        summary: The minimum exceeds the maximum, and nothing was recorded.
       - name: extracted
         creates: rfcspec.catalogue.Limit
         instance: limit_id
@@ -1031,8 +1911,113 @@ commands:
           name: input.name
           minimum: input.minimum
           maximum: input.maximum
+          reaction: input.reaction
           span: input.span
         summary: The limit is in the catalogue.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.catalogue.AlreadyExists
+        summary: >-
+          The limit is already in the catalogue, and nothing was recorded. Re-import skips a limit
+          whose digest is unchanged before it calls.
+
+  - name: rfcspec.catalogue.MarkLimitStale
+    naming:
+      wire: mark-limit-stale
+      display: Mark a limit stale
+      summary: Re-import found that the limit's span no longer matches; the limit keeps its id and records the new span.
+    input:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.Limit.mark_stale
+        instance: limit_id
+        emits:
+          - rfcspec.catalogue.LimitStale
+        payload:
+          rfcspec.catalogue.LimitStale:
+            limit_id: input.limit_id
+        sets:
+          span: input.span
+        summary: The limit is Stale until a reviewer confirms it.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.limit_id
+        summary: No limit has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale limit stays stale.
+
+  - name: rfcspec.catalogue.ConfirmLimit
+    naming:
+      wire: confirm-limit
+      display: Confirm a stale limit
+      summary: A reviewer confirms a stale limit against its changed text under a Current decision on that text.
+    input:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
+      - name: decision
+        type: rfcspec.review.DecisionKey
+    outcomes:
+      - name: other-text
+        when_subject:
+          predicate: span.digest != input.decision.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision judged another text than the limit's span, and the limit is unchanged.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the limit is unchanged.
+      - name: other-item
+        when_related: {via: input.decision, predicate: item != input.limit_id}
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item, and the limit is unchanged.
+      - name: decision-not-current
+        when_related: {via: input.decision, predicate: state != Current}
+        error: rfcspec.review.DecisionNotCurrent
+        payload:
+          rfcspec.review.DecisionNotCurrent:
+            item: input.decision.item
+        summary: The decision is Stale, and the limit is unchanged.
+      - name: confirmed
+        moves: rfcspec.catalogue.Limit.confirm
+        instance: limit_id
+        emits:
+          - rfcspec.catalogue.LimitConfirmed
+        payload:
+          rfcspec.catalogue.LimitConfirmed:
+            limit_id: input.limit_id
+        summary: The limit is current again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.ItemNotFound
+        payload:
+          rfcspec.catalogue.ItemNotFound:
+            item: input.limit_id
+        summary: No limit has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.ItemNotStale
+        payload:
+          rfcspec.catalogue.ItemNotStale:
+            item: input.limit_id
+        summary: Only a stale limit is confirmed.
 
 events:
   - name: rfcspec.catalogue.RfcRead
@@ -1045,47 +2030,54 @@ events:
   - name: rfcspec.catalogue.SectionRead
     fields:
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.RequirementExtracted
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.RequirementProposed
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.RequirementAccepted
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.RequirementLevelSet
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
+      - name: level
+        type: rfcspec.catalogue.Bcp14Level
 
   - name: rfcspec.catalogue.RequirementRejected
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.RequirementStale
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.DefinedTermExtracted
     fields:
       - name: term_id
-        type: rfcspec.catalogue.TermId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.GrammarExtracted
     fields:
       - name: grammar_id
-        type: rfcspec.catalogue.GrammarId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.LayoutExtracted
     fields:
       - name: layout_id
-        type: rfcspec.catalogue.LayoutId
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.catalogue.RegistryRead
     fields:
@@ -1095,9 +2087,89 @@ events:
   - name: rfcspec.catalogue.LimitExtracted
     fields:
       - name: limit_id
-        type: rfcspec.catalogue.LimitId
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.RfcClassified
+    fields:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+      - name: kind
+        type: rfcspec.catalogue.RfcKind
+
+  - name: rfcspec.catalogue.GrammarDialectSet
+    fields:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+      - name: dialect
+        type: rfcspec.catalogue.AbnfDialect
+
+  - name: rfcspec.catalogue.SectionStale
+    fields:
+      - name: section_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.SectionConfirmed
+    fields:
+      - name: section_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.DefinedTermStale
+    fields:
+      - name: term_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.DefinedTermConfirmed
+    fields:
+      - name: term_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.GrammarStale
+    fields:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.GrammarConfirmed
+    fields:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LayoutStale
+    fields:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LayoutConfirmed
+    fields:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LimitStale
+    fields:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.catalogue.LimitConfirmed
+    fields:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
 
 views:
+  - name: rfcspec.catalogue.Rfcs
+    source: rfcspec.catalogue.Rfc
+    consistency: read_your_writes
+    naming:
+      wire: rfcs
+      display: RFCs
+    fields:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+      - name: state
+        type: rfcspec.catalogue.Rfc.State
+      - name: title
+        type: String
+      - name: date
+        type: rfcspec.catalogue.YearMonth
+
   - name: rfcspec.catalogue.Requirements
     source: rfcspec.catalogue.Requirement
     consistency: read_your_writes
@@ -1106,11 +2178,11 @@ views:
       display: Requirements
     fields:
       - name: requirement_id
-        type: rfcspec.catalogue.RequirementId
+        type: rfcspec.catalogue.ItemId
       - name: state
         type: rfcspec.catalogue.Requirement.State
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: level
         type: Optional<rfcspec.catalogue.Bcp14Level>
       - name: party
@@ -1119,6 +2191,10 @@ views:
         type: rfcspec.catalogue.RequirementSource
       - name: text
         type: String
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: ordinal
+        type: Integer
 
   - name: rfcspec.catalogue.Sections
     source: rfcspec.catalogue.Section
@@ -1128,7 +2204,7 @@ views:
       display: Sections
     fields:
       - name: section_id
-        type: rfcspec.catalogue.SectionId
+        type: rfcspec.catalogue.ItemId
       - name: state
         type: rfcspec.catalogue.Section.State
       - name: rfc
@@ -1137,5 +2213,101 @@ views:
         type: String
       - name: title
         type: String
+
+  - name: rfcspec.catalogue.DefinedTerms
+    source: rfcspec.catalogue.DefinedTerm
+    consistency: read_your_writes
+    naming:
+      wire: defined-terms
+      display: Defined terms
+    fields:
+      - name: term_id
+        type: rfcspec.catalogue.ItemId
+      - name: state
+        type: rfcspec.catalogue.DefinedTerm.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+
+  - name: rfcspec.catalogue.Grammars
+    source: rfcspec.catalogue.Grammar
+    consistency: read_your_writes
+    naming:
+      wire: grammars
+      display: Grammars
+    fields:
+      - name: grammar_id
+        type: rfcspec.catalogue.ItemId
+      - name: state
+        type: rfcspec.catalogue.Grammar.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: dialect
+        type: Optional<rfcspec.catalogue.AbnfDialect>
+
+  - name: rfcspec.catalogue.Layouts
+    source: rfcspec.catalogue.Layout
+    consistency: read_your_writes
+    naming:
+      wire: layouts
+      display: Layouts
+    fields:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+      - name: state
+        type: rfcspec.catalogue.Layout.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+
+  - name: rfcspec.catalogue.Registries
+    source: rfcspec.catalogue.Registry
+    consistency: read_your_writes
+    naming:
+      wire: registries
+      display: Registries
+    fields:
+      - name: registry_id
+        type: rfcspec.catalogue.RegistryId
+      - name: state
+        type: rfcspec.catalogue.Registry.State
+      - name: policy
+        type: rfcspec.catalogue.RegistryPolicy
+
+  - name: rfcspec.catalogue.Limits
+    source: rfcspec.catalogue.Limit
+    consistency: read_your_writes
+    naming:
+      wire: limits
+      display: Limits
+    fields:
+      - name: limit_id
+        type: rfcspec.catalogue.ItemId
+      - name: state
+        type: rfcspec.catalogue.Limit.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: minimum
+        type: Optional<Integer>
+      - name: maximum
+        type: Optional<Integer>
+      - name: reaction
+        type: Optional<String>
+
+  - name: rfcspec.catalogue.RequirementSpans
+    source: rfcspec.catalogue.Requirement
+    consistency: eventual
+    naming:
+      wire: requirement-spans
+      display: Requirement spans
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
       - name: span
         type: rfcspec.catalogue.Span
