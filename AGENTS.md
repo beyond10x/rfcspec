@@ -5,9 +5,11 @@ The contract for changing this repository. Humans start at [`README.md`](README.
 
 ## Serves
 
-- **RFCs as executable specifications.** An RFC becomes a cited requirement catalogue, ESS
-  documents for its machines and types, a wire-format sidecar for its bytes and bits, and from
-  those a generated protocol core and a conformance suite.
+- **O2 — decisions as data, with evidence.** An RFC becomes a cited requirement catalogue, ESS
+  documents for its machines and types, and a wire-format sidecar for its bytes and bits; a
+  conformance matrix gives every requirement a status backed by tests.
+- **O4 — products run on the foundation.** The generated protocol cores become native libraries
+  and Spindle ports, so a product's specification names an exchange, not a protocol.
 
 ## State
 
