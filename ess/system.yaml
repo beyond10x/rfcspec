@@ -1,0 +1,13 @@
+format: ess/34
+system: rfcspec
+version: v1
+
+summary: >-
+  RFCspec reads RFCs into a catalogue of requirements, grammars, layouts, registries, defined
+  terms and limits, each carrying a cited span; records AI proposals over that catalogue; and
+  keeps the review decisions and per-profile requirement statuses that lowering to ESS reads.
+
+domains:
+  - rfcspec.catalogue
+  - rfcspec.profile
+  - rfcspec.review

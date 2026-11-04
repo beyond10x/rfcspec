@@ -1,0 +1,56 @@
+components:
+  - component: rfcspec
+    summary: >-
+      The rfcspec binary. It reads locked sources into the catalogue, records proposals, writes
+      review decisions to a profile's overlay and records requirement statuses, all offline.
+    owns:
+      domains:
+        - rfcspec.catalogue
+        - rfcspec.profile
+        - rfcspec.review
+    accepts:
+      commands:
+        - rfcspec.catalogue.ReadRfc
+        - rfcspec.catalogue.ReadSection
+        - rfcspec.catalogue.ExtractRequirement
+        - rfcspec.catalogue.ProposeRequirement
+        - rfcspec.catalogue.MarkRequirementProposed
+        - rfcspec.catalogue.AcceptRequirement
+        - rfcspec.catalogue.RejectRequirement
+        - rfcspec.catalogue.MarkRequirementStale
+        - rfcspec.catalogue.ExtractDefinedTerm
+        - rfcspec.catalogue.ExtractGrammar
+        - rfcspec.catalogue.ExtractLayout
+        - rfcspec.catalogue.ReadRegistry
+        - rfcspec.catalogue.ExtractLimit
+        - rfcspec.profile.DeclareProfile
+        - rfcspec.profile.RecordMachine
+        - rfcspec.profile.RecordStatus
+        - rfcspec.review.RecordProposal
+        - rfcspec.review.DecideProposal
+        - rfcspec.review.RecordDecision
+        - rfcspec.review.MarkDecisionStale
+        - rfcspec.review.ConfirmDecision
+    publishes:
+      events:
+        - rfcspec.catalogue.RfcRead
+        - rfcspec.catalogue.SectionRead
+        - rfcspec.catalogue.RequirementExtracted
+        - rfcspec.catalogue.RequirementProposed
+        - rfcspec.catalogue.RequirementAccepted
+        - rfcspec.catalogue.RequirementRejected
+        - rfcspec.catalogue.RequirementStale
+        - rfcspec.catalogue.DefinedTermExtracted
+        - rfcspec.catalogue.GrammarExtracted
+        - rfcspec.catalogue.LayoutExtracted
+        - rfcspec.catalogue.RegistryRead
+        - rfcspec.catalogue.LimitExtracted
+        - rfcspec.profile.ProfileDeclared
+        - rfcspec.profile.MachineRecorded
+        - rfcspec.profile.StatusRecorded
+        - rfcspec.review.ProposalRecorded
+        - rfcspec.review.ProposalDecided
+        - rfcspec.review.DecisionRecorded
+        - rfcspec.review.DecisionStale
+        - rfcspec.review.DecisionConfirmed
+    reached_by: in_process

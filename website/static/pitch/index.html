@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFCspec — every RFC, executable</title>
+<meta name="description" content="RFCspec turns RFCs into executable specifications: cited requirement catalogues, ESS protocol models, generated protocol cores and conformance suites.">
+<style>
+  :root {
+    --bg: #0b0c0e;
+    --panel: #121418;
+    --line: #23262d;
+    --ink: #e7e9ee;
+    --muted: #8b919c;
+    --faint: #5a606b;
+    --accent: #6fd3c2;
+    --accent-dim: #2b5c55;
+    --warn: #e0b46a;
+    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #050506; color: var(--ink); font-family: var(--sans); overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #deck { position: relative; width: 1280px; height: 720px; transform-origin: center center; }
+  .slide {
+    position: absolute; inset: 0; background: var(--bg); padding: 64px 80px 56px;
+    display: none; flex-direction: column; border: 1px solid var(--line);
+  }
+  .slide.active { display: flex; }
+  .eyebrow { font-family: var(--mono); font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 { font-size: 64px; line-height: 1.05; margin: 0 0 24px; font-weight: 650; letter-spacing: -.02em; }
+  h2 { font-size: 40px; line-height: 1.12; margin: 0 0 28px; font-weight: 620; letter-spacing: -.01em; }
+  p, li { font-size: 21px; line-height: 1.5; color: var(--ink); }
+  p { margin: 0 0 16px; }
+  ul { margin: 0; padding-left: 22px; }
+  li { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  .accent { color: var(--accent); }
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code { background: #171a1f; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+  pre { font-family: var(--mono); font-size: 14px; line-height: 1.45; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; margin: 0; color: #cdd2da; white-space: pre; overflow: hidden; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  td.n { font-family: var(--mono); text-align: right; color: var(--accent); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; flex: 1; min-height: 0; }
+  .cols3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card h3 { font-family: var(--mono); font-size: 14px; letter-spacing: .06em; color: var(--accent); margin: 0 0 8px; font-weight: 500; text-transform: uppercase; }
+  .card p { font-size: 17px; margin: 0; color: #c9ced6; }
+  .big { font-size: 96px; font-weight: 650; letter-spacing: -.03em; line-height: 1; color: var(--accent); font-family: var(--sans); }
+  .stat { display: flex; flex-direction: column; gap: 6px; }
+  .stat .label { font-size: 16px; color: var(--muted); }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 12px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+  .tag.on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .tag.half { color: var(--accent); border-color: var(--accent-dim); }
+  .foot { margin-top: auto; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--faint); padding-top: 18px; }
+  .flow { display: flex; align-items: center; gap: 14px; font-family: var(--mono); font-size: 17px; margin: 28px 0; flex-wrap: wrap; }
+  .flow .box { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 12px 16px; }
+  .flow .box.hl { border-color: var(--accent-dim); color: var(--accent); }
+  .flow .arr { color: var(--faint); }
+  .verdict { font-family: var(--mono); font-size: 13px; }
+  .bad { color: var(--warn); }
+  .good { color: var(--accent); }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-dim); }
+  #hud { position: fixed; right: 18px; bottom: 14px; font-family: var(--mono); font-size: 12px; color: var(--faint); user-select: none; }
+  #bar { position: fixed; left: 0; bottom: 0; height: 2px; background: var(--accent); transition: width .2s ease; }
+  .title-slide { justify-content: center; }
+  .title-slide h1 { font-size: 88px; }
+  .mark { font-family: var(--mono); font-size: 18px; color: var(--muted); }
+  @media print {
+    html, body { overflow: visible; background: var(--bg); }
+    #stage { position: static; display: block; }
+    #deck { transform: none !important; width: 1280px; height: auto; }
+    .slide { display: flex !important; position: relative; height: 720px; page-break-after: always; }
+    #hud, #bar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+
+<!-- 1 -->
+<section class="slide title-slide">
+  <p class="eyebrow">RFCspec · design proposal · November 2026</p>
+  <h1>Every RFC,<br><span class="accent">executable.</span></h1>
+  <p class="muted" style="max-width: 880px; font-size: 24px;">Take an RFC from the RFC Editor. Get a requirement catalogue with a citation for every item, an ESS model of its protocol, a generated protocol core and a conformance suite that any implementation can be held to.</p>
+  <div class="foot"><span>beyond10x / rfcspec</span><span>Apache-2.0 · Rust · ESS</span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <p class="eyebrow">The problem</p>
+  <h2>The Internet's protocols are specified in prose.</h2>
+  <div class="cols" style="grid-template-columns: 360px 1fr; align-items: start;">
+    <div class="stat">
+      <div class="big">9,854</div>
+      <div class="label">RFC entries in the RFC Editor index, read 4 November 2026</div>
+    </div>
+    <ul>
+      <li>Requirements are sentences: RFC 6455 alone has 140 occurrences of <code>MUST</code>.</li>
+      <li>Every implementation re-reads the text and re-derives the state machine by hand.</li>
+      <li>Grammars, bit layouts and registries are scattered across sections, comments and IANA pages.</li>
+      <li>Conformance is per project: a test suite here, an interop run there, no shared matrix of which sentence is met.</li>
+      <li>Nothing links a line of code back to the sentence it implements.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>2 · problem</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <p class="eyebrow">The ambition</p>
+  <h2>From any RFC to a checkable implementation.</h2>
+  <div class="flow">
+    <span class="box">rfc-editor.org</span><span class="arr">→</span>
+    <span class="box hl">cited catalogue</span><span class="arr">→</span>
+    <span class="box hl">ESS model</span><span class="arr">→</span>
+    <span class="box">generated core</span><span class="arr">+</span>
+    <span class="box">conformance suite</span>
+  </div>
+  <div class="cols3">
+    <div class="card"><h3>Catalogue</h3><p>Requirements, grammars, bit layouts, registries, defined procedures and limits. Each item carries its source span and a digest.</p></div>
+    <div class="card"><h3>Specification</h3><p>State machines as <code>ess-protospec/1</code>, types and registries as ESS. Bytes and bits in a wire sidecar, <code>rfcspec-wire/1</code>.</p></div>
+    <div class="card"><h3>Outputs</h3><p>A sans-IO Rust core per protocol, generated test vectors, traces, and a requirement matrix per implementation.</p></div>
+  </div>
+  <p class="muted" style="margin-top: 26px;">A standard library of protocols that cites the RFCs it implements, sentence by sentence.</p>
+  <div class="foot"><span>RFCspec</span><span>3 · ambition</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <p class="eyebrow">Pipeline</p>
+  <h2>Eight stages. Two of them involve judgement.</h2>
+  <svg viewBox="0 0 1120 330" width="1120" height="330" role="img" aria-label="Pipeline stages S0 to S7">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5a606b"/></marker>
+    </defs>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="14">
+      <!-- row 1 -->
+      <g>
+        <rect x="0" y="20" width="250" height="110" rx="6" fill="#121418" stroke="#23262d"/>
+        <text x="16" y="48" fill="#6fd3c2">S0 fetch</text>
+        <text x="16" y="76" fill="#cdd2da">XML or TXT, index, errata,</text>
+        <text x="16" y="96" fill="#cdd2da">IANA registries → lock</text>
+        <text x="16" y="118" fill="#5a606b">network, recorded</text>
+      </g>
+      <g>
+        <rect x="290" y="20" width="250" height="110" rx="6" fill="#121418" stroke="#23262d"/>
+        <text x="306" y="48" fill="#6fd3c2">S1 read</text>
+        <text x="306" y="76" fill="#cdd2da">sections, figures, terms;</text>
+        <text x="306" y="96" fill="#cdd2da">page furniture removed</text>
+        <text x="306" y="118" fill="#5a606b">deterministic</text>
+      </g>
+      <g>
+        <rect x="580" y="20" width="250" height="110" rx="6" fill="#121418" stroke="#23262d"/>
+        <text x="596" y="48" fill="#6fd3c2">S2 extract</text>
+        <text x="596" y="76" fill="#cdd2da">BCP 14 sentences, ABNF,</text>
+        <text x="596" y="96" fill="#cdd2da">layouts, registries</text>
+        <text x="596" y="118" fill="#5a606b">deterministic</text>
+      </g>
+      <g>
+        <rect x="870" y="20" width="250" height="110" rx="6" fill="#121418" stroke="#e0b46a"/>
+        <text x="886" y="48" fill="#e0b46a">S3 propose (AI)</text>
+        <text x="886" y="76" fill="#cdd2da">parties, machines, axes,</text>
+        <text x="886" y="96" fill="#cdd2da">constraints from prose</text>
+        <text x="886" y="118" fill="#5a606b">recorded, replayed</text>
+      </g>
+      <!-- row 2 -->
+      <g>
+        <rect x="870" y="200" width="250" height="110" rx="6" fill="#121418" stroke="#e0b46a"/>
+        <text x="886" y="228" fill="#e0b46a">S4 review</text>
+        <text x="886" y="256" fill="#cdd2da">overlay: accept, edit,</text>
+        <text x="886" y="276" fill="#cdd2da">reject; statuses</text>
+        <text x="886" y="298" fill="#5a606b">authored</text>
+      </g>
+      <g>
+        <rect x="580" y="200" width="250" height="110" rx="6" fill="#121418" stroke="#2b5c55"/>
+        <text x="596" y="228" fill="#6fd3c2">S5 lower</text>
+        <text x="596" y="256" fill="#cdd2da">ess-protospec/1, ess/N,</text>
+        <text x="596" y="276" fill="#cdd2da">rfcspec-wire/1</text>
+        <text x="596" y="298" fill="#5a606b">deterministic</text>
+      </g>
+      <g>
+        <rect x="290" y="200" width="250" height="110" rx="6" fill="#121418" stroke="#23262d"/>
+        <text x="306" y="228" fill="#6fd3c2">S6 synthesize</text>
+        <text x="306" y="256" fill="#cdd2da">Rust codec, machine,</text>
+        <text x="306" y="276" fill="#cdd2da">limits, roles; WASM codec</text>
+        <text x="306" y="298" fill="#5a606b">deterministic</text>
+      </g>
+      <g>
+        <rect x="0" y="200" width="250" height="110" rx="6" fill="#121418" stroke="#23262d"/>
+        <text x="16" y="228" fill="#6fd3c2">S7 verify</text>
+        <text x="16" y="256" fill="#cdd2da">matrix, vectors, traces,</text>
+        <text x="16" y="276" fill="#cdd2da">external suites</text>
+        <text x="16" y="298" fill="#5a606b">deterministic per target</text>
+      </g>
+    </g>
+    <g stroke="#5a606b" stroke-width="1.5" fill="none" marker-end="url(#a)">
+      <line x1="252" y1="75" x2="286" y2="75"/>
+      <line x1="542" y1="75" x2="576" y2="75"/>
+      <line x1="832" y1="75" x2="866" y2="75"/>
+      <line x1="995" y1="132" x2="995" y2="196"/>
+      <line x1="868" y1="255" x2="834" y2="255"/>
+      <line x1="578" y1="255" x2="544" y2="255"/>
+      <line x1="288" y1="255" x2="254" y2="255"/>
+    </g>
+  </svg>
+  <p class="muted" style="margin-top: 14px; font-size: 18px;">Generated files are never edited by hand. <code>task check</code> regenerates them and fails on drift.</p>
+  <div class="foot"><span>RFCspec</span><span>4 · pipeline</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <p class="eyebrow">Determinism and AI</p>
+  <h2>AI proposes. Checks and reviewers decide.</h2>
+  <div class="cols">
+    <ul>
+      <li>AI runs in one stage, S3, where prose has to become structure.</li>
+      <li>Every proposal quotes the span it relies on. A quote that does not occur verbatim in the locked source is refused before a human sees it.</li>
+      <li>Proposals are typed documents with the model id and the digest of the prompt and inputs. They are recorded and replayed, so CI runs offline.</li>
+      <li>A proposal changes nothing until a review decision is written to the overlay.</li>
+      <li>No gate calls a model.</li>
+    </ul>
+    <div>
+      <table>
+        <tr><th>Task</th><th>Mechanical check</th></tr>
+        <tr><td>party of a requirement</td><td class="muted">the party is a role in the profile</td></tr>
+        <tr><td>communication axes</td><td class="muted">every quote occurs verbatim</td></tr>
+        <tr><td>state machines</td><td class="muted"><code>ess</code> validates; every MUST linked or listed</td></tr>
+        <tr><td>constraints from prose</td><td class="muted">the field exists in the layout</td></tr>
+        <tr><td>bit widths from ABNF comments</td><td class="muted">widths sum against the diagram</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>5 · determinism</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <p class="eyebrow">Communication semantics</p>
+  <h2>What kind of conversation is this protocol?</h2>
+  <p class="muted" style="font-size: 18px; margin-bottom: 18px;">Axes: <span class="mono accent">unit · delivery · direction · multiplexing · exchange · correlation · lifetime · layering · roles</span>. Values below are design input, to be confirmed against each RFC.</p>
+  <table style="font-size: 15px;">
+    <tr><th>Protocol</th><th>Unit</th><th>Delivery</th><th>Direction</th><th>Multiplexing</th><th>Exchange</th><th>Correlation</th><th>Over</th></tr>
+    <tr><td>UDP 768</td><td>datagrams</td><td>unordered, lossy</td><td>simplex</td><td>single</td><td>one-shot</td><td>none</td><td>IP</td></tr>
+    <tr><td>TCP 9293</td><td>bytes</td><td>ordered, reliable</td><td>full-duplex</td><td>single</td><td>session</td><td>none</td><td>IP</td></tr>
+    <tr><td>DNS 1035</td><td>messages</td><td>as carrier</td><td>half-duplex</td><td>sessions</td><td>req-resp</td><td>by id</td><td>UDP / TCP</td></tr>
+    <tr><td>NTP 5905</td><td>datagrams</td><td>unordered, lossy</td><td>half-duplex</td><td>single</td><td>req-resp</td><td>by id (origin timestamp)</td><td>UDP</td></tr>
+    <tr><td>HTTP/1.1 9112</td><td>bytes</td><td>ordered, reliable</td><td>half-duplex</td><td>single</td><td>req-resp</td><td>by order</td><td>TCP / TLS</td></tr>
+    <tr><td>HTTP/2 9113</td><td>bytes</td><td>ordered, reliable</td><td>full-duplex</td><td>streams</td><td>req-resp</td><td>by id</td><td>TCP / TLS</td></tr>
+    <tr><td class="accent">WebSocket 6455</td><td>bytes</td><td>ordered, reliable</td><td>full-duplex</td><td>single</td><td>session</td><td>none</td><td>TCP; HTTP/2, HTTP/3 stream</td></tr>
+  </table>
+  <div class="foot"><span>RFCspec</span><span>6 · semantics</span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <p class="eyebrow">The corpus</p>
+  <h2>What exists, and what we model.</h2>
+  <div class="cols" style="grid-template-columns: 420px 1fr; gap: 36px;">
+    <div>
+      <table style="font-size: 15px;">
+        <tr><th>Format or status</th><th style="text-align:right">RFCs</th></tr>
+        <tr><td>plain text</td><td class="n">9,847</td></tr>
+        <tr><td>RFCXML v3 (RFC 8650 onward)</td><td class="n">1,390</td></tr>
+        <tr><td>Proposed Standard</td><td class="n">4,434</td></tr>
+        <tr><td>Informational</td><td class="n">3,013</td></tr>
+        <tr><td>Experimental</td><td class="n">559</td></tr>
+        <tr><td>Best Current Practice</td><td class="n">337</td></tr>
+        <tr><td>Internet Standard</td><td class="n">133</td></tr>
+      </table>
+      <p class="faint" style="font-size: 13px; margin-top: 10px;">Counted from rfc-index.xml, 4 November 2026.</p>
+    </div>
+    <div>
+      <table style="font-size: 15px;">
+        <tr><th>Kind</th><th>Treatment</th></tr>
+        <tr><td>K1 wire protocol</td><td><span class="tag on">modelled</span> catalogue, wire, machines</td></tr>
+        <tr><td>K2 data format</td><td><span class="tag on">modelled</span> grammar or layout, vectors</td></tr>
+        <tr><td>K4 extension or update</td><td><span class="tag on">modelled</span> overlay on its base profile</td></tr>
+        <tr><td>K5 registry</td><td><span class="tag on">modelled</span> enums from IANA XML</td></tr>
+        <tr><td>K3 algorithm</td><td><span class="tag half">signature + test vectors</span></td></tr>
+        <tr><td>K6 YANG, MIB</td><td><span class="tag">later, own importer</span></td></tr>
+        <tr><td>K7 architecture, BCP</td><td><span class="tag">catalogue only</span></td></tr>
+        <tr><td>K8 not a specification</td><td><span class="tag">nothing</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>7 · corpus</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <p class="eyebrow">Worked example</p>
+  <h2>WebSocket: one profile, six RFCs.</h2>
+  <div class="cols" style="grid-template-columns: 1fr 1fr;">
+    <div>
+      <p><span class="accent mono">6455</span> base · <span class="mono">7936</span> registry · <span class="mono">8307</span> well-known URIs · <span class="mono">8441</span> over HTTP/2 · <span class="mono">9220</span> over HTTP/3 · <span class="mono">7692</span> permessage-deflate (optional)</p>
+      <ul style="margin-top: 14px;">
+        <li>6455 has no XML: it tests the plain-text path. 9220 tests the XML path.</li>
+        <li>§5.1: “a client MUST mask all frames”, “A server MUST NOT mask any frames”.</li>
+        <li>Six IANA registries, including opcodes and close codes.</li>
+        <li>Independent oracle: Autobahn|Testsuite, “over 500 test cases”.</li>
+      </ul>
+    </div>
+    <div>
+      <p class="muted" style="font-size: 16px; margin-bottom: 8px;">§5.2: ABNF “operating on groups of bits”, with a requirement in a comment</p>
+<pre>ws-frame  = frame-fin           ; 1 bit in length
+            frame-rsv1          ; 1 bit in length
+            frame-rsv2          ; 1 bit in length
+            frame-rsv3          ; 1 bit in length
+            frame-opcode        ; 4 bits in length
+            frame-masked        ; 1 bit in length
+            frame-payload-length
+            [ frame-masking-key ]
+            frame-payload-data
+
+frame-rsv1 = %x0 / %x1
+             ; 1 bit in length, <span class="accent">MUST be 0 unless
+             ; negotiated otherwise</span></pre>
+    </div>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>8 · WebSocket</span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <p class="eyebrow">Lowering into ESS pays off</p>
+  <h2>The first exploration found a gap.</h2>
+  <p class="muted" style="font-size: 19px;">A model of the closing handshake, checked with <code>ess protocol explore</code>. The first draft let the client drop the connection after the close timeout, as RFC 6455 §7.1.7 says.</p>
+  <div class="cols" style="margin-top: 10px;">
+    <div>
+      <p class="verdict bad">draft: client <code>close</code> on timeout</p>
+<pre>"verdict": <span class="bad">"inconclusive"</span>,
+"reason": "dead end with outstanding
+  queue, timer or flush obligations",
+"explored_states": 9,
+"explored_transitions": 10</pre>
+      <p class="muted" style="font-size: 16px; margin-top: 12px;">The server's close frame is still queued to a client that can no longer receive it.</p>
+    </div>
+    <div>
+      <p class="verdict good">model in the design</p>
+<pre>"verdict": <span class="good">"passed"</span>,
+"reason": "bounded model search completed
+  for the supplied finite input witnesses",
+"explored_states": 10,
+"explored_transitions": 11</pre>
+      <p class="muted" style="font-size: 16px; margin-top: 12px;">On TCP the frame is discarded with the connection. The model format cannot say that yet: gap G9.</p>
+    </div>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>9 · evidence</span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <p class="eyebrow">Where ESS grows</p>
+  <h2>Each gap is raised when an RFC needs it.</h2>
+  <table style="font-size: 16px;">
+    <tr><th>#</th><th>Gap</th><th>Needed by</th></tr>
+    <tr><td class="mono accent">G1</td><td>guards beyond equality: ranges, membership</td><td class="muted">WebSocket close-code ranges</td></tr>
+    <tr><td class="mono accent">G2</td><td>modular, bounded arithmetic</td><td class="muted">TCP sequence numbers, NTP timestamps</td></tr>
+    <tr><td class="mono accent">G3</td><td>byte-string fields with length bounds</td><td class="muted">masking key, close reason, payloads</td></tr>
+    <tr><td class="mono accent">G4</td><td>dynamic participants keyed by id</td><td class="muted">HTTP/2 and QUIC streams, DNS queries</td></tr>
+    <tr><td class="mono accent">G5</td><td>layering one protocol over another's stream</td><td class="muted">WebSocket over HTTP/2 and HTTP/3</td></tr>
+    <tr><td class="mono accent">G6</td><td>half-duplex turn rule</td><td class="muted">HTTP/1.1 exchanges</td></tr>
+    <tr><td class="mono accent">G7</td><td>timers from field values</td><td class="muted">NTP poll interval, TCP retransmission</td></tr>
+    <tr><td class="mono accent">G8</td><td>wire layer</td><td class="muted">every wire protocol and data format</td></tr>
+    <tr><td class="mono accent">G9</td><td>close discards in-flight transmissions</td><td class="muted">WebSocket §7.1.7, every teardown</td></tr>
+  </table>
+  <p class="muted" style="font-size: 17px; margin-top: 14px;">Until a gap closes, the requirement shows as <code>unsupported: ess-gap Gn</code>. Nothing is lowered that silently loses a rule.</p>
+  <div class="foot"><span>RFCspec</span><span>10 · ESS gaps</span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <p class="eyebrow">Native and Spindle</p>
+  <h2>One generated core, two ways to run it.</h2>
+  <div class="cols3" style="margin-top: 6px;">
+    <div class="card"><h3>Wire codec</h3><p>Incremental, bounded parsers and printers. Native Rust, or a WASM module that Spindle calls with <code>call_pure</code>: pure, fuel-limited, deterministic.</p></div>
+    <div class="card"><h3>Protocol machine</h3><p>A sans-IO <code>step(state, event)</code> from the protospec model. Native today; on Spindle once it executes protocol models.</p></div>
+    <div class="card"><h3>Application</h3><p>Runs on Spindle and names an exchange (<code>session</code>, <code>request-response</code>), never a protocol. The environment binds it to a generated port.</p></div>
+  </div>
+  <p style="margin-top: 30px;">Reliability without trusting the generator:</p>
+  <ul>
+    <li>parse and print round trips, plus generated vectors from grammars and layouts</li>
+    <li>trace replay against the model, and bounded exploration of the model</li>
+    <li>fuzzing at the limits, and an independent external suite</li>
+  </ul>
+  <div class="foot"><span>RFCspec</span><span>11 · synthesis</span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <p class="eyebrow">Roadmap</p>
+  <h2>Simplest path first.</h2>
+  <table style="font-size: 16px;">
+    <tr><th>#</th><th>Deliverable</th><th>Proves</th></tr>
+    <tr><td class="mono accent">M0</td><td>read RFC 6455 (text) and 9220 (XML); survey every RFC by kind</td><td class="muted">the corpus can be read and counted</td></tr>
+    <tr><td class="mono accent">M1</td><td>ABNF and wire layer; generated WebSocket codec with vectors</td><td class="muted">the wire layer</td></tr>
+    <tr><td class="mono accent">M2</td><td>recorded AI proposals, review overlay, lowering that <code>ess</code> accepts</td><td class="muted">AI with a cited trail; ESS as the target</td></tr>
+    <tr><td class="mono accent">M3</td><td>generated WebSocket crate, Autobahn run, requirement matrix</td><td class="muted">generated clients and conformance tests</td></tr>
+    <tr><td class="mono accent">M4</td><td>DNS over UDP; ESS gap proposals G1, G3, G4</td><td class="muted">a binary protocol; upstreaming the wire format</td></tr>
+    <tr><td class="mono accent">M5</td><td>WebSocket codec as a Spindle <code>call_pure</code> module and port</td><td class="muted">the Spindle path</td></tr>
+    <tr><td class="mono accent">M6</td><td>TCP: modular arithmetic, windows, measured timers</td><td class="muted">whether the approach reaches a transport</td></tr>
+  </table>
+  <div class="foot"><span>RFCspec</span><span>12 · roadmap</span></div>
+</section>
+
+<!-- 13 -->
+<section class="slide">
+  <p class="eyebrow">What success looks like</p>
+  <h2>“Implementation X conforms to profile P” is a claim a machine can check.</h2>
+  <div class="cols" style="grid-template-columns: 1fr 1fr;">
+    <div>
+<pre>rfc6455  WebSocket, profile websocket, client+server
+R5.1-3  5.1  MUST      satisfied   wire::Frame   <span class="good">pass</span>
+R5.1-4  5.1  MUST NOT  satisfied   wire::Frame   <span class="good">pass</span>
+R7.4-2  7.4  MUST      unsupported ess-gap G1    <span class="bad">gap</span>
+R5.5-1  5.5  SHOULD    satisfied   (not run)     <span class="bad">inconclusive</span>
+...
+claim: no  (1 gap, 0 failures, 1 inconclusive)</pre>
+      <p class="faint" style="font-size: 13px; margin-top: 8px;">Illustrative rows; ids are assigned by the importer.</p>
+    </div>
+    <div>
+      <table style="font-size: 15px;">
+        <tr><th>Verdict</th><th>When</th></tr>
+        <tr><td class="good">pass</td><td class="muted">satisfied and a linked test passed</td></tr>
+        <tr><td class="bad">fail</td><td class="muted">a linked test failed</td></tr>
+        <tr><td class="bad">gap</td><td class="muted">MUST-level unsupported</td></tr>
+        <tr><td>deviation</td><td class="muted">SHOULD-level unsupported</td></tr>
+        <tr><td>inconclusive</td><td class="muted">no passing test, or a skip</td></tr>
+        <tr><td class="faint">n/a</td><td class="muted">not applicable, or out of scope</td></tr>
+      </table>
+      <p class="muted" style="font-size: 17px; margin-top: 14px;">The claim holds when no MUST-level row in scope is fail, gap or inconclusive.</p>
+    </div>
+  </div>
+  <div class="foot"><span>RFCspec</span><span>13 · success</span></div>
+</section>
+
+<!-- 14 -->
+<section class="slide title-slide">
+  <p class="eyebrow">RFCspec</p>
+  <h1 style="font-size: 64px;">Read the design.<br><span class="accent">Follow the build.</span></h1>
+  <p style="font-size: 22px;"><a href="https://github.com/beyond10x/rfcspec">github.com/beyond10x/rfcspec</a></p>
+  <p style="font-size: 22px;"><a href="https://beyond10x.github.io/rfcspec/">beyond10x.github.io/rfcspec</a></p>
+  <p class="muted" style="margin-top: 22px; font-size: 18px;">Built on ESS. Runs natively or on Spindle. Status: design proposal, nothing implemented yet.</p>
+  <div class="foot"><span>beyond10x / rfcspec</span><span>Apache-2.0</span></div>
+</section>
+
+</div></div>
+<div id="bar"></div>
+<div id="hud"></div>
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var deck = document.getElementById('deck');
+  var hud = document.getElementById('hud');
+  var bar = document.getElementById('bar');
+  var i = 0;
+  function fromHash() {
+    var n = parseInt((location.hash || '').replace('#', ''), 10);
+    return isNaN(n) ? 0 : Math.min(Math.max(n - 1, 0), slides.length - 1);
+  }
+  function show(n) {
+    i = Math.min(Math.max(n, 0), slides.length - 1);
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === i); });
+    hud.textContent = (i + 1) + ' / ' + slides.length;
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    var h = '#' + (i + 1);
+    if (location.hash !== h) { history.replaceState(null, '', h); }
+  }
+  function fit() {
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  document.addEventListener('keydown', function (e) {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter', 'l', 'j'].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace', 'h', 'k'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('a')) { return; }
+    if (e.clientX < window.innerWidth / 3) { show(i - 1); } else { show(i + 1); }
+  });
+  window.addEventListener('hashchange', function () { show(fromHash()); });
+  window.addEventListener('resize', fit);
+  fit();
+  show(fromHash());
+})();
+</script>
+</body>
+</html>

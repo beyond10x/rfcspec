@@ -1,0 +1,76 @@
+{
+  "format": "b10x-product-landing/1",
+  "product": {
+    "name": "RFCspec",
+    "mark": "RS",
+    "eyebrow": "Design stage · nothing shipped yet",
+    "promise": [
+      "Internet RFCs,",
+      "as specifications that run."
+    ],
+    "lede": "RFCspec reads an RFC, catalogues every requirement, grammar, packet layout, registry and state machine in it with the span of text it came from, and lowers what it can into ESS. ESS then explores the model, and RFCspec generates a sans-IO Rust implementation and conformance tests from it. AI proposes what prose leaves open; a reviewer decides; every gap ESS cannot carry is named.",
+    "description": "Internet RFCs as executable ESS specifications: a cited catalogue, lowered models, generated Rust codecs and conformance tests.",
+    "actions": [
+      {
+        "label": "Read the design",
+        "href": "/docs/design",
+        "kind": "primary"
+      },
+      {
+        "label": "The WebSocket example",
+        "href": "/docs/examples/websocket"
+      },
+      {
+        "label": "Source",
+        "href": "https://github.com/beyond10x/rfcspec"
+      }
+    ],
+    "meta": "Design stage · ESS · Rust · Apache-2.0",
+    "kpis": ["decided", "planned"]
+  },
+  "sections": [
+    {
+      "kind": "flow",
+      "eyebrow": "Pipeline",
+      "title": "From RFC text to a tested implementation.",
+      "lede": "Everything after fetch reads only locked files and runs offline; AI proposals are recorded and replayed.",
+      "steps": [
+        {"label": "S0–S1", "title": "Fetch and read", "description": "Lock the RFC, its errata and IANA registries; read RFCXML or plain text into one document model."},
+        {"label": "S2", "title": "Extract", "description": "Requirements, ABNF, packet layouts, registries and defined procedures, each with a cited span."},
+        {"label": "S3–S4", "title": "Propose and review", "description": "AI proposes parties, communication semantics and machines from prose; a reviewer accepts, edits or rejects."},
+        {"label": "S5", "title": "Lower to ESS", "description": "Machines to ess-protospec/1, types to ess/N, bytes to the rfcspec-wire/1 sidecar; gaps named."},
+        {"label": "S6–S7", "title": "Generate and verify", "description": "A sans-IO Rust crate, a requirement matrix, and an independent suite such as Autobahn."}
+      ]
+    },
+    {
+      "kind": "features",
+      "eyebrow": "What is decided",
+      "title": "The design, decided before the code.",
+      "lede": "Nothing is built yet. These are the decisions the first milestones implement.",
+      "items": [
+        {"title": "A cited catalogue", "description": "Every item carries the RFC, section, byte range and digest of the text it came from.", "status": "decided", "href": "/docs/concepts/catalogue"},
+        {"title": "ESS as the target", "description": "Machines lower to ess-protospec/1 and are explored; what ESS cannot carry is a named gap.", "status": "decided", "href": "/docs/concepts/lowering-to-ess"},
+        {"title": "Communication semantics", "description": "Request-response or session, half or full duplex, one stream or many: one value per axis, checked in the lowering.", "status": "decided", "href": "/docs/concepts/communication-semantics"},
+        {"title": "AI proposes, review decides", "description": "Every proposal quotes its source, is checked mechanically, recorded, replayed, and changes nothing until reviewed.", "status": "decided", "href": "/docs/concepts/ai-proposals"},
+        {"title": "Which RFCs are modelled", "description": "Wire protocols, data formats, extensions and registries in full; algorithms as signatures with test vectors.", "status": "decided", "href": "/docs/concepts/rfc-kinds"},
+        {"title": "WebSocket first", "description": "RFC 6455 end to end: codec, machines, generated crate, Autobahn run.", "status": "planned", "href": "/docs/examples/websocket"}
+      ]
+    },
+    {
+      "kind": "status",
+      "eyebrow": "Status",
+      "title": "Decided and planned.",
+      "items": "data/status.json"
+    },
+    {
+      "kind": "related",
+      "eyebrow": "Built with",
+      "title": "Where RFCspec sits.",
+      "tools": [
+        {"id": "ess", "relation": "uses", "via": "RFCspec lowers RFCs into ESS documents and runs ess protocol explore on them"},
+        {"name": "Spindle", "description": "Runs a compiled ESS model as a live service; RFCspec's codecs plug in as pure WASM functions. No documentation site yet.", "href": "https://github.com/beyond10x/spindle"},
+        {"name": "RFC Editor", "description": "The RFC series and its index, the source of every RFC RFCspec reads.", "href": "https://www.rfc-editor.org/"}
+      ]
+    }
+  ]
+}

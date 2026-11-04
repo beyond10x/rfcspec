@@ -1,0 +1,50 @@
+version: '3'
+
+tasks:
+  default:
+    cmds: [{task: check}]
+
+  check:
+    desc: Validate the plan and ess/, explore the example protocol models, check the generated docs, then format, lint and test.
+    cmds:
+      - task: plan
+      - task: spec
+      - task: examples
+      - task: docs-check
+      - cargo fmt --all --check
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+      - cargo test --workspace --locked
+
+  plan:
+    desc: Validate the AEP planning store.
+    cmds:
+      - aep plan artifact validate
+
+  spec:
+    desc: Validate RFCspec's own ESS specification.
+    cmds:
+      - ess specify validate --path ess
+
+  examples:
+    desc: Fail unless bounded exploration of every example protocol model passes.
+    cmds:
+      - cmd: >-
+          ess protocol explore --path examples/websocket/close.protospec.yaml
+          --inputs examples/websocket/close.inputs.json | grep -q '"verdict": "passed"'
+
+  docs-generate:
+    desc: Rewrite the generated pages under website/docs/.
+    cmds:
+      - cargo run -q --locked -p rfcspec-docs -- generate
+
+  docs-check:
+    desc: Fail when a generated page is missing, stale or edited by hand.
+    cmds:
+      - cargo run -q --locked -p rfcspec-docs -- generate --check
+
+  website:
+    desc: Install the site's locked dependencies and build it, as the Pages workflow does.
+    dir: website
+    cmds:
+      - npm ci --allow-git=root
+      - npm run build

@@ -1,0 +1,472 @@
+domain: rfcspec.profile
+
+summary: >-
+  A profile names a set of RFCs and the parts of each in scope, declares the communication
+  semantics of its protocol, holds the machines extracted for it, and keeps one requirement
+  status per requirement. Requirement statuses are per profile.
+
+naming:
+  wire: profiles
+  display: Profiles
+
+types:
+  - name: rfcspec.profile.ProfileName
+    kind: newtype
+    of: String
+    naming:
+      summary: The name of a profile, such as websocket.
+
+  - name: rfcspec.profile.MachineId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A machine within one profile, keyed by profile and name. UNMAPPED: how that pair is
+        written as one identity value.
+
+  - name: rfcspec.profile.StatusId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The status of one requirement in one profile, keyed by profile and requirement.
+        UNMAPPED: how that pair is written as one identity value.
+
+  - name: rfcspec.profile.ProfileRfc
+    kind: struct
+    naming:
+      summary: One RFC a profile includes and the sections of it in scope.
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: sections
+        type: List<rfcspec.catalogue.SectionId>
+        summary: "UNMAPPED: the design does not say whether an empty list means the whole RFC or none of it."
+
+  - name: rfcspec.profile.Unit
+    kind: enum
+    variants:
+      - name: Bytes
+        wire: bytes
+        summary: A stream without message boundaries.
+      - name: Messages
+        wire: messages
+        summary: Boundaries preserved.
+      - name: Datagrams
+        wire: datagrams
+        summary: Bounded, independent.
+
+  - name: rfcspec.profile.Delivery
+    kind: struct
+    fields:
+      - name: ordered
+        type: Boolean
+      - name: reliable
+        type: Boolean
+      - name: duplicates
+        type: Boolean
+        summary: Duplicates are possible.
+
+  - name: rfcspec.profile.Direction
+    kind: enum
+    variants:
+      - name: Simplex
+        wire: simplex
+      - name: HalfDuplex
+        wire: half-duplex
+        summary: One side speaks at a time, with a turn rule.
+      - name: FullDuplex
+        wire: full-duplex
+
+  - name: rfcspec.profile.Multiplexing
+    kind: enum
+    variants:
+      - name: Single
+        wire: single
+      - name: Streams
+        wire: streams
+        summary: Ids, opened by either side, independently ordered.
+      - name: Sessions
+        wire: sessions
+        summary: Many conversations over one association.
+
+  - name: rfcspec.profile.Exchange
+    kind: enum
+    variants:
+      - name: RequestResponse
+        wire: request-response
+      - name: RequestStream
+        wire: request-stream
+      - name: Session
+        wire: session
+        summary: Long-lived, both sides send.
+      - name: Publish
+        wire: publish
+      - name: OneShot
+        wire: one-shot
+
+  - name: rfcspec.profile.Correlation
+    kind: enum
+    variants:
+      - name: None
+        wire: none
+      - name: ByOrder
+        wire: by-order
+      - name: ById
+        wire: by-id
+
+  - name: rfcspec.profile.Lifetime
+    kind: enum
+    variants:
+      - name: Connectionless
+        wire: connectionless
+      - name: Connection
+        wire: connection
+        summary: Open, established, closing, closed.
+      - name: Association
+        wire: association
+        summary: An association with timers.
+
+  - name: rfcspec.profile.Layer
+    kind: enum
+    naming:
+      summary: The layers of the stack a profile declares semantics for.
+    variants:
+      - name: Transport
+        wire: transport
+      - name: Stream
+        wire: stream
+      - name: Connection
+        wire: connection
+      - name: Protocol
+        wire: protocol
+      - name: Exchange
+        wire: exchange
+      - name: Application
+        wire: application
+
+  - name: rfcspec.profile.LayerSemantics
+    kind: struct
+    naming:
+      summary: >-
+        One value per axis for one layer (design section 6.1), proposed in S3 with cited
+        sentences and accepted by a reviewer.
+    fields:
+      - name: layer
+        type: rfcspec.profile.Layer
+      - name: unit
+        type: rfcspec.profile.Unit
+      - name: delivery
+        type: rfcspec.profile.Delivery
+      - name: direction
+        type: rfcspec.profile.Direction
+      - name: multiplexing
+        type: rfcspec.profile.Multiplexing
+      - name: exchange
+        type: rfcspec.profile.Exchange
+      - name: correlation
+        type: rfcspec.profile.Correlation
+      - name: lifetime
+        type: rfcspec.profile.Lifetime
+      - name: over
+        type: Optional<String>
+        summary: "The layer below, written over <profile>.<exchange or stream>. UNMAPPED: its structure beyond that notation."
+      - name: roles
+        type: List<rfcspec.catalogue.PartyName>
+
+  - name: rfcspec.profile.MachineTransition
+    kind: struct
+    naming:
+      summary: >-
+        A transition of an extracted machine, citing a span and the requirement ids it
+        implements. UNMAPPED: rfcspec/1 does not say how a transition's states, trigger and
+        effects are written; the lowering target is ess-protospec/1.
+    fields:
+      - name: name
+        type: String
+      - name: requirements
+        type: List<rfcspec.catalogue.RequirementId>
+      - name: span
+        type: rfcspec.catalogue.Span
+
+  - name: rfcspec.profile.StatusKind
+    kind: enum
+    variants:
+      - name: Satisfied
+        wire: satisfied
+        summary: Satisfied by a named model element.
+      - name: Unsupported
+        wire: unsupported
+        summary: Not supported, with a reason, such as an ESS gap id.
+      - name: NotApplicable
+        wire: not-applicable
+        summary: Not applicable, with a reason.
+
+entities:
+  - name: rfcspec.profile.Profile
+    naming:
+      summary: A named set of RFCs and the parts of each in scope, authored beside its overlay.
+    identity:
+      name: profile
+      type: rfcspec.profile.ProfileName
+    fields:
+      - name: rfcs
+        type: List<rfcspec.profile.ProfileRfc>
+      - name: parties
+        type: List<rfcspec.catalogue.PartyName>
+        summary: >-
+          The parties in scope. UNMAPPED: the design also gives each layer's semantics a roles
+          axis; how parties in scope and roles relate is not stated.
+      - name: semantics
+        type: List<rfcspec.profile.LayerSemantics>
+    relations:
+      - name: machines
+        kind: owns
+        target: rfcspec.profile.Machine
+        cardinality: many
+        via: profile
+      - name: statuses
+        kind: owns
+        target: rfcspec.profile.Status
+        cardinality: many
+        via: profile
+    lifecycle:
+      initial: Declared
+      states: [Declared]
+      terminal: [Declared]
+
+  - name: rfcspec.profile.Machine
+    naming:
+      summary: Participants, states, triggers, transitions and timers of a protocol, with a requirement link per transition.
+    identity:
+      name: machine_id
+      type: rfcspec.profile.MachineId
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: name
+        type: String
+      - name: participants
+        type: List<String>
+      - name: states
+        type: List<String>
+      - name: triggers
+        type: List<String>
+      - name: transitions
+        type: List<rfcspec.profile.MachineTransition>
+      - name: timers
+        type: List<String>
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+  - name: rfcspec.profile.Status
+    naming:
+      summary: >-
+        The status of one requirement in one profile. A MUST-level requirement in scope needs
+        one; that rule spans every requirement of a profile and is not a guard here.
+    identity:
+      name: status_id
+      type: rfcspec.profile.StatusId
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: kind
+        type: rfcspec.profile.StatusKind
+      - name: element
+        type: Optional<String>
+        summary: The model element a satisfied requirement is satisfied by.
+      - name: reason
+        type: Optional<String>
+        summary: Why the requirement is unsupported or not applicable.
+    invariants:
+      - any: [kind == Satisfied, defined(reason)]
+      - any: [kind != Satisfied, defined(element)]
+    relations:
+      - name: requirement
+        kind: references
+        target: rfcspec.catalogue.Requirement
+        cardinality: one
+        via: requirement_id
+    lifecycle:
+      initial: Recorded
+      states: [Recorded]
+      terminal: [Recorded]
+
+actors:
+  - name: rfcspec.profile.Author
+    naming:
+      display: Author
+      summary: Writes a profile, one of the two authored files per profile.
+    may:
+      - rfcspec.profile.DeclareProfile
+
+  - name: rfcspec.profile.Lowering
+    naming:
+      display: Lowering
+      summary: Stage S5, which marks a requirement unsupported with an ESS gap id where ESS cannot carry its rule.
+    may:
+      - rfcspec.profile.RecordStatus
+
+errors:
+  - name: rfcspec.profile.StatusReasonMissing
+    summary: An unsupported or not-applicable status names no reason, or a satisfied one names no element.
+    fields:
+      - name: status_id
+        type: rfcspec.profile.StatusId
+
+commands:
+  - name: rfcspec.profile.DeclareProfile
+    naming:
+      wire: declare-profile
+      display: Declare a profile
+    input:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: rfcs
+        type: List<rfcspec.profile.ProfileRfc>
+      - name: parties
+        type: List<rfcspec.catalogue.PartyName>
+      - name: semantics
+        type: List<rfcspec.profile.LayerSemantics>
+    outcomes:
+      - name: declared
+        creates: rfcspec.profile.Profile
+        instance: profile
+        emits:
+          - rfcspec.profile.ProfileDeclared
+        payload:
+          rfcspec.profile.ProfileDeclared:
+            profile: input.profile
+        sets:
+          rfcs: input.rfcs
+          parties: input.parties
+          semantics: input.semantics
+        summary: The profile exists. Fetch lists updated-by RFCs as candidates and never adds them to it.
+
+  - name: rfcspec.profile.RecordMachine
+    naming:
+      wire: record-machine
+      display: Record a machine
+    input:
+      - name: machine_id
+        type: rfcspec.profile.MachineId
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: name
+        type: String
+      - name: participants
+        type: List<String>
+      - name: states
+        type: List<String>
+      - name: triggers
+        type: List<String>
+      - name: transitions
+        type: List<rfcspec.profile.MachineTransition>
+      - name: timers
+        type: List<String>
+    outcomes:
+      - name: recorded
+        creates: rfcspec.profile.Machine
+        instance: machine_id
+        emits:
+          - rfcspec.profile.MachineRecorded
+        payload:
+          rfcspec.profile.MachineRecorded:
+            machine_id: input.machine_id
+        sets:
+          profile: input.profile
+          name: input.name
+          participants: input.participants
+          states: input.states
+          triggers: input.triggers
+          transitions: input.transitions
+          timers: input.timers
+        summary: The machine is part of the profile.
+
+  - name: rfcspec.profile.RecordStatus
+    naming:
+      wire: record-status
+      display: Record a requirement status
+    input:
+      - name: status_id
+        type: rfcspec.profile.StatusId
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: kind
+        type: rfcspec.profile.StatusKind
+      - name: element
+        type: Optional<String>
+      - name: reason
+        type: Optional<String>
+    outcomes:
+      - name: recorded
+        when:
+          all:
+            - any: [kind == Satisfied, defined(reason)]
+            - any: [kind != Satisfied, defined(element)]
+        creates: rfcspec.profile.Status
+        instance: status_id
+        emits:
+          - rfcspec.profile.StatusRecorded
+        payload:
+          rfcspec.profile.StatusRecorded:
+            status_id: input.status_id
+            kind: input.kind
+        sets:
+          profile: input.profile
+          requirement_id: input.requirement_id
+          kind: input.kind
+          element: input.element
+          reason: input.reason
+        summary: The requirement has this status in the profile.
+      - name: incomplete
+        error: rfcspec.profile.StatusReasonMissing
+        payload:
+          rfcspec.profile.StatusReasonMissing:
+            status_id: input.status_id
+        summary: The status lacks the element or the reason its kind needs, and nothing was recorded.
+
+events:
+  - name: rfcspec.profile.ProfileDeclared
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+
+  - name: rfcspec.profile.MachineRecorded
+    fields:
+      - name: machine_id
+        type: rfcspec.profile.MachineId
+
+  - name: rfcspec.profile.StatusRecorded
+    fields:
+      - name: status_id
+        type: rfcspec.profile.StatusId
+      - name: kind
+        type: rfcspec.profile.StatusKind
+
+views:
+  - name: rfcspec.profile.Statuses
+    source: rfcspec.profile.Status
+    consistency: read_your_writes
+    naming:
+      wire: statuses
+      display: Statuses
+    fields:
+      - name: status_id
+        type: rfcspec.profile.StatusId
+      - name: state
+        type: rfcspec.profile.Status.State
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: kind
+        type: rfcspec.profile.StatusKind
+      - name: element
+        type: Optional<String>
+      - name: reason
+        type: Optional<String>

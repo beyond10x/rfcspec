@@ -1,0 +1,97 @@
+{
+  "asOf": "2026-11-04",
+  "format": "b10x-status/1",
+  "items": [
+    {
+      "area": "Design",
+      "detail": "An RFC becomes requirements, grammars, layouts, registries, defined procedures and limits, each with a source span and a digest (design D1).",
+      "href": "/docs/concepts/catalogue",
+      "label": "The catalogue, rfcspec/1",
+      "status": "decided"
+    },
+    {
+      "area": "Design",
+      "detail": "Machines lower to ess-protospec/1, message and value types and registries to an ess/N system; what ESS cannot carry is listed as a gap (design D2).",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "ESS as the target",
+      "status": "decided"
+    },
+    {
+      "area": "Design",
+      "detail": "Bytes and bits live in rfcspec-wire/1: ABNF verbatim, bit-level ABNF and packet layouts (design D3).",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "A wire-format sidecar",
+      "status": "decided"
+    },
+    {
+      "area": "Design",
+      "detail": "One value per axis for each protocol layer: unit, delivery, direction, multiplexing, exchange, correlation, lifetime, layering, roles (design D4).",
+      "href": "/docs/concepts/communication-semantics",
+      "label": "Communication semantics",
+      "status": "decided"
+    },
+    {
+      "area": "Design",
+      "detail": "Model output is a recorded proposal with cited spans, replayed offline; no gate calls a model (design D5, D6).",
+      "href": "/docs/concepts/ai-proposals",
+      "label": "AI proposes, review decides",
+      "status": "decided"
+    },
+    {
+      "area": "Design",
+      "detail": "Wire protocols, data formats, extensions and registries are modelled; algorithms as signatures with test vectors; the rest get a requirement catalogue (design D11).",
+      "href": "/docs/concepts/rfc-kinds",
+      "label": "Which kinds of RFC are modelled",
+      "status": "decided"
+    },
+    {
+      "area": "M0 Read",
+      "detail": "RFC 6455 from plain text and RFC 9220 from RFCXML: sections, requirements, ABNF and defined terms; a survey classifying every RFC in the index by kind.",
+      "href": "/docs/design",
+      "label": "Fetch, read and extract",
+      "status": "planned"
+    },
+    {
+      "area": "M1 Wire",
+      "detail": "The RFC 6455 handshake grammar and frame bit-level ABNF and diagram, an agreement check between them, and a generated codec with round-trip and mutation vectors.",
+      "href": "/docs/examples/websocket",
+      "label": "ABNF and the wire layer",
+      "status": "planned"
+    },
+    {
+      "area": "M2 Lower",
+      "detail": "Recorded proposals for parties, semantics and the WebSocket machines, overlay review, and lowering that ess specify validate and ess protocol explore accept.",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "Proposals, review and lowering",
+      "status": "planned"
+    },
+    {
+      "area": "M3 Generate",
+      "detail": "A generated sans-IO Rust crate with codec, machine, limits and roles, an Autobahn run and the requirement matrix.",
+      "href": "/docs/examples/websocket",
+      "label": "A generated WebSocket core",
+      "status": "planned"
+    },
+    {
+      "area": "M4 DNS",
+      "detail": "DNS over UDP: binary layouts, correlation by id, concurrent sessions; the ESS gap proposals with WebSocket and DNS as evidence.",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "A second, binary protocol",
+      "status": "planned"
+    },
+    {
+      "area": "M5 Spindle",
+      "detail": "The WebSocket codec as a pure WASM module and a websocket channel port in a Spindle environment.",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "RFCspec cores in Spindle",
+      "status": "planned"
+    },
+    {
+      "area": "M6 TCP",
+      "detail": "TCP as the hard case: sequence-number arithmetic, windows and timers from measurements.",
+      "href": "/docs/concepts/communication-semantics",
+      "label": "A transport",
+      "status": "planned"
+    }
+  ]
+}

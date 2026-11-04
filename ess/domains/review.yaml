@@ -1,0 +1,543 @@
+domain: rfcspec.review
+
+summary: >-
+  AI proposals and the review decisions over them. A proposal is a recorded, replayable typed
+  document with cited spans and changes nothing until a decision is written to the profile's
+  overlay. Decisions are keyed by the stable id of the item and the digest of the text they
+  judged, so re-import never loses them and a changed source text marks them stale.
+  UNMAPPED: the design applies verified errata as overlay entries and does not say what such an
+  entry holds.
+
+naming:
+  wire: review
+  display: Review
+
+types:
+  - name: rfcspec.review.ProposalId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A recorded proposal. UNMAPPED: the design replays a recording for the same inputs and
+        does not say whether the proposal is identified by its input digest or by its own id.
+
+  - name: rfcspec.review.ModelId
+    kind: newtype
+    of: String
+    naming:
+      summary: The id of the model that produced a proposal.
+
+  - name: rfcspec.review.ItemId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        The stable id of the catalogue or profile item a decision judges, such as a requirement
+        id. UNMAPPED: how ids of the different item kinds share one value space.
+
+  - name: rfcspec.review.DecisionId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        One overlay decision. The design keys a decision by item id and text digest; UNMAPPED:
+        how that pair is written as one identity value, and whether confirming a stale decision
+        re-keys it to the new digest or records a new decision.
+
+  - name: rfcspec.review.ProposalTask
+    kind: enum
+    naming:
+      summary: >-
+        What S3 was asked to propose (design sections 4, 5, 8.3 and 9). The wire spellings are
+        drafted here; the design names the tasks in prose.
+    variants:
+      - name: ClassifyKind
+        wire: classify-kind
+      - name: Party
+        wire: party
+      - name: CommunicationSemantics
+        wire: communication-semantics
+      - name: Machine
+        wire: machine
+      - name: Constraint
+        wire: constraint
+      - name: BitWidths
+        wire: bit-widths
+      - name: ImportMapping
+        wire: import-mapping
+      - name: RequirementFromProse
+        wire: requirement-from-prose
+      - name: RequirementLink
+        wire: requirement-link
+        summary: A link from a requirement to a model element.
+      - name: Dialect
+        wire: dialect
+        summary: The ABNF dialect of a figure.
+
+  - name: rfcspec.review.Verdict
+    kind: enum
+    variants:
+      - name: Accept
+        wire: accept
+      - name: Edit
+        wire: edit
+      - name: Reject
+        wire: reject
+
+entities:
+  - name: rfcspec.review.Proposal
+    naming:
+      summary: >-
+        A typed, schema-checked document from S3: the model id, a digest of the prompt and
+        inputs, the response and the spans it cites. Stored under the profile's proposals and
+        replayed, so every later stage is offline. UNMAPPED: the design does not say how a
+        proposal names the item it is about.
+    identity:
+      name: proposal_id
+      type: rfcspec.review.ProposalId
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: task
+        type: rfcspec.review.ProposalTask
+      - name: model_id
+        type: rfcspec.review.ModelId
+      - name: input_digest
+        type: rfcspec.catalogue.Digest
+        summary: Digest of the prompt and inputs; the same inputs replay the recorded response.
+      - name: response
+        type: Json
+      - name: cited_spans
+        type: List<rfcspec.catalogue.Span>
+      - name: decision_id
+        type: Optional<rfcspec.review.DecisionId>
+        summary: The overlay decision that settled the proposal.
+    relations:
+      - name: profile
+        kind: references
+        target: rfcspec.profile.Profile
+        cardinality: one
+        via: profile
+      - name: decision
+        kind: references
+        target: rfcspec.review.Decision
+        cardinality: one
+        via: decision_id
+    lifecycle:
+      initial: Recorded
+      states:
+        - name: Recorded
+          wire: recorded
+          summary: Passed its mechanical checks and awaits review.
+        - name: Accepted
+          wire: accepted
+        - name: Edited
+          wire: edited
+          summary: Accepted with a reviewer's edit.
+        - name: Rejected
+          wire: rejected
+      terminal: [Accepted, Edited, Rejected]
+      transitions:
+        - name: accept
+          from: [Recorded]
+          to: Accepted
+        - name: edit
+          from: [Recorded]
+          to: Edited
+        - name: reject
+          from: [Recorded]
+          to: Rejected
+
+  - name: rfcspec.review.Decision
+    naming:
+      summary: >-
+        An entry of a profile's overlay: accept, edit or reject of one item, keyed by the item's
+        stable id and the digest of the text it judged. Human decisions and recorded AI
+        proposals both reach the catalogue only through such an entry.
+    identity:
+      name: decision_id
+      type: rfcspec.review.DecisionId
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.review.ItemId
+      - name: text_digest
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the text the decision judged.
+      - name: verdict
+        type: rfcspec.review.Verdict
+      - name: proposal_id
+        type: Optional<rfcspec.review.ProposalId>
+        summary: The proposal decided, absent for a decision made without one.
+      - name: edit
+        type: Optional<Json>
+        summary: "The reviewer's edit. UNMAPPED: the design does not say what an edit holds."
+    relations:
+      - name: profile
+        kind: references
+        target: rfcspec.profile.Profile
+        cardinality: one
+        via: profile
+      - name: proposal
+        kind: references
+        target: rfcspec.review.Proposal
+        cardinality: one
+        via: proposal_id
+    lifecycle:
+      initial: Current
+      states:
+        - name: Current
+          wire: current
+          summary: The judged text still matches; the decision is applied.
+        - name: Stale
+          wire: stale
+          summary: The judged text changed on re-import; the decision is not applied until a reviewer confirms it.
+      terminal: []
+      transitions:
+        - name: mark_stale
+          from: [Current]
+          to: Stale
+        - name: confirm
+          from: [Stale]
+          to: Current
+
+actors:
+  - name: rfcspec.review.Proposer
+    naming:
+      display: Proposer
+      summary: Stage S3. Calls go through the shared LLM crates; no gate calls a model.
+    may:
+      - rfcspec.review.RecordProposal
+      - rfcspec.catalogue.ProposeRequirement
+      - rfcspec.catalogue.MarkRequirementProposed
+
+  - name: rfcspec.review.Reviewer
+    naming:
+      display: Reviewer
+      summary: >-
+        Stage S4, which writes the overlay: decisions on proposals and items, requirement review
+        states, machines from accepted proposals, and the statuses unsupported and
+        not-applicable.
+    may:
+      - rfcspec.review.RecordDecision
+      - rfcspec.review.DecideProposal
+      - rfcspec.review.ConfirmDecision
+      - rfcspec.catalogue.AcceptRequirement
+      - rfcspec.catalogue.RejectRequirement
+      - rfcspec.profile.RecordMachine
+      - rfcspec.profile.RecordStatus
+
+errors:
+  - name: rfcspec.review.ProposalCheckFailed
+    summary: >-
+      A mechanical check failed before a human saw the proposal: a cited span or quote does not
+      occur verbatim in the locked source, or a task-specific check (design section 9) failed.
+    fields:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+
+  - name: rfcspec.review.ProposalStateConflict
+    summary: The proposal was already decided, so nothing moved.
+    fields:
+      - name: state
+        type: rfcspec.review.Proposal.State
+
+  - name: rfcspec.review.ProposalNotFound
+    fields:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+
+  - name: rfcspec.review.DecisionStateConflict
+    summary: The decision is not in a state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: rfcspec.review.Decision.State
+
+  - name: rfcspec.review.DecisionNotFound
+    fields:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+
+commands:
+  - name: rfcspec.review.RecordProposal
+    naming:
+      wire: record-proposal
+      display: Record a proposal
+    input:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: task
+        type: rfcspec.review.ProposalTask
+      - name: model_id
+        type: rfcspec.review.ModelId
+      - name: input_digest
+        type: rfcspec.catalogue.Digest
+      - name: response
+        type: Json
+      - name: cited_spans
+        type: List<rfcspec.catalogue.Span>
+    outcomes:
+      - name: recorded
+        creates: rfcspec.review.Proposal
+        instance: proposal_id
+        emits:
+          - rfcspec.review.ProposalRecorded
+        payload:
+          rfcspec.review.ProposalRecorded:
+            proposal_id: input.proposal_id
+            task: input.task
+        sets:
+          profile: input.profile
+          task: input.task
+          model_id: input.model_id
+          input_digest: input.input_digest
+          response: input.response
+          cited_spans: input.cited_spans
+        summary: The proposal is recorded and awaits review; it changes nothing yet.
+      - name: check-failed
+        external: a cited span or quote does not occur in the locked source, or a task-specific mechanical check fails
+        error: rfcspec.review.ProposalCheckFailed
+        payload:
+          rfcspec.review.ProposalCheckFailed:
+            proposal_id: input.proposal_id
+        summary: Nothing is recorded for review.
+
+  - name: rfcspec.review.DecideProposal
+    naming:
+      wire: decide-proposal
+      display: Decide a proposal
+    input:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+      - name: verdict
+        type: rfcspec.review.Verdict
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+    outcomes:
+      - name: accepted
+        when: verdict == Accept
+        moves: rfcspec.review.Proposal.accept
+        instance: proposal_id
+        emits:
+          - rfcspec.review.ProposalDecided
+        payload:
+          rfcspec.review.ProposalDecided:
+            proposal_id: input.proposal_id
+            verdict: input.verdict
+        sets:
+          decision_id: input.decision_id
+        summary: The proposal is Accepted.
+      - name: edited
+        when: verdict == Edit
+        moves: rfcspec.review.Proposal.edit
+        instance: proposal_id
+        emits:
+          - rfcspec.review.ProposalDecided
+        payload:
+          rfcspec.review.ProposalDecided:
+            proposal_id: input.proposal_id
+            verdict: input.verdict
+        sets:
+          decision_id: input.decision_id
+        summary: The proposal is accepted with an edit.
+      - name: rejected
+        moves: rfcspec.review.Proposal.reject
+        instance: proposal_id
+        emits:
+          - rfcspec.review.ProposalDecided
+        payload:
+          rfcspec.review.ProposalDecided:
+            proposal_id: input.proposal_id
+            verdict: input.verdict
+        sets:
+          decision_id: input.decision_id
+        summary: The proposal is Rejected and changes nothing.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.review.ProposalNotFound
+        summary: No proposal has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.review.ProposalStateConflict
+        summary: The proposal was already decided.
+
+  - name: rfcspec.review.RecordDecision
+    naming:
+      wire: record-decision
+      display: Record a decision
+    input:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.review.ItemId
+      - name: text_digest
+        type: rfcspec.catalogue.Digest
+      - name: verdict
+        type: rfcspec.review.Verdict
+      - name: proposal_id
+        type: Optional<rfcspec.review.ProposalId>
+      - name: edit
+        type: Optional<Json>
+    outcomes:
+      - name: recorded
+        creates: rfcspec.review.Decision
+        instance: decision_id
+        emits:
+          - rfcspec.review.DecisionRecorded
+        payload:
+          rfcspec.review.DecisionRecorded:
+            decision_id: input.decision_id
+            item: input.item
+            verdict: input.verdict
+        sets:
+          profile: input.profile
+          item: input.item
+          text_digest: input.text_digest
+          verdict: input.verdict
+          proposal_id: input.proposal_id
+          edit: input.edit
+        summary: The decision is in the overlay and applied.
+
+  - name: rfcspec.review.MarkDecisionStale
+    naming:
+      wire: mark-decision-stale
+      display: Mark a decision stale
+    input:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+    outcomes:
+      - name: stale
+        moves: rfcspec.review.Decision.mark_stale
+        instance: decision_id
+        emits:
+          - rfcspec.review.DecisionStale
+        payload:
+          rfcspec.review.DecisionStale:
+            decision_id: input.decision_id
+        summary: Re-import changed the judged text; the decision is kept and no longer applied.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.review.DecisionNotFound
+        summary: No decision has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale decision stays stale.
+
+  - name: rfcspec.review.ConfirmDecision
+    naming:
+      wire: confirm-decision
+      display: Confirm a stale decision
+    input:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+      - name: text_digest
+        type: rfcspec.catalogue.Digest
+    outcomes:
+      - name: confirmed
+        moves: rfcspec.review.Decision.confirm
+        instance: decision_id
+        emits:
+          - rfcspec.review.DecisionConfirmed
+        payload:
+          rfcspec.review.DecisionConfirmed:
+            decision_id: input.decision_id
+        sets:
+          text_digest: input.text_digest
+        summary: A reviewer confirmed the decision against the changed text; it applies again.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.review.DecisionNotFound
+        summary: No decision has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.review.DecisionStateConflict
+        summary: Only a stale decision is confirmed.
+
+events:
+  - name: rfcspec.review.ProposalRecorded
+    fields:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+      - name: task
+        type: rfcspec.review.ProposalTask
+
+  - name: rfcspec.review.ProposalDecided
+    fields:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+      - name: verdict
+        type: rfcspec.review.Verdict
+
+  - name: rfcspec.review.DecisionRecorded
+    fields:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+      - name: item
+        type: rfcspec.review.ItemId
+      - name: verdict
+        type: rfcspec.review.Verdict
+
+  - name: rfcspec.review.DecisionStale
+    fields:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+
+  - name: rfcspec.review.DecisionConfirmed
+    fields:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+
+views:
+  - name: rfcspec.review.Proposals
+    source: rfcspec.review.Proposal
+    consistency: read_your_writes
+    naming:
+      wire: proposals
+      display: Proposals
+    fields:
+      - name: proposal_id
+        type: rfcspec.review.ProposalId
+      - name: state
+        type: rfcspec.review.Proposal.State
+      - name: task
+        type: rfcspec.review.ProposalTask
+      - name: model_id
+        type: rfcspec.review.ModelId
+      - name: decision_id
+        type: Optional<rfcspec.review.DecisionId>
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: input_digest
+        type: rfcspec.catalogue.Digest
+      - name: response
+        type: Json
+
+  - name: rfcspec.review.Decisions
+    source: rfcspec.review.Decision
+    consistency: read_your_writes
+    naming:
+      wire: decisions
+      display: Decisions
+    fields:
+      - name: decision_id
+        type: rfcspec.review.DecisionId
+      - name: state
+        type: rfcspec.review.Decision.State
+      - name: item
+        type: rfcspec.review.ItemId
+      - name: text_digest
+        type: rfcspec.catalogue.Digest
+      - name: verdict
+        type: rfcspec.review.Verdict
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: proposal_id
+        type: Optional<rfcspec.review.ProposalId>
+      - name: edit
+        type: Optional<Json>

@@ -1,0 +1,1141 @@
+domain: rfcspec.catalogue
+
+summary: >-
+  The rfcspec/1 catalogue: what an RFC states, read from a locked source, each item with a span
+  back to the text it came from. The catalogue is data about the RFC, not yet a specification of
+  a system.
+
+naming:
+  wire: catalogue
+  display: Catalogue
+
+types:
+  - name: rfcspec.catalogue.RfcNumber
+    kind: newtype
+    of: Integer
+    naming:
+      summary: The RFC Editor's number of the document.
+
+  - name: rfcspec.catalogue.Digest
+    kind: newtype
+    of: String
+    naming:
+      summary: A SHA-256 digest.
+
+  - name: rfcspec.catalogue.SourceFormat
+    kind: enum
+    naming:
+      summary: The format the RFC was read from, RFCXML v3 where the index lists it, plain text otherwise.
+    variants:
+      - name: Xml
+        wire: xml
+      - name: Text
+        wire: text
+
+  - name: rfcspec.catalogue.Span
+    kind: struct
+    naming:
+      summary: >-
+        Where a catalogue item came from: the RFC, the section anchor (XML) or number (text), a
+        byte range in the normalized text, and the SHA-256 of the spanned text.
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: section
+        type: String
+        summary: The section anchor when read from XML, the section number when read from text.
+      - name: start
+        type: Integer
+      - name: end
+        type: Integer
+      - name: digest
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the spanned text; a mismatch after re-import makes the item stale.
+    invariants:
+      - start >= 0
+      - end >= start
+
+  - name: rfcspec.catalogue.SectionId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A section within one RFC. The design keys a section by the pair of its RFC and its anchor
+        or number. UNMAPPED: how that pair is written as one identity value.
+
+  - name: rfcspec.catalogue.RequirementId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        R<section>-<ordinal> within an RFC, qualified by the RFC when crossing, as in 6455:R5.1-3.
+        The ordinal counts requirements in document order within the section. A published RFC's
+        ids never shift.
+
+  - name: rfcspec.catalogue.TermId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A defined term within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written
+        as one identity value.
+
+  - name: rfcspec.catalogue.GrammarId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A grammar within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
+        identity value.
+
+  - name: rfcspec.catalogue.LayoutId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A layout within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
+        identity value.
+
+  - name: rfcspec.catalogue.LimitId
+    kind: newtype
+    of: String
+    naming:
+      summary: >-
+        A limit within one RFC, keyed by RFC and name. UNMAPPED: how that pair is written as one
+        identity value.
+
+  - name: rfcspec.catalogue.RegistryId
+    kind: newtype
+    of: String
+    naming:
+      summary: The IANA identifier of a registry, such as close-code-number.
+
+  - name: rfcspec.catalogue.PartyName
+    kind: newtype
+    of: String
+    naming:
+      summary: A named party of a protocol, such as client, server, resolver, proxy, sender or recipient.
+
+  - name: rfcspec.catalogue.Bcp14Level
+    kind: enum
+    naming:
+      summary: The eleven BCP 14 keywords.
+    variants:
+      - name: Must
+        wire: MUST
+      - name: MustNot
+        wire: MUST NOT
+      - name: Required
+        wire: REQUIRED
+      - name: Shall
+        wire: SHALL
+      - name: ShallNot
+        wire: SHALL NOT
+      - name: Should
+        wire: SHOULD
+      - name: ShouldNot
+        wire: SHOULD NOT
+      - name: Recommended
+        wire: RECOMMENDED
+      - name: NotRecommended
+        wire: NOT RECOMMENDED
+      - name: May
+        wire: MAY
+      - name: Optional
+        wire: OPTIONAL
+
+  - name: rfcspec.catalogue.RequirementSource
+    kind: enum
+    naming:
+      summary: How a requirement was found.
+    variants:
+      - name: Bcp14Xml
+        wire: bcp14-xml
+        summary: A sentence containing a bcp14 element in RFCXML.
+      - name: CapitalsText
+        wire: capitals-text
+        summary: A sentence of the plain text containing a BCP 14 keyword in capitals, outside the boilerplate paragraph citing RFC 2119.
+      - name: AbnfComment
+        wire: abnf-comment
+        summary: A keyword inside an ABNF comment.
+      - name: Prose
+        wire: prose
+        summary: Proposed from prose in an RFC before BCP 14; every one needs review.
+
+  - name: rfcspec.catalogue.RuleImport
+    kind: struct
+    naming:
+      summary: A grammar's use of another RFC's ABNF rule.
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: rule
+        type: String
+
+  - name: rfcspec.catalogue.AbnfDialect
+    kind: enum
+    naming:
+      summary: The ABNF dialect a grammar is written in, proposed per figure and reviewed (design section 8.3).
+    variants:
+      - name: Rfc5234
+        wire: rfc5234
+      - name: Rfc2616
+        wire: rfc2616
+      - name: Bits
+        wire: bits
+
+  - name: rfcspec.catalogue.LayoutField
+    kind: struct
+    naming:
+      summary: One field of a parsed packet diagram.
+    fields:
+      - name: name
+        type: String
+      - name: bits
+        type: Optional<Integer>
+        summary: The bit width, absent where the length depends on another field.
+      - name: length
+        type: Optional<String>
+        summary: "A dependent length. UNMAPPED: the design does not say how it is expressed."
+      - name: presence
+        type: Optional<String>
+        summary: "A presence condition. UNMAPPED: the design does not say how it is expressed."
+      - name: constraints
+        type: List<String>
+        summary: "UNMAPPED: the design does not say how a field constraint is expressed."
+
+  - name: rfcspec.catalogue.RegistryPolicy
+    kind: enum
+    naming:
+      summary: >-
+        Whether a registry is lowered to a closed enum or an open one that keeps an unassigned
+        path for values IANA assigns later.
+    variants:
+      - name: Open
+        wire: open
+      - name: Closed
+        wire: closed
+
+  - name: rfcspec.catalogue.RegistryEntry
+    kind: struct
+    fields:
+      - name: value
+        type: String
+        summary: "UNMAPPED: registry values are numbers in some registries and names in others; the design gives no type."
+      - name: name
+        type: String
+      - name: reference
+        type: String
+      - name: status
+        type: String
+
+  - name: rfcspec.catalogue.RfcKind
+    kind: enum
+    naming:
+      summary: The primary kind of an RFC (design section 2.3), partly proposed and reviewed.
+    variants:
+      - name: WireProtocol
+        wire: K1
+      - name: DataFormat
+        wire: K2
+      - name: Algorithm
+        wire: K3
+      - name: Extension
+        wire: K4
+      - name: RegistryProcedure
+        wire: K5
+      - name: ManagementModel
+        wire: K6
+      - name: Informational
+        wire: K7
+      - name: NotASpecification
+        wire: K8
+
+entities:
+  - name: rfcspec.catalogue.Rfc
+    naming:
+      summary: One RFC as the index describes it and as it was read from its locked source.
+    identity:
+      name: number
+      type: rfcspec.catalogue.RfcNumber
+    fields:
+      - name: title
+        type: String
+      - name: status
+        type: String
+        summary: The publication status the index gives, such as Proposed Standard.
+      - name: stream
+        type: String
+      - name: area
+        type: Optional<String>
+        summary: Many index entries carry no area.
+      - name: date
+        type: String
+        summary: "UNMAPPED: the design names a date and not its precision or encoding."
+      - name: format_read
+        type: rfcspec.catalogue.SourceFormat
+      - name: digest
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the locked source file.
+      - name: kind
+        type: Optional<rfcspec.catalogue.RfcKind>
+        summary: The RFC's primary kind, absent until classified.
+      - name: obsoletes
+        type: List<rfcspec.catalogue.RfcNumber>
+        summary: >-
+          Update graph edges from the index. The design says fetch lists updated-by RFCs as
+          candidates and never adds them silently. UNMAPPED: whether an edge may name an RFC
+          that has not been read into the catalogue.
+      - name: obsoleted_by
+        type: List<rfcspec.catalogue.RfcNumber>
+      - name: updates
+        type: List<rfcspec.catalogue.RfcNumber>
+      - name: updated_by
+        type: List<rfcspec.catalogue.RfcNumber>
+    relations:
+      - name: obsoletes
+        kind: references
+        target: rfcspec.catalogue.Rfc
+        cardinality: many
+        via: obsoletes
+      - name: obsoleted_by
+        kind: references
+        target: rfcspec.catalogue.Rfc
+        cardinality: many
+        via: obsoleted_by
+      - name: updates
+        kind: references
+        target: rfcspec.catalogue.Rfc
+        cardinality: many
+        via: updates
+      - name: updated_by
+        kind: references
+        target: rfcspec.catalogue.Rfc
+        cardinality: many
+        via: updated_by
+      - name: sections
+        kind: owns
+        target: rfcspec.catalogue.Section
+        cardinality: many
+        via: rfc
+      - name: terms
+        kind: owns
+        target: rfcspec.catalogue.DefinedTerm
+        cardinality: many
+        via: rfc
+      - name: grammars
+        kind: owns
+        target: rfcspec.catalogue.Grammar
+        cardinality: many
+        via: rfc
+      - name: layouts
+        kind: owns
+        target: rfcspec.catalogue.Layout
+        cardinality: many
+        via: rfc
+      - name: limits
+        kind: owns
+        target: rfcspec.catalogue.Limit
+        cardinality: many
+        via: rfc
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Section
+    naming:
+      summary: A section of an RFC, from the XML section tree or recovered from the text's table of contents and numbering.
+    identity:
+      name: section_id
+      type: rfcspec.catalogue.SectionId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: anchor
+        type: String
+        summary: The section anchor (XML) or number (text).
+      - name: title
+        type: String
+      - name: parent
+        type: Optional<rfcspec.catalogue.SectionId>
+      - name: span
+        type: rfcspec.catalogue.Span
+    relations:
+      - name: parent
+        kind: references
+        target: rfcspec.catalogue.Section
+        cardinality: one
+        via: parent
+      - name: requirements
+        kind: owns
+        target: rfcspec.catalogue.Requirement
+        cardinality: many
+        via: section_id
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Requirement
+    naming:
+      summary: >-
+        One sentence of an RFC that states a requirement. S2 finds most mechanically; S3 proposes
+        them from prose for RFCs before BCP 14. The lifecycle is the requirement's review state.
+    identity:
+      name: requirement_id
+      type: rfcspec.catalogue.RequirementId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: ordinal
+        type: Integer
+      - name: level
+        type: Optional<rfcspec.catalogue.Bcp14Level>
+        summary: >-
+          The BCP 14 keyword of the sentence. UNMAPPED: the design does not say whether a
+          requirement proposed from prose before BCP 14 carries a level.
+      - name: party
+        type: Optional<rfcspec.catalogue.PartyName>
+        summary: The party the requirement binds, proposed in S3 and set only by a review decision.
+      - name: text
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
+      - name: source
+        type: rfcspec.catalogue.RequirementSource
+    relations:
+      - name: rfc
+        kind: references
+        target: rfcspec.catalogue.Rfc
+        cardinality: one
+        via: rfc
+    lifecycle:
+      initial: Extracted
+      states:
+        - name: Extracted
+          wire: extracted
+          summary: Found by S2 or newly proposed; no review decision applies.
+        - name: Proposed
+          wire: proposed
+          summary: An S3 proposal about it is recorded and awaits review.
+        - name: Accepted
+          wire: accepted
+          summary: A review decision accepted it, possibly edited.
+        - name: Rejected
+          wire: rejected
+          summary: A review decision rejected it.
+        - name: Stale
+          wire: stale
+          summary: Its span no longer matches after re-import; its decisions are not applied until a reviewer confirms them.
+      terminal: []
+      transitions:
+        - name: propose
+          from: [Extracted]
+          to: Proposed
+        - name: accept
+          from: [Extracted, Proposed, Stale]
+          to: Accepted
+        - name: reject
+          from: [Extracted, Proposed, Stale]
+          to: Rejected
+        - name: mark_stale
+          from: [Extracted, Proposed, Accepted, Rejected]
+          to: Stale
+          summary: Re-import found the spanned text changed; the id is kept.
+
+  - name: rfcspec.catalogue.DefinedTerm
+    naming:
+      summary: >-
+        A phrase the RFC defines and invokes, such as Fail the WebSocket Connection; such terms
+        become named procedures in machines.
+    identity:
+      name: term_id
+      type: rfcspec.catalogue.TermId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Grammar
+    naming:
+      summary: ABNF rules of an RFC, kept verbatim.
+    identity:
+      name: grammar_id
+      type: rfcspec.catalogue.GrammarId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: rules
+        type: String
+        summary: The ABNF rules verbatim.
+      - name: uses
+        type: List<rfcspec.catalogue.RuleImport>
+      - name: bit_level
+        type: Boolean
+        summary: The ABNF operates on groups of bits, as RFC 6455 section 5.2 does.
+      - name: dialect
+        type: Optional<rfcspec.catalogue.AbnfDialect>
+        summary: >-
+          Proposed in S3 and reviewed. UNMAPPED: the design has both this dialect, with a bits
+          value, and the bit_level flag; how the two relate is not stated.
+      - name: span
+        type: rfcspec.catalogue.Span
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Layout
+    naming:
+      summary: A packet diagram parsed to fields with bit widths, dependent lengths, presence conditions and constraints.
+    identity:
+      name: layout_id
+      type: rfcspec.catalogue.LayoutId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: fields
+        type: List<rfcspec.catalogue.LayoutField>
+      - name: span
+        type: rfcspec.catalogue.Span
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Registry
+    naming:
+      summary: >-
+        An IANA registry read from IANA's XML, never from the RFC's IANA section; lowered to an
+        enum with an open or closed policy. UNMAPPED: the design says every catalogue item carries
+        a span, and a registry is read from IANA XML rather than an RFC; whether and how a
+        registry carries provenance is not stated.
+    identity:
+      name: registry_id
+      type: rfcspec.catalogue.RegistryId
+    fields:
+      - name: entries
+        type: List<rfcspec.catalogue.RegistryEntry>
+      - name: policy
+        type: rfcspec.catalogue.RegistryPolicy
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+  - name: rfcspec.catalogue.Limit
+    naming:
+      summary: A quantity the RFC leaves to the implementation, with any stated minimum or maximum.
+    identity:
+      name: limit_id
+      type: rfcspec.catalogue.LimitId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: minimum
+        type: Optional<Integer>
+      - name: maximum
+        type: Optional<Integer>
+      - name: span
+        type: rfcspec.catalogue.Span
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
+
+actors:
+  - name: rfcspec.catalogue.Reader
+    naming:
+      display: Reader
+      summary: The deterministic stages S1 read and S2 extract, over locked sources only, including re-import.
+    may:
+      - rfcspec.catalogue.ReadRfc
+      - rfcspec.catalogue.ReadSection
+      - rfcspec.catalogue.ExtractRequirement
+      - rfcspec.catalogue.ExtractDefinedTerm
+      - rfcspec.catalogue.ExtractGrammar
+      - rfcspec.catalogue.ExtractLayout
+      - rfcspec.catalogue.ReadRegistry
+      - rfcspec.catalogue.ExtractLimit
+      - rfcspec.catalogue.MarkRequirementStale
+      - rfcspec.review.MarkDecisionStale
+
+errors:
+  - name: rfcspec.catalogue.RequirementStateConflict
+    summary: The requirement is not in a review state this command acts from, so nothing moved.
+    fields:
+      - name: state
+        type: rfcspec.catalogue.Requirement.State
+
+  - name: rfcspec.catalogue.RequirementNotFound
+    summary: No requirement has this id.
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+commands:
+  - name: rfcspec.catalogue.ReadRfc
+    naming:
+      wire: read-rfc
+      display: Read an RFC
+      summary: S1 records an RFC's index entry and the locked source it was read from.
+    input:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+      - name: title
+        type: String
+      - name: status
+        type: String
+      - name: stream
+        type: String
+      - name: area
+        type: Optional<String>
+      - name: date
+        type: String
+      - name: format_read
+        type: rfcspec.catalogue.SourceFormat
+      - name: digest
+        type: rfcspec.catalogue.Digest
+      - name: obsoletes
+        type: List<rfcspec.catalogue.RfcNumber>
+      - name: obsoleted_by
+        type: List<rfcspec.catalogue.RfcNumber>
+      - name: updates
+        type: List<rfcspec.catalogue.RfcNumber>
+      - name: updated_by
+        type: List<rfcspec.catalogue.RfcNumber>
+    outcomes:
+      - name: read
+        creates: rfcspec.catalogue.Rfc
+        instance: number
+        emits:
+          - rfcspec.catalogue.RfcRead
+        payload:
+          rfcspec.catalogue.RfcRead:
+            number: input.number
+            digest: input.digest
+        sets:
+          title: input.title
+          status: input.status
+          stream: input.stream
+          area: input.area
+          date: input.date
+          format_read: input.format_read
+          digest: input.digest
+          obsoletes: input.obsoletes
+          obsoleted_by: input.obsoleted_by
+          updates: input.updates
+          updated_by: input.updated_by
+        summary: The RFC is in the catalogue, unclassified.
+
+  - name: rfcspec.catalogue.ReadSection
+    naming:
+      wire: read-section
+      display: Read a section
+    input:
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: anchor
+        type: String
+      - name: title
+        type: String
+      - name: parent
+        type: Optional<rfcspec.catalogue.SectionId>
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: read
+        creates: rfcspec.catalogue.Section
+        instance: section_id
+        emits:
+          - rfcspec.catalogue.SectionRead
+        payload:
+          rfcspec.catalogue.SectionRead:
+            section_id: input.section_id
+        sets:
+          rfc: input.rfc
+          anchor: input.anchor
+          title: input.title
+          parent: input.parent
+          span: input.span
+        summary: The section is in the catalogue under its RFC.
+
+  - name: rfcspec.catalogue.ExtractRequirement
+    naming:
+      wire: extract-requirement
+      display: Extract a requirement
+      summary: S2 records a requirement found mechanically in XML, plain text or an ABNF comment.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: ordinal
+        type: Integer
+      - name: level
+        type: rfcspec.catalogue.Bcp14Level
+      - name: text
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
+      - name: source
+        type: rfcspec.catalogue.RequirementSource
+    outcomes:
+      - name: extracted
+        creates: rfcspec.catalogue.Requirement
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementExtracted
+        payload:
+          rfcspec.catalogue.RequirementExtracted:
+            requirement_id: input.requirement_id
+        sets:
+          rfc: input.rfc
+          section_id: input.section_id
+          ordinal: input.ordinal
+          level: input.level
+          text: input.text
+          span: input.span
+          source: input.source
+        summary: The requirement is in the catalogue, Extracted, with no party.
+
+  - name: rfcspec.catalogue.ProposeRequirement
+    naming:
+      wire: propose-requirement
+      display: Propose a requirement from prose
+      summary: S3 proposes a requirement from the prose of an RFC before BCP 14.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: ordinal
+        type: Integer
+      - name: text
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: proposed
+        creates: rfcspec.catalogue.Requirement
+        into: Proposed
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementProposed
+        payload:
+          rfcspec.catalogue.RequirementProposed:
+            requirement_id: input.requirement_id
+        sets:
+          rfc: input.rfc
+          section_id: input.section_id
+          ordinal: input.ordinal
+          text: input.text
+          span: input.span
+          source: Prose
+        summary: >-
+          The requirement is in the catalogue, Proposed, with source prose; it needs review.
+
+  - name: rfcspec.catalogue.MarkRequirementProposed
+    naming:
+      wire: mark-requirement-proposed
+      display: Mark a requirement proposed
+      summary: >-
+        An S3 proposal about the requirement, such as its party, is recorded. The proposal itself
+        changes nothing on the requirement.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+    outcomes:
+      - name: proposed
+        moves: rfcspec.catalogue.Requirement.propose
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementProposed
+        payload:
+          rfcspec.catalogue.RequirementProposed:
+            requirement_id: input.requirement_id
+        summary: The requirement awaits review.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RequirementNotFound
+        summary: No requirement has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.RequirementStateConflict
+        summary: Only an Extracted requirement becomes Proposed.
+
+  - name: rfcspec.catalogue.AcceptRequirement
+    naming:
+      wire: accept-requirement
+      display: Accept a requirement
+      summary: >-
+        A review decision accepts the requirement, possibly edited; a reviewer's confirmation of
+        a stale requirement is an accept.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: party
+        type: Optional<rfcspec.catalogue.PartyName>
+    outcomes:
+      - name: accepted
+        moves: rfcspec.catalogue.Requirement.accept
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementAccepted
+        payload:
+          rfcspec.catalogue.RequirementAccepted:
+            requirement_id: input.requirement_id
+        sets:
+          party: input.party
+        summary: The requirement is Accepted with the party the decision gives.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RequirementNotFound
+        summary: No requirement has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.RequirementStateConflict
+        summary: The requirement is already Accepted or Rejected.
+
+  - name: rfcspec.catalogue.RejectRequirement
+    naming:
+      wire: reject-requirement
+      display: Reject a requirement
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+    outcomes:
+      - name: rejected
+        moves: rfcspec.catalogue.Requirement.reject
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementRejected
+        payload:
+          rfcspec.catalogue.RequirementRejected:
+            requirement_id: input.requirement_id
+        summary: The requirement is Rejected.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RequirementNotFound
+        summary: No requirement has this id.
+      - name: wrong-state
+        wrong_state: true
+        error: rfcspec.catalogue.RequirementStateConflict
+        summary: The requirement is already Accepted or Rejected.
+
+  - name: rfcspec.catalogue.MarkRequirementStale
+    naming:
+      wire: mark-requirement-stale
+      display: Mark a requirement stale
+      summary: >-
+        Re-import found that the requirement's span no longer matches the spanned text. The
+        requirement keeps its id and records the new span.
+    input:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: stale
+        moves: rfcspec.catalogue.Requirement.mark_stale
+        instance: requirement_id
+        emits:
+          - rfcspec.catalogue.RequirementStale
+        payload:
+          rfcspec.catalogue.RequirementStale:
+            requirement_id: input.requirement_id
+        sets:
+          span: input.span
+        summary: The requirement is Stale; its decisions are not applied until a reviewer confirms them.
+      - name: unknown
+        unknown_instance: true
+        error: rfcspec.catalogue.RequirementNotFound
+        summary: No requirement has this id.
+      - name: already-stale
+        wrong_state: true
+        refuses: false
+        summary: A stale requirement stays stale.
+
+  - name: rfcspec.catalogue.ExtractDefinedTerm
+    naming:
+      wire: extract-defined-term
+      display: Extract a defined term
+    input:
+      - name: term_id
+        type: rfcspec.catalogue.TermId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: extracted
+        creates: rfcspec.catalogue.DefinedTerm
+        instance: term_id
+        emits:
+          - rfcspec.catalogue.DefinedTermExtracted
+        payload:
+          rfcspec.catalogue.DefinedTermExtracted:
+            term_id: input.term_id
+        sets:
+          rfc: input.rfc
+          name: input.name
+          span: input.span
+        summary: The defined term is in the catalogue.
+
+  - name: rfcspec.catalogue.ExtractGrammar
+    naming:
+      wire: extract-grammar
+      display: Extract a grammar
+    input:
+      - name: grammar_id
+        type: rfcspec.catalogue.GrammarId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: rules
+        type: String
+      - name: uses
+        type: List<rfcspec.catalogue.RuleImport>
+      - name: bit_level
+        type: Boolean
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: extracted
+        creates: rfcspec.catalogue.Grammar
+        instance: grammar_id
+        emits:
+          - rfcspec.catalogue.GrammarExtracted
+        payload:
+          rfcspec.catalogue.GrammarExtracted:
+            grammar_id: input.grammar_id
+        sets:
+          rfc: input.rfc
+          name: input.name
+          rules: input.rules
+          uses: input.uses
+          bit_level: input.bit_level
+          span: input.span
+        summary: The grammar is in the catalogue with its rules verbatim and no dialect yet.
+
+  - name: rfcspec.catalogue.ExtractLayout
+    naming:
+      wire: extract-layout
+      display: Extract a layout
+    input:
+      - name: layout_id
+        type: rfcspec.catalogue.LayoutId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: fields
+        type: List<rfcspec.catalogue.LayoutField>
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: extracted
+        creates: rfcspec.catalogue.Layout
+        instance: layout_id
+        emits:
+          - rfcspec.catalogue.LayoutExtracted
+        payload:
+          rfcspec.catalogue.LayoutExtracted:
+            layout_id: input.layout_id
+        sets:
+          rfc: input.rfc
+          name: input.name
+          fields: input.fields
+          span: input.span
+        summary: The layout is in the catalogue.
+
+  - name: rfcspec.catalogue.ReadRegistry
+    naming:
+      wire: read-registry
+      display: Read a registry
+      summary: A registry is read from IANA's XML, never from an RFC's IANA section.
+    input:
+      - name: registry_id
+        type: rfcspec.catalogue.RegistryId
+      - name: entries
+        type: List<rfcspec.catalogue.RegistryEntry>
+      - name: policy
+        type: rfcspec.catalogue.RegistryPolicy
+    outcomes:
+      - name: read
+        creates: rfcspec.catalogue.Registry
+        instance: registry_id
+        emits:
+          - rfcspec.catalogue.RegistryRead
+        payload:
+          rfcspec.catalogue.RegistryRead:
+            registry_id: input.registry_id
+        sets:
+          entries: input.entries
+          policy: input.policy
+        summary: The registry is in the catalogue.
+
+  - name: rfcspec.catalogue.ExtractLimit
+    naming:
+      wire: extract-limit
+      display: Extract a limit
+    input:
+      - name: limit_id
+        type: rfcspec.catalogue.LimitId
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+      - name: minimum
+        type: Optional<Integer>
+      - name: maximum
+        type: Optional<Integer>
+      - name: span
+        type: rfcspec.catalogue.Span
+    outcomes:
+      - name: extracted
+        creates: rfcspec.catalogue.Limit
+        instance: limit_id
+        emits:
+          - rfcspec.catalogue.LimitExtracted
+        payload:
+          rfcspec.catalogue.LimitExtracted:
+            limit_id: input.limit_id
+        sets:
+          rfc: input.rfc
+          name: input.name
+          minimum: input.minimum
+          maximum: input.maximum
+          span: input.span
+        summary: The limit is in the catalogue.
+
+events:
+  - name: rfcspec.catalogue.RfcRead
+    fields:
+      - name: number
+        type: rfcspec.catalogue.RfcNumber
+      - name: digest
+        type: rfcspec.catalogue.Digest
+
+  - name: rfcspec.catalogue.SectionRead
+    fields:
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+
+  - name: rfcspec.catalogue.RequirementExtracted
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+  - name: rfcspec.catalogue.RequirementProposed
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+  - name: rfcspec.catalogue.RequirementAccepted
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+  - name: rfcspec.catalogue.RequirementRejected
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+  - name: rfcspec.catalogue.RequirementStale
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+
+  - name: rfcspec.catalogue.DefinedTermExtracted
+    fields:
+      - name: term_id
+        type: rfcspec.catalogue.TermId
+
+  - name: rfcspec.catalogue.GrammarExtracted
+    fields:
+      - name: grammar_id
+        type: rfcspec.catalogue.GrammarId
+
+  - name: rfcspec.catalogue.LayoutExtracted
+    fields:
+      - name: layout_id
+        type: rfcspec.catalogue.LayoutId
+
+  - name: rfcspec.catalogue.RegistryRead
+    fields:
+      - name: registry_id
+        type: rfcspec.catalogue.RegistryId
+
+  - name: rfcspec.catalogue.LimitExtracted
+    fields:
+      - name: limit_id
+        type: rfcspec.catalogue.LimitId
+
+views:
+  - name: rfcspec.catalogue.Requirements
+    source: rfcspec.catalogue.Requirement
+    consistency: read_your_writes
+    naming:
+      wire: requirements
+      display: Requirements
+    fields:
+      - name: requirement_id
+        type: rfcspec.catalogue.RequirementId
+      - name: state
+        type: rfcspec.catalogue.Requirement.State
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: level
+        type: Optional<rfcspec.catalogue.Bcp14Level>
+      - name: party
+        type: Optional<rfcspec.catalogue.PartyName>
+      - name: source
+        type: rfcspec.catalogue.RequirementSource
+      - name: text
+        type: String
+
+  - name: rfcspec.catalogue.Sections
+    source: rfcspec.catalogue.Section
+    consistency: read_your_writes
+    naming:
+      wire: sections
+      display: Sections
+    fields:
+      - name: section_id
+        type: rfcspec.catalogue.SectionId
+      - name: state
+        type: rfcspec.catalogue.Section.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: anchor
+        type: String
+      - name: title
+        type: String
+      - name: span
+        type: rfcspec.catalogue.Span
