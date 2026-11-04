@@ -1,0 +1,20 @@
+[package]
+name = "rfcspec-source"
+description = "Fetches RFC sources into a profile and locks them by SHA-256; the only RFCspec crate that reaches the network."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+rfcspec-model = { path = "../rfcspec-model" }
+sha2 = "0.10"
+ureq = { version = "3.4", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

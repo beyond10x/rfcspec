@@ -1,0 +1,5 @@
+name: time
+rfcs:
+  - number: 868
+    title: Time Protocol
+    sections: [Time Protocol, The Time]

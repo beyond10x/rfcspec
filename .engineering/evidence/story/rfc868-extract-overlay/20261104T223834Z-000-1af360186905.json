@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-04T22:38:34Z",
+  "actor": "human:timo",
+  "artifact": "story:rfc868-extract-overlay",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "task check"
+  }
+}

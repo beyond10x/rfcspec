@@ -3,10 +3,9 @@ domain: rfcspec.review
 summary: >-
   AI proposals and the review decisions over them. A proposal is a recorded, replayable typed
   document with cited spans and changes nothing until a decision is written to the profile's
-  overlay. Decisions are keyed by the stable id of the item and the digest of the text they
-  judged, so re-import never loses them and a changed source text marks them stale.
-  UNMAPPED: the design applies verified errata as overlay entries and does not say what such an
-  entry holds.
+  overlay. Decisions are keyed by the item's stable id and the digest of the text they judged, so
+  re-import never loses them and a changed source text marks them stale. Verified errata enter
+  the overlay as decisions of kind erratum.
 
 naming:
   wire: review
@@ -16,10 +15,11 @@ types:
   - name: rfcspec.review.ProposalId
     kind: newtype
     of: String
+    alphabet: "0123456789abcdef"
     naming:
       summary: >-
-        A recorded proposal. UNMAPPED: the design replays a recording for the same inputs and
-        does not say whether the proposal is identified by its input digest or by its own id.
+        The SHA-256 of the proposal's task, model id and input digest. Replay looks a recording
+        up by this id, so the same inputs return the recorded response.
 
   - name: rfcspec.review.ModelId
     kind: newtype
@@ -27,29 +27,25 @@ types:
     naming:
       summary: The id of the model that produced a proposal.
 
-  - name: rfcspec.review.ItemId
-    kind: newtype
-    of: String
+  - name: rfcspec.review.DecisionKey
+    kind: struct
     naming:
       summary: >-
-        The stable id of the catalogue or profile item a decision judges, such as a requirement
-        id. UNMAPPED: how ids of the different item kinds share one value space.
-
-  - name: rfcspec.review.DecisionId
-    kind: newtype
-    of: String
-    naming:
-      summary: >-
-        One overlay decision. The design keys a decision by item id and text digest; UNMAPPED:
-        how that pair is written as one identity value, and whether confirming a stale decision
-        re-keys it to the new digest or records a new decision.
+        A decision's identity: the profile whose overlay holds it, the item's stable id and the
+        digest of the text it judged. Overlays are per profile, so two profiles each hold their own
+        decision on one item and digest.
+    fields:
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.catalogue.ItemId
+      - name: text_digest
+        type: rfcspec.catalogue.Digest
 
   - name: rfcspec.review.ProposalTask
     kind: enum
     naming:
-      summary: >-
-        What S3 was asked to propose (design sections 4, 5, 8.3 and 9). The wire spellings are
-        drafted here; the design names the tasks in prose.
+      summary: What S3 was asked to propose (design sections 4, 5, 8.3 and 9).
     variants:
       - name: ClassifyKind
         wire: classify-kind
@@ -76,6 +72,8 @@ types:
 
   - name: rfcspec.review.Verdict
     kind: enum
+    naming:
+      summary: How a reviewer settles a proposal.
     variants:
       - name: Accept
         wire: accept
@@ -84,33 +82,65 @@ types:
       - name: Reject
         wire: reject
 
+  - name: rfcspec.review.DecisionKind
+    kind: enum
+    naming:
+      summary: What an overlay entry does to its item.
+    variants:
+      - name: Accept
+        wire: accept
+      - name: Edit
+        wire: edit
+      - name: Reject
+        wire: reject
+      - name: Erratum
+        wire: erratum
+        summary: A verified RFC Editor erratum replacing the judged text; only verified errata are applied.
+
+  - name: rfcspec.review.ErrataStatus
+    kind: enum
+    naming:
+      summary: The status the RFC Editor gives an erratum.
+    variants:
+      - name: Verified
+        wire: verified
+      - name: Reported
+        wire: reported
+      - name: Held
+        wire: held
+        summary: Held for document update.
+      - name: Rejected
+        wire: rejected
+
 entities:
   - name: rfcspec.review.Proposal
     naming:
       summary: >-
         A typed, schema-checked document from S3: the model id, a digest of the prompt and
-        inputs, the response and the spans it cites. Stored under the profile's proposals and
-        replayed, so every later stage is offline. UNMAPPED: the design does not say how a
-        proposal names the item it is about.
+        inputs, the response and the spans it cites, about one item named by its stable id.
+        Stored under the profile's proposals and replayed, so every later stage is offline.
     identity:
       name: proposal_id
       type: rfcspec.review.ProposalId
     fields:
       - name: profile
         type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.catalogue.ItemId
+        summary: The item the proposal is about.
       - name: task
         type: rfcspec.review.ProposalTask
       - name: model_id
         type: rfcspec.review.ModelId
       - name: input_digest
         type: rfcspec.catalogue.Digest
-        summary: Digest of the prompt and inputs; the same inputs replay the recorded response.
+        summary: Digest of the prompt and inputs.
       - name: response
         type: Json
       - name: cited_spans
         type: List<rfcspec.catalogue.Span>
-      - name: decision_id
-        type: Optional<rfcspec.review.DecisionId>
+      - name: decision
+        type: Optional<rfcspec.review.DecisionKey>
         summary: The overlay decision that settled the proposal.
     relations:
       - name: profile
@@ -122,7 +152,7 @@ entities:
         kind: references
         target: rfcspec.review.Decision
         cardinality: one
-        via: decision_id
+        via: decision
     lifecycle:
       initial: Recorded
       states:
@@ -151,28 +181,48 @@ entities:
   - name: rfcspec.review.Decision
     naming:
       summary: >-
-        An entry of a profile's overlay: accept, edit or reject of one item, keyed by the item's
-        stable id and the digest of the text it judged. Human decisions and recorded AI
-        proposals both reach the catalogue only through such an entry.
+        An entry of a profile's overlay: accept, edit, reject or erratum for one item, keyed by
+        the profile, the item's stable id and the digest of the text it judged. Human decisions and recorded
+        AI proposals reach the catalogue only through such an entry. Confirming a stale decision
+        records a new Current decision with the new digest; the old one stays Stale.
     identity:
-      name: decision_id
-      type: rfcspec.review.DecisionId
+      name: key
+      type: rfcspec.review.DecisionKey
     fields:
       - name: profile
         type: rfcspec.profile.ProfileName
+        summary: The key's profile.
       - name: item
-        type: rfcspec.review.ItemId
+        type: rfcspec.catalogue.ItemId
+        summary: The key's item.
       - name: text_digest
         type: rfcspec.catalogue.Digest
-        summary: SHA-256 of the text the decision judged.
-      - name: verdict
-        type: rfcspec.review.Verdict
+        summary: The key's text digest.
+      - name: kind
+        type: rfcspec.review.DecisionKind
       - name: proposal_id
         type: Optional<rfcspec.review.ProposalId>
         summary: The proposal decided, absent for a decision made without one.
       - name: edit
         type: Optional<Json>
-        summary: "The reviewer's edit. UNMAPPED: the design does not say what an edit holds."
+        summary: The replacement item of an edit, in the catalogue's own shape for that item kind.
+      - name: errata_id
+        type: Optional<Integer>
+        summary: The RFC Editor errata id of an erratum.
+      - name: errata_status
+        type: Optional<rfcspec.review.ErrataStatus>
+        summary: The RFC Editor's status of an erratum; only a verified erratum is recorded.
+      - name: corrected_text
+        type: Optional<String>
+        summary: The corrected text of an erratum; text_digest is the digest of the original text.
+      - name: confirms
+        type: Optional<rfcspec.review.DecisionKey>
+        summary: The stale decision this one confirms against the changed text.
+    invariants:
+      - any: [kind != Edit, defined(edit)]
+      - any: [kind != Erratum, defined(errata_id)]
+      - any: [kind != Erratum, defined(corrected_text)]
+      - any: [kind != Erratum, errata_status == Verified]
     relations:
       - name: profile
         kind: references
@@ -184,6 +234,11 @@ entities:
         target: rfcspec.review.Proposal
         cardinality: one
         via: proposal_id
+      - name: confirms
+        kind: references
+        target: rfcspec.review.Decision
+        cardinality: one
+        via: confirms
     lifecycle:
       initial: Current
       states:
@@ -192,40 +247,47 @@ entities:
           summary: The judged text still matches; the decision is applied.
         - name: Stale
           wire: stale
-          summary: The judged text changed on re-import; the decision is not applied until a reviewer confirms it.
-      terminal: []
+          summary: The judged text changed on re-import; the decision is kept and not applied.
+      terminal: [Stale]
       transitions:
         - name: mark_stale
           from: [Current]
           to: Stale
-        - name: confirm
-          from: [Stale]
-          to: Current
 
 actors:
   - name: rfcspec.review.Proposer
     naming:
       display: Proposer
-      summary: Stage S3. Calls go through the shared LLM crates; no gate calls a model.
+      summary: >-
+        Stage S3. Calls go through the shared LLM crates; no gate calls a model. It records
+        proposals only and changes no catalogue or profile item.
     may:
       - rfcspec.review.RecordProposal
-      - rfcspec.catalogue.ProposeRequirement
-      - rfcspec.catalogue.MarkRequirementProposed
 
   - name: rfcspec.review.Reviewer
     naming:
       display: Reviewer
       summary: >-
-        Stage S4, which writes the overlay: decisions on proposals and items, requirement review
-        states, machines from accepted proposals, and the statuses unsupported and
-        not-applicable.
+        Stage S4, which writes the overlay: decisions on proposals and items, verified errata,
+        and, each under a Current decision, requirements from prose, requirement review states
+        and levels, confirmations of stale items, RFC kinds, grammar dialects, profile semantics,
+        and the statuses unsupported and not-applicable.
     may:
       - rfcspec.review.RecordDecision
       - rfcspec.review.DecideProposal
       - rfcspec.review.ConfirmDecision
+      - rfcspec.catalogue.ProposeRequirement
       - rfcspec.catalogue.AcceptRequirement
       - rfcspec.catalogue.RejectRequirement
-      - rfcspec.profile.RecordMachine
+      - rfcspec.catalogue.SetRequirementLevel
+      - rfcspec.catalogue.ClassifyRfc
+      - rfcspec.catalogue.SetGrammarDialect
+      - rfcspec.catalogue.ConfirmSection
+      - rfcspec.catalogue.ConfirmDefinedTerm
+      - rfcspec.catalogue.ConfirmGrammar
+      - rfcspec.catalogue.ConfirmLayout
+      - rfcspec.catalogue.ConfirmLimit
+      - rfcspec.profile.ReviseProfile
       - rfcspec.profile.RecordStatus
 
 errors:
@@ -248,16 +310,47 @@ errors:
       - name: proposal_id
         type: rfcspec.review.ProposalId
 
-  - name: rfcspec.review.DecisionStateConflict
-    summary: The decision is not in a state this command acts from, so nothing moved.
+  - name: rfcspec.review.DecisionIncomplete
+    summary: An edit names no replacement item, or an erratum no errata id or corrected text, and nothing was recorded.
     fields:
-      - name: state
-        type: rfcspec.review.Decision.State
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.review.DecisionNotStale
+    summary: The decision to confirm does not exist or is not stale, and nothing was recorded.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
 
   - name: rfcspec.review.DecisionNotFound
+    summary: No decision has the key, and nothing changed.
     fields:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.review.DecisionNotCurrent
+    summary: The decision named is Stale and is not applied until a reviewer confirms it, so nothing changed.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.review.DecisionMismatch
+    summary: >-
+      The decision named is for another profile, item or text, or its kind does not match what
+      the command does, so nothing changed.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.review.ErratumNotVerified
+    summary: An erratum decision names an erratum the RFC Editor has not verified, and nothing was recorded.
+    fields:
+      - name: item
+        type: rfcspec.catalogue.ItemId
+
+  - name: rfcspec.review.AlreadyExists
+    summary: A record with this identity already exists, and nothing was recorded.
+    fields: []
 
 commands:
   - name: rfcspec.review.RecordProposal
@@ -269,6 +362,8 @@ commands:
         type: rfcspec.review.ProposalId
       - name: profile
         type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.catalogue.ItemId
       - name: task
         type: rfcspec.review.ProposalTask
       - name: model_id
@@ -288,9 +383,11 @@ commands:
         payload:
           rfcspec.review.ProposalRecorded:
             proposal_id: input.proposal_id
+            item: input.item
             task: input.task
         sets:
           profile: input.profile
+          item: input.item
           task: input.task
           model_id: input.model_id
           input_digest: input.input_digest
@@ -304,6 +401,12 @@ commands:
           rfcspec.review.ProposalCheckFailed:
             proposal_id: input.proposal_id
         summary: Nothing is recorded for review.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.review.AlreadyExists
+        summary: >-
+          A proposal with this id is already recorded; replay reads it instead of recording it
+          again, and nothing changes.
 
   - name: rfcspec.review.DecideProposal
     naming:
@@ -314,9 +417,38 @@ commands:
         type: rfcspec.review.ProposalId
       - name: verdict
         type: rfcspec.review.Verdict
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: decision
+        type: rfcspec.review.DecisionKey
     outcomes:
+      - name: other-item
+        when_subject:
+          predicate:
+            any: [item != input.decision.item, profile != input.decision.profile]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision is about another item or profile, and the proposal stays Recorded.
+      - name: no-decision
+        when_related: {via: input.decision, exists: false}
+        error: rfcspec.review.DecisionNotFound
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.decision.item
+        summary: No decision has the key, and the proposal stays Recorded.
+      - name: kind-mismatch
+        when_related:
+          via: input.decision
+          predicate:
+            any:
+              - all: [input.verdict == Accept, kind != Accept]
+              - all: [input.verdict == Edit, kind != Edit]
+              - all: [input.verdict == Reject, kind != Reject]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.decision.item
+        summary: The decision's kind is not the verdict, and the proposal stays Recorded.
       - name: accepted
         when: verdict == Accept
         moves: rfcspec.review.Proposal.accept
@@ -328,7 +460,7 @@ commands:
             proposal_id: input.proposal_id
             verdict: input.verdict
         sets:
-          decision_id: input.decision_id
+          decision: input.decision
         summary: The proposal is Accepted.
       - name: edited
         when: verdict == Edit
@@ -341,7 +473,7 @@ commands:
             proposal_id: input.proposal_id
             verdict: input.verdict
         sets:
-          decision_id: input.decision_id
+          decision: input.decision
         summary: The proposal is accepted with an edit.
       - name: rejected
         moves: rfcspec.review.Proposal.reject
@@ -353,7 +485,7 @@ commands:
             proposal_id: input.proposal_id
             verdict: input.verdict
         sets:
-          decision_id: input.decision_id
+          decision: input.decision
         summary: The proposal is Rejected and changes nothing.
       - name: unknown
         unknown_instance: true
@@ -369,61 +501,90 @@ commands:
       wire: record-decision
       display: Record a decision
     input:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
-      - name: profile
-        type: rfcspec.profile.ProfileName
-      - name: item
-        type: rfcspec.review.ItemId
-      - name: text_digest
-        type: rfcspec.catalogue.Digest
-      - name: verdict
-        type: rfcspec.review.Verdict
+      - name: key
+        type: rfcspec.review.DecisionKey
+      - name: kind
+        type: rfcspec.review.DecisionKind
       - name: proposal_id
         type: Optional<rfcspec.review.ProposalId>
       - name: edit
         type: Optional<Json>
+      - name: errata_id
+        type: Optional<Integer>
+      - name: errata_status
+        type: Optional<rfcspec.review.ErrataStatus>
+      - name: corrected_text
+        type: Optional<String>
     outcomes:
+      - name: incomplete
+        when:
+          any:
+            - all: [kind == Edit, not defined(edit)]
+            - all: [kind == Erratum, not defined(errata_id)]
+            - all: [kind == Erratum, not defined(corrected_text)]
+            - all: [kind == Erratum, not defined(errata_status)]
+        error: rfcspec.review.DecisionIncomplete
+        payload:
+          rfcspec.review.DecisionIncomplete:
+            item: input.key.item
+        summary: The decision lacks what its kind needs, and nothing was recorded.
+      - name: erratum-not-verified
+        when:
+          all: [kind == Erratum, defined(errata_status), errata_status != Verified]
+        error: rfcspec.review.ErratumNotVerified
+        payload:
+          rfcspec.review.ErratumNotVerified:
+            item: input.key.item
+        summary: Only a verified erratum enters the overlay.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.review.AlreadyExists
+        summary: The overlay already holds a decision under this key, and nothing was recorded.
       - name: recorded
         creates: rfcspec.review.Decision
-        instance: decision_id
+        instance: key
         emits:
           - rfcspec.review.DecisionRecorded
         payload:
           rfcspec.review.DecisionRecorded:
-            decision_id: input.decision_id
-            item: input.item
-            verdict: input.verdict
+            key: input.key
+            kind: input.kind
         sets:
-          profile: input.profile
-          item: input.item
-          text_digest: input.text_digest
-          verdict: input.verdict
+          profile: input.key.profile
+          item: input.key.item
+          text_digest: input.key.text_digest
+          kind: input.kind
           proposal_id: input.proposal_id
           edit: input.edit
-        summary: The decision is in the overlay and applied.
+          errata_id: input.errata_id
+          errata_status: input.errata_status
+          corrected_text: input.corrected_text
+        summary: The decision is in the profile's overlay and applied.
 
   - name: rfcspec.review.MarkDecisionStale
     naming:
       wire: mark-decision-stale
       display: Mark a decision stale
     input:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: key
+        type: rfcspec.review.DecisionKey
     outcomes:
       - name: stale
         moves: rfcspec.review.Decision.mark_stale
-        instance: decision_id
+        instance: key
         emits:
           - rfcspec.review.DecisionStale
         payload:
           rfcspec.review.DecisionStale:
-            decision_id: input.decision_id
+            key: input.key
         summary: Re-import changed the judged text; the decision is kept and no longer applied.
       - name: unknown
         unknown_instance: true
         error: rfcspec.review.DecisionNotFound
-        summary: No decision has this id.
+        payload:
+          rfcspec.review.DecisionNotFound:
+            item: input.key.item
+        summary: No decision has the key, and nothing changed.
       - name: already-stale
         wrong_state: true
         refuses: false
@@ -433,37 +594,109 @@ commands:
     naming:
       wire: confirm-decision
       display: Confirm a stale decision
+      summary: >-
+        A reviewer confirms a stale decision against the changed text: a new Current decision is
+        recorded under the new digest, and the stale one stays as it is.
     input:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
-      - name: text_digest
-        type: rfcspec.catalogue.Digest
+      - name: key
+        type: rfcspec.review.DecisionKey
+      - name: confirms
+        type: rfcspec.review.DecisionKey
+      - name: kind
+        type: rfcspec.review.DecisionKind
+      - name: proposal_id
+        type: Optional<rfcspec.review.ProposalId>
+      - name: edit
+        type: Optional<Json>
+      - name: errata_id
+        type: Optional<Integer>
+      - name: errata_status
+        type: Optional<rfcspec.review.ErrataStatus>
+      - name: corrected_text
+        type: Optional<String>
     outcomes:
+      - name: incomplete
+        when:
+          any:
+            - all: [kind == Edit, not defined(edit)]
+            - all: [kind == Erratum, not defined(errata_id)]
+            - all: [kind == Erratum, not defined(corrected_text)]
+            - all: [kind == Erratum, not defined(errata_status)]
+        error: rfcspec.review.DecisionIncomplete
+        payload:
+          rfcspec.review.DecisionIncomplete:
+            item: input.key.item
+        summary: The decision lacks what its kind needs, and nothing was recorded.
+      - name: erratum-not-verified
+        when:
+          all: [kind == Erratum, defined(errata_status), errata_status != Verified]
+        error: rfcspec.review.ErratumNotVerified
+        payload:
+          rfcspec.review.ErratumNotVerified:
+            item: input.key.item
+        summary: Only a verified erratum enters the overlay.
+      - name: already-exists
+        existing_instance: true
+        error: rfcspec.review.AlreadyExists
+        summary: The overlay already holds a decision under the new key, and nothing was recorded.
+      - name: missing
+        when_related: {via: input.confirms, exists: false}
+        error: rfcspec.review.DecisionNotStale
+        payload:
+          rfcspec.review.DecisionNotStale:
+            item: input.confirms.item
+        summary: No decision has the key to confirm.
+      - name: other-item
+        when_related:
+          via: input.confirms
+          predicate:
+            any:
+              - profile != input.key.profile
+              - item != input.key.item
+              - text_digest == input.key.text_digest
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.key.item
+        summary: >-
+          A confirmation stays with the stale decision's profile and item and judges a changed
+          text; anything else is refused and nothing was recorded.
+      - name: not-stale
+        when_related: {via: input.confirms, predicate: state != Stale}
+        error: rfcspec.review.DecisionNotStale
+        payload:
+          rfcspec.review.DecisionNotStale:
+            item: input.confirms.item
+        summary: The decision to confirm still applies.
       - name: confirmed
-        moves: rfcspec.review.Decision.confirm
-        instance: decision_id
+        creates: rfcspec.review.Decision
+        instance: key
         emits:
           - rfcspec.review.DecisionConfirmed
         payload:
           rfcspec.review.DecisionConfirmed:
-            decision_id: input.decision_id
+            key: input.key
+            confirms: input.confirms
         sets:
-          text_digest: input.text_digest
-        summary: A reviewer confirmed the decision against the changed text; it applies again.
-      - name: unknown
-        unknown_instance: true
-        error: rfcspec.review.DecisionNotFound
-        summary: No decision has this id.
-      - name: wrong-state
-        wrong_state: true
-        error: rfcspec.review.DecisionStateConflict
-        summary: Only a stale decision is confirmed.
+          profile: input.key.profile
+          item: input.key.item
+          text_digest: input.key.text_digest
+          kind: input.kind
+          proposal_id: input.proposal_id
+          edit: input.edit
+          errata_id: input.errata_id
+          errata_status: input.errata_status
+          corrected_text: input.corrected_text
+          confirms: input.confirms
+        summary: A new Current decision applies under the new digest.
 
 events:
   - name: rfcspec.review.ProposalRecorded
     fields:
       - name: proposal_id
         type: rfcspec.review.ProposalId
+      - name: item
+        type: rfcspec.catalogue.ItemId
       - name: task
         type: rfcspec.review.ProposalTask
 
@@ -476,22 +709,22 @@ events:
 
   - name: rfcspec.review.DecisionRecorded
     fields:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
-      - name: item
-        type: rfcspec.review.ItemId
-      - name: verdict
-        type: rfcspec.review.Verdict
+      - name: key
+        type: rfcspec.review.DecisionKey
+      - name: kind
+        type: rfcspec.review.DecisionKind
 
   - name: rfcspec.review.DecisionStale
     fields:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: key
+        type: rfcspec.review.DecisionKey
 
   - name: rfcspec.review.DecisionConfirmed
     fields:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: key
+        type: rfcspec.review.DecisionKey
+      - name: confirms
+        type: rfcspec.review.DecisionKey
 
 views:
   - name: rfcspec.review.Proposals
@@ -505,18 +738,20 @@ views:
         type: rfcspec.review.ProposalId
       - name: state
         type: rfcspec.review.Proposal.State
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: item
+        type: rfcspec.catalogue.ItemId
       - name: task
         type: rfcspec.review.ProposalTask
       - name: model_id
         type: rfcspec.review.ModelId
-      - name: decision_id
-        type: Optional<rfcspec.review.DecisionId>
-      - name: profile
-        type: rfcspec.profile.ProfileName
       - name: input_digest
         type: rfcspec.catalogue.Digest
       - name: response
         type: Json
+      - name: decision
+        type: Optional<rfcspec.review.DecisionKey>
 
   - name: rfcspec.review.Decisions
     source: rfcspec.review.Decision
@@ -525,19 +760,23 @@ views:
       wire: decisions
       display: Decisions
     fields:
-      - name: decision_id
-        type: rfcspec.review.DecisionId
+      - name: key
+        type: rfcspec.review.DecisionKey
       - name: state
         type: rfcspec.review.Decision.State
-      - name: item
-        type: rfcspec.review.ItemId
-      - name: text_digest
-        type: rfcspec.catalogue.Digest
-      - name: verdict
-        type: rfcspec.review.Verdict
       - name: profile
         type: rfcspec.profile.ProfileName
+      - name: kind
+        type: rfcspec.review.DecisionKind
       - name: proposal_id
         type: Optional<rfcspec.review.ProposalId>
       - name: edit
         type: Optional<Json>
+      - name: errata_id
+        type: Optional<Integer>
+      - name: errata_status
+        type: Optional<rfcspec.review.ErrataStatus>
+      - name: corrected_text
+        type: Optional<String>
+      - name: confirms
+        type: Optional<rfcspec.review.DecisionKey>

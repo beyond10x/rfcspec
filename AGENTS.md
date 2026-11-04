@@ -13,13 +13,17 @@ The contract for changing this repository. Humans start at [`README.md`](README.
 
 ## State
 
-Design stage. Nothing of the pipeline (design §4, stages S0–S7) is implemented. What exists:
+The RFC 868 thin slice runs every stage except S3 (AI proposals) end to end for one profile,
+`profiles/time`; everything else is design. What exists:
 
 | path | what |
 |---|---|
 | `docs/design/rfcspec.md` | the design: decisions (§0), pipeline, catalogue, communication semantics, ESS gaps, WebSocket example, milestones (§14) |
 | `ess/` | RFCspec's own ESS specification: the catalogue and review nouns |
 | `examples/websocket/` | the WebSocket closing-handshake model (`ess-protospec/1`) and its exploration witness |
+| `crates/rfcspec-{model,source,doc,extract,ess,gen,conformance}/` | the pipeline stages S0–S2 and S4–S7 (design §13) for plain-text RFCs |
+| `crates/rfcspec-cli/` | the `rfcspec` binary: `fetch`, `read`, `extract`, `check`, `lower`, `generate`, `verify` |
+| `profiles/time/` | RFC 868: locked source, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate) |
 | `crates/rfcspec-docs/` | generates the site's derived pages (design, status) and binds a built site to its commit |
 | `website/` | the Docusaurus site published at `https://beyond10x.github.io/rfcspec/`; `website/static/pitch/` is a standalone slide deck |
 | `.engineering/` | the AEP planning store (`aep.project/5`) |
@@ -32,6 +36,8 @@ task check
 
 Steps (`Taskfile.yml`): `aep plan artifact validate`, `ess specify validate --path ess`, bounded
 exploration of every model under `examples/` must report `"verdict": "passed"`,
+the `time` task (`rfcspec check`, `rfcspec lower --check`, exploration of both
+Time Protocol models, `rfcspec generate --check`, `cargo test -p rfc868-time`),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
 `task website` (`npm ci --allow-git=root` locally; CI's Node 22 needs no flag).
@@ -46,7 +52,8 @@ CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site 
 - ESS is read and written through its crates at a released tag; never re-implement ESS parsing or
   validation.
 - Generated files are never edited by hand: change the generator in `crates/rfcspec-docs/`, then
-  `task docs-generate`.
+  `task docs-generate`. The same holds for `profiles/*/generated/`: change the overlay or
+  the generator, then `rfcspec lower` and `rfcspec generate`.
 - A new noun gets its ESS declaration in `ess/` before any AEP story is written around it.
 - No comments in `Cargo.toml`, `Taskfile.yml`, workflow files or YAML specifications.
 - Confidentiality: this repository is public. No name of an external company, customer, product or

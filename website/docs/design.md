@@ -217,6 +217,11 @@ Proposed nouns (RFCspec's own ESS domain specifies them, D12):
 | `Profile` | name | RFCs and the sections and parties in scope, the communication semantics (section 6) |
 | `Status` | profile, requirement | one of `satisfied <element>`, `unsupported <reason>`, `not-applicable <reason>`; tests that verify a satisfied requirement are evidence attached to it, read by the conformance matrix (section 11), not a fourth status; MUST-level items in scope need one, as Ignite's E090 rule (`ignite:protocols.md` §3.2) |
 
+A `Limit` also holds the reaction the RFC states for exceeding it, verbatim and cited by the limit's
+span, which the limit pairs of section 11 read. That every MUST-level requirement in scope has a
+status spans every requirement of a profile, so `rfcspec check` enforces it, not a single command of
+the ESS domain.
+
 **Requirements, mechanically.**
 
 - XML: one requirement per sentence containing a `<bcp14>` element.
@@ -381,7 +386,9 @@ AI is useful exactly where S2 stops: prose to structure. It is never trusted, on
 prompt and inputs, the response, and the spans it cites. Proposals are stored in
 `proposals/` and replayed: S3 with the same inputs and a recorded response returns the recording,
 so CI and every later stage are offline and deterministic. Calls go through the `beyond10x/llm`
-crates. A proposal changes nothing until S4 records a decision in the overlay.
+crates. A proposal changes nothing until S4 records a decision in the overlay. Accepted
+communication semantics reach a profile when a reviewer, under a current decision of that profile's
+overlay, replaces the profile's semantics block with them (`ReviseProfile`).
 
 **Prior art.** RFCNLP extracted finite state machines from the TCP and DCCP RFCs with hybrid NLP
 and used them for attack synthesis [P11]. SAGE extracted logical forms from RFC text and generated

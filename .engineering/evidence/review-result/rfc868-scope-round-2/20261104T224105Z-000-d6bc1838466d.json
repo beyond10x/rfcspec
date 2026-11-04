@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-04T22:41:05Z",
+  "actor": "human:timo",
+  "artifact": "review-result:rfc868-scope-round-2",
+  "kind": "review-result",
+  "revision": 2,
+  "change": {
+    "change": "redaction",
+    "literal_sha256": "33dca56ea0e4acbc7a7356dde62d23683813c46fd162543d852873f2aa6497e1",
+    "literal_chars": 29,
+    "replacement": "",
+    "count": 1,
+    "reason": "personal path in a public repository"
+  }
+}

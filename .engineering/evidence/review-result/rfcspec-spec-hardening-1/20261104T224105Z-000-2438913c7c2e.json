@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-04T22:41:05Z",
+  "actor": "human:timo",
+  "artifact": "review-result:rfcspec-spec-hardening-1",
+  "kind": "review-result",
+  "revision": 2,
+  "change": {
+    "change": "redaction",
+    "literal_sha256": "42c660b7051ea0439591bddbfea23b30f545f6fe9861d8d1d48e3026bd5376c3",
+    "literal_chars": 70,
+    "replacement": "a scratch directory",
+    "count": 1,
+    "reason": "personal path in a public repository"
+  }
+}
