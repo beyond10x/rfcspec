@@ -2,22 +2,24 @@
 format: aep.planning-md/3
 id: story:explorer-profile-layer
 kind: story
-status: active
+status: implemented
 title: 'Show a profiled RFC''s reviewed layer in the explorer: each requirement''s status, review decision and recorded proposal, the machines, layouts and their witnesses'
 relations:
 - decomposes: epic:rfc-explorer
 - depends_on: story:explorer-rfc-view
 - depends_on: story:explorer-search
-revision: 8
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-05T19:00:27Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-05T19:28:00Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Story
 
 For an RFC a profile locks (RFC 868 in `time`, RFC 1035 in `dns`, RFC 5905 in `ntp`, RFC 6455 in `websocket`), the explorer view of `story:explorer-rfc-view` adds the reviewed layer below the bulk data:
 
-- each requirement of the profile overlay with its id, level, quote and source span, and its status: satisfied with its element and evidence, unsupported or not applicable with its reason and ESS gap;
+- each requirement of the profile overlay with its id, level, quote and source span, and its status: satisfied with its element, unsupported or not applicable with its reason and ESS gap;
+- Revised 2026-11-05 after adversary pass 1: no overlay records evidence for a satisfied status (`grep evidence profiles/*/overlay.yaml` finds none), so 46 satisfied rows have none, and `RecordSatisfiedStatus` would refuse them. The explorer shows the element only. Recording that evidence is `story:status-evidence` (draft).
 - where a review decision exists for the requirement: its kind (accept, edit, reject), a reject reason, and the recorded proposal it decided (proposal id and model id), linked to `profiles/<name>/proposals/<proposal_id>.json` on GitHub;
 - the unreviewed requirements of the mechanical catalogue counted by level, as the profile page counts them;
 - the machines, each with its `ess-protospec/1` download and its input witness `profiles/<name>/witnesses/<machine>.inputs.json`, and the layouts with their fields and bit widths.
