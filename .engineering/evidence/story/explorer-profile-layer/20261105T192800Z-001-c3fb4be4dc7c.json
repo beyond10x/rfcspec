@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T19:28:00Z",
+  "actor": "human:timo",
+  "artifact": "story:explorer-profile-layer",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-docs (lib 41, bin 14, explorer_adversary 2, explorer_profile_adversary 2); task explorer (vue-tsc, vitest 78/78, vite build); task types-check; task docs-check; fmt; clippy -D warnings"
+  }
+}
