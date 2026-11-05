@@ -56,6 +56,16 @@ types:
       - name: Text
         wire: text
 
+  - name: rfcspec.catalogue.ReferenceKind
+    kind: enum
+    naming:
+      summary: Whether the cited document is listed among the citing RFC's normative or informative references.
+    variants:
+      - name: Normative
+        wire: normative
+      - name: Informative
+        wire: informative
+
   - name: rfcspec.catalogue.Span
     kind: struct
     naming:
@@ -379,6 +389,11 @@ entities:
         target: rfcspec.catalogue.Limit
         cardinality: many
         via: rfc
+      - name: references
+        kind: owns
+        target: rfcspec.catalogue.Reference
+        cardinality: many
+        via: rfc
     lifecycle:
       initial: Read
       states: [Read]
@@ -675,6 +690,43 @@ entities:
           from: [Stale]
           to: Read
           summary: A reviewer confirmed it against the changed text under a Current decision.
+
+  - name: rfcspec.catalogue.Reference
+    naming:
+      summary: >-
+        One citation of another RFC, read from an xref in the citing RFC's RFCXML source. A
+        self-reference and a reference to a document that is not an RFC are counted in the read
+        summary and not stored. Owned by the citing RFC: rebuilt when it is re-read and deleted
+        with it; a cited section going stale does not change it.
+    identity:
+      name: reference_id
+      type: rfcspec.catalogue.ItemId
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+        summary: The citing RFC.
+      - name: section_id
+        type: Optional<rfcspec.catalogue.ItemId>
+        summary: The citing section, absent where the xref lies outside every section.
+      - name: target_rfc
+        type: Integer
+        summary: >-
+          The cited RFC's number. Like the update graph, it may name an RFC that was never read.
+      - name: target_section
+        type: Optional<String>
+        summary: The cited section of the target RFC, as the xref's section attribute gives it.
+      - name: kind
+        type: rfcspec.catalogue.ReferenceKind
+    relations:
+      - name: section
+        kind: references
+        target: rfcspec.catalogue.Section
+        cardinality: one
+        via: section_id
+    lifecycle:
+      initial: Read
+      states: [Read]
+      terminal: [Read]
 
 actors:
   - name: rfcspec.catalogue.Reader
