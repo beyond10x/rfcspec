@@ -9,5 +9,6 @@ specification:
 scenarios:
   - scenarios/confirm-decision-already-exists.yaml
   - scenarios/propose-requirement-already-exists.yaml
+  - scenarios/record-proposal-already-exists.yaml
   - scenarios/record-status-already-exists.yaml
   - scenarios/revise-profile-party-not-a-role.yaml

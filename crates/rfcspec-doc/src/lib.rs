@@ -519,4 +519,126 @@ mod tests {
             )
         );
     }
+
+    fn rfc1035_text() -> String {
+        fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../profiles/dns/sources/rfc1035.txt"),
+        )
+        .unwrap()
+    }
+
+    fn rfc1035() -> Document {
+        read(1035, "digest", &rfc1035_text())
+    }
+
+    #[test]
+    fn rfc1035_furniture_is_55_footers_55_form_feeds_and_54_headers() {
+        let text = rfc1035_text();
+        let lines: Vec<&str> = text.lines().collect();
+        let document = rfc1035();
+        let of = |matches: &dyn Fn(&str) -> bool| {
+            document
+                .furniture
+                .iter()
+                .filter(|&&line| matches(lines[line - 1]))
+                .count()
+        };
+        assert_eq!(
+            of(&|l| l.starts_with("Mockapetris ") && l.trim_end().ends_with(']')),
+            55
+        );
+        assert_eq!(of(&|l| l.contains('\u{c}')), 55);
+        assert_eq!(
+            of(&|l| l.trim_end()
+                == "RFC 1035        Domain Implementation and Specification    November 1987"),
+            54
+        );
+        assert_eq!(document.furniture.len(), 164);
+        let pages: Vec<usize> = document
+            .furniture
+            .iter()
+            .filter_map(|&line| {
+                let line = lines[line - 1].trim_end();
+                line.rsplit_once("[Page ")
+                    .and_then(|(_, n)| n.strip_suffix(']')?.parse().ok())
+            })
+            .collect();
+        assert_eq!(pages, (1..=55).collect::<Vec<_>>());
+        for block in &document.blocks {
+            assert!(!block.text().contains("[Page"), "{:?}", block.span);
+            assert!(!block.text().starts_with("RFC 1035 "), "{:?}", block.span);
+        }
+    }
+
+    #[test]
+    fn rfc1035_has_71_numbered_headings_9_top_level_and_every_block_carries_its_section() {
+        let text = rfc1035_text();
+        let document = rfc1035();
+        let headings: Vec<(usize, &str)> = text
+            .lines()
+            .enumerate()
+            .filter_map(|(index, line)| numbered_heading(line).map(|n| (index + 1, n)))
+            .collect();
+        assert_eq!(headings.len(), 71);
+        assert_eq!(headings.iter().filter(|(_, n)| !n.contains('.')).count(), 9);
+        assert_eq!(headings[0], (9, "1"));
+        assert_eq!(headings[70], (2748, "9"));
+        let line = |number: usize| text.lines().nth(number - 1).unwrap();
+        assert!(line(9).starts_with("1. STATUS OF THIS MEMO"));
+        assert!(line(2748).starts_with("9. REFERENCES and BIBLIOGRAPHY"));
+        for (number, section, title) in [
+            (1401, "4.1.1", "4.1.1. Header section format"),
+            (1752, "4.2.1", "4.2.1. UDP usage"),
+            (2526, "7.3", "7.3. Processing responses"),
+        ] {
+            assert!(headings.contains(&(number, section)), "{number}");
+            assert_eq!(line(number).trim_end(), title);
+        }
+        for block in &document.blocks {
+            let expected = headings
+                .iter()
+                .rev()
+                .find(|(line, _)| *line <= block.span.start)
+                .map(|(_, n)| n.to_string());
+            assert_eq!(block.section, expected, "{:?}", block.span);
+            if block.span.start < 9 {
+                assert_eq!(block.section, None);
+            }
+        }
+        assert!(document.blocks.iter().any(|block| block.span.start < 9));
+    }
+
+    #[test]
+    fn the_rfc1035_header_diagram_is_one_figure_and_the_field_descriptions_are_paragraphs() {
+        let document = rfc1035();
+        let diagram = block_at(&document, 1405);
+        assert_eq!(
+            (diagram.kind, diagram.span, diagram.section.as_deref()),
+            (
+                BlockKind::Figure,
+                Span {
+                    start: 1405,
+                    end: 1419
+                },
+                Some("4.1.1")
+            )
+        );
+        for (start, end, first) in [
+            (1423, 1426, "ID"),
+            (1473, 1474, "Z               Reserved for future use."),
+        ] {
+            let field = block_at(&document, start);
+            assert_eq!(
+                (field.kind, field.span, field.section.as_deref()),
+                (BlockKind::Paragraph, Span { start, end }, Some("4.1.1"))
+            );
+            assert!(field.lines[0].starts_with(first), "{:?}", field.lines);
+        }
+        assert!(
+            block_at(&document, 1473)
+                .text()
+                .contains("Must be zero in all queries and responses.")
+        );
+    }
 }

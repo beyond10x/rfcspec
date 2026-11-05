@@ -1,0 +1,5 @@
+format: rfcspec-lock/1
+sources:
+- rfc: 6455
+  file: sources/rfc6455.txt
+  sha256: 765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b

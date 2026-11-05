@@ -1,0 +1,420 @@
+format: ess-protospec/1
+name: rfc6455-websocket-fragments
+bounds:
+  max_steps: 32
+  max_states: 256
+  max_time_ms: 1000
+participants:
+- name: client
+  initial: open
+  states:
+  - open
+  - texted
+  - in-message
+  - ponged
+  - continued
+  - finished
+  - closed
+  inputs:
+  - name: text
+    fields: []
+  - name: start
+    fields: []
+  - name: pong
+    fields: []
+  - name: continue
+    fields: []
+  - name: finish
+    fields: []
+  - name: close
+    fields:
+    - name: code
+      type: Integer
+  transitions:
+  - name: R5.2-1-send-text
+    from: open
+    to: texted
+    trigger:
+      kind: input
+      name: text
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: data-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.2-1-send-text
+      payload:
+        fin:
+          kind: literal
+          value: true
+        opcode:
+          kind: literal
+          value: 1
+  - name: R5.4-12-start-message
+    from: open
+    to: in-message
+    trigger:
+      kind: input
+      name: start
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: data-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.4-12-start-message
+      payload:
+        fin:
+          kind: literal
+          value: false
+        opcode:
+          kind: literal
+          value: 1
+  - name: R5.4-1-R5.4-2-R5.5.3-2-send-pong
+    from: in-message
+    to: ponged
+    trigger:
+      kind: input
+      name: pong
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: pong
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.4-1-R5.4-2-R5.5.3-2-send-pong
+      payload:
+        fin:
+          kind: literal
+          value: true
+  - name: R5.4-12-continue-message
+    from: in-message
+    to: continued
+    trigger:
+      kind: input
+      name: continue
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: data-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.4-12-continue-message
+      payload:
+        fin:
+          kind: literal
+          value: false
+        opcode:
+          kind: literal
+          value: 0
+  - name: R5.4-12-finish-after-pong
+    from: ponged
+    to: finished
+    trigger:
+      kind: input
+      name: finish
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: data-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.4-12-finish-after-pong
+      payload:
+        fin:
+          kind: literal
+          value: true
+        opcode:
+          kind: literal
+          value: 0
+  - name: R5.4-12-finish-message
+    from: continued
+    to: finished
+    trigger:
+      kind: input
+      name: finish
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: data-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.4-12-finish-message
+      payload:
+        fin:
+          kind: literal
+          value: true
+        opcode:
+          kind: literal
+          value: 0
+  - name: R5.5.1-5-R5.5.1-8-close
+    from: open
+    to: closed
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.1-5-R5.5.1-8-close
+      payload:
+        code:
+          kind: input
+          field: code
+  - name: R5.5.1-5-R5.5.1-8-close-after-text
+    from: texted
+    to: closed
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.1-5-R5.5.1-8-close-after-text
+      payload:
+        code:
+          kind: input
+          field: code
+  - name: R5.5.1-5-R5.5.1-8-close-after-message
+    from: finished
+    to: closed
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.1-5-R5.5.1-8-close-after-message
+      payload:
+        code:
+          kind: input
+          field: code
+- name: server
+  initial: idle
+  states:
+  - idle
+  - in-message
+  - failed
+  - closed
+  transitions:
+  - name: R5.2-1-text-message
+    from: idle
+    to: idle
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: data-frame
+    guards:
+    - left:
+        kind: input
+        field: opcode
+      right:
+        kind: literal
+        value: 1
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: true
+    effects:
+    - kind: emit
+      name: message-received
+  - name: R5.4-12-start-message
+    from: idle
+    to: in-message
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: data-frame
+    guards:
+    - left:
+        kind: input
+        field: opcode
+      right:
+        kind: literal
+        value: 1
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: false
+  - name: R5.4-12-continue-message
+    from: in-message
+    to: in-message
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: data-frame
+    guards:
+    - left:
+        kind: input
+        field: opcode
+      right:
+        kind: literal
+        value: 0
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: false
+  - name: R5.4-12-finish-message
+    from: in-message
+    to: idle
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: data-frame
+    guards:
+    - left:
+        kind: input
+        field: opcode
+      right:
+        kind: literal
+        value: 0
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: true
+    effects:
+    - kind: emit
+      name: message-received
+  - name: R5.4-4-interleaved-message
+    from: in-message
+    to: failed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: data-frame
+    guards:
+    - left:
+        kind: input
+        field: opcode
+      right:
+        kind: literal
+        value: 1
+  - name: R5.5.3-2-pong
+    from: idle
+    to: idle
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: pong
+    guards:
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: true
+  - name: R5.4-1-R5.4-5-pong-in-message
+    from: in-message
+    to: in-message
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: pong
+    guards:
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: true
+  - name: R5.4-2-fragmented-control-frame
+    from: in-message
+    to: failed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: pong
+    guards:
+    - left:
+        kind: input
+        field: fin
+      right:
+        kind: literal
+        value: false
+  - name: R5.5.1-5-close-received
+    from: idle
+    to: closed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: close-frame
+messages:
+- name: data-frame
+  fields:
+  - name: fin
+    type: Boolean
+  - name: opcode
+    type: Integer
+- name: pong
+  fields:
+  - name: fin
+    type: Boolean
+- name: close-frame
+  fields:
+  - name: code
+    type: Integer
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties:
+- kind: never_state
+  name: server-never-fails
+  participant: server
+  state: failed

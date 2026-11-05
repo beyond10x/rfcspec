@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:16:55Z",
+  "actor": "human:timo",
+  "artifact": "story:websocket-fragments-machine",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-ess (21) -p rfcspec-docs -p rfcspec-cli -p rfcspec-extract exit 0; explore fragments passed; mutant failed server-never-fails; task websocket; task time; docs generate --check; clippy"
+  }
+}

@@ -314,6 +314,7 @@ concrete Rust types only when an importer or projector establishes their require
 | G7 | timers with values from fields | NTP poll interval, TCP RTO from measurements | `arm(after: field)` with checked bounds |
 | G8 | wire layer | all of K1 and K2 | `rfcspec-wire/1` first (D3); upstream proposal after WebSocket and DNS |
 | G9 | a `close` that discards transmissions still in flight to the closed participant, on a reliable channel | WebSocket §7.1.7 (client drops TCP after the closing timeout); every connection teardown | channel option `on_close: discard \| obligation`; today a queued message to a closed participant is an outstanding obligation (section 12.4) |
+| G10 | a guard on a message pending on an incoming channel | WebSocket §5.5.3 (a Pong for only the most recent Ping, skipping a Ping when a later one is pending) | `pending(channel, message)` as a guard operand |
 
 Until a gap is closed, the lowering refuses or abstracts: it drops the guard and marks the
 requirement's status `unsupported: ess-gap G1`, so the matrix shows the gap. It never emits a

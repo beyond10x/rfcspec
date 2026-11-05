@@ -1,0 +1,15 @@
+name: dns
+rfcs:
+  - number: 1035
+    title: Domain Names - Implementation and Specification
+    sections: ["4.1.1", "4.2.1", "7.3"]
+semantics:
+  - layer: udp
+    unit: datagrams
+    delivery: {ordered: false, reliable: false, duplicates: true}
+    direction: half-duplex
+    multiplexing: sessions
+    exchange: request-response
+    correlation: by-id
+    lifetime: connectionless
+    roles: [client, server]

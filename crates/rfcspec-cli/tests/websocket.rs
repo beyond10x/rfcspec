@@ -138,7 +138,37 @@ fn extract_output_is_byte_identical_across_two_runs() {
 }
 
 #[test]
-fn check_all_profiles_checks_time_and_websocket() {
+fn task_check_explores_every_websocket_model_with_its_witness() {
+    let text = fs::read_to_string(repository().join("Taskfile.yml")).unwrap();
+    let taskfile: serde_json::Value = rfcspec_model::from_yaml(&text).unwrap();
+    assert!(
+        taskfile["tasks"]["check"]["cmds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|cmd| cmd["task"] == "websocket"),
+        "{text}"
+    );
+    let websocket: Vec<&str> = taskfile["tasks"]["websocket"]["cmds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|cmd| cmd.as_str().or_else(|| cmd["cmd"].as_str()))
+        .collect();
+    let websocket = websocket.join("\n");
+    for model in ["close", "ping", "fragments"] {
+        let expected = format!(
+            "ess protocol explore --path {PROFILE}/generated/{model}.protospec.yaml --inputs {PROFILE}/witnesses/{model}.inputs.json | grep -q '\"verdict\": \"passed\"'"
+        );
+        assert!(
+            websocket.contains(&expected),
+            "{expected} not in\n{websocket}"
+        );
+    }
+}
+
+#[test]
+fn check_all_profiles_checks_dns_time_and_websocket() {
     let output = rfcspec(&["check", "--all", "profiles"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(
@@ -147,13 +177,13 @@ fn check_all_profiles_checks_time_and_websocket() {
         "{stdout}{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    for name in ["time", "websocket"] {
+    for name in ["dns", "time", "websocket"] {
         assert!(
             stdout.contains(&format!("profiles/{name}: overlay holds")),
             "{stdout}"
         );
     }
-    assert_eq!(stdout.lines().count(), 2, "{stdout}");
+    assert_eq!(stdout.lines().count(), 3, "{stdout}");
 }
 
 #[test]
@@ -165,7 +195,7 @@ fn the_profile_and_the_overlay_name_rfc_6455() {
         "{profile}"
     );
     assert!(
-        profile.contains("sections: [\"5.2\", \"5.5\", \"7\"]"),
+        profile.contains("sections: [\"5.2\", \"5.4\", \"5.5\", \"5.6\", \"7\"]"),
         "{profile}"
     );
     let overlay = fs::read_to_string(repository().join(PROFILE).join("overlay.yaml")).unwrap();
@@ -505,7 +535,7 @@ fn every_in_scope_requirement_has_a_status_and_those_outside_need_none() {
         rfcspec_model::read_yaml(&repository().join(PROFILE).join("overlay.yaml")).unwrap();
     let reviewed: Vec<&str> = overlay.requirements.iter().map(|r| r.id.as_str()).collect();
     let scoped = |section: &str| {
-        ["5.2", "5.5", "7"]
+        ["5.2", "5.4", "5.5", "5.6", "7"]
             .iter()
             .any(|s| section == *s || section.starts_with(&format!("{s}.")))
     };
@@ -527,7 +557,7 @@ fn every_in_scope_requirement_has_a_status_and_those_outside_need_none() {
         }
     }
     assert_eq!(in_scope, overlay.requirements.len());
-    assert_eq!((keywords_in, musts_in), (65, 29));
+    assert_eq!((keywords_in, musts_in), (78, 40));
     assert!(outside > 0);
     let unsupported_g1: Vec<&str> = overlay
         .requirements

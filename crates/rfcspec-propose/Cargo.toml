@@ -1,0 +1,32 @@
+[package]
+name = "rfcspec-propose"
+description = "S3: asks a model through the llm crates for overlay requirement entries, checks each answer mechanically, and records and replays proposals."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+double = []
+
+[dependencies]
+anyhow = "1"
+llm-core = { git = "https://github.com/beyond10x/llm", tag = "0.20.0" }
+llm-http = { git = "https://github.com/beyond10x/llm", tag = "0.20.0" }
+llm-models = { git = "https://github.com/beyond10x/llm", tag = "0.20.0", features = ["environment", "file"] }
+llm-tool-call = { git = "https://github.com/beyond10x/llm", tag = "0.20.0" }
+rfcspec-doc = { path = "../rfcspec-doc" }
+rfcspec-ess = { path = "../rfcspec-ess" }
+rfcspec-extract = { path = "../rfcspec-extract" }
+rfcspec-model = { path = "../rfcspec-model" }
+rfcspec-source = { path = "../rfcspec-source" }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

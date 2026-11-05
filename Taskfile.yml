@@ -12,6 +12,7 @@ tasks:
       - task: examples
       - task: time
       - task: websocket
+      - task: dns
       - task: docs-check
       - cargo fmt --all --check
       - cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -49,14 +50,30 @@ tasks:
       - cargo test -q --locked -p rfc868-time
 
   websocket:
-    desc: Check the websocket profile's lowered closing model and its exploration, and its generated frame codec and tests.
+    desc: Check the websocket profile's lowered closing, ping and fragments models and their exploration, and its generated frame codec and tests.
     cmds:
       - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/websocket --check
       - cmd: >-
           ess protocol explore --path profiles/websocket/generated/close.protospec.yaml
           --inputs profiles/websocket/witnesses/close.inputs.json | grep -q '"verdict": "passed"'
+      - cmd: >-
+          ess protocol explore --path profiles/websocket/generated/ping.protospec.yaml
+          --inputs profiles/websocket/witnesses/ping.inputs.json | grep -q '"verdict": "passed"'
+      - cmd: >-
+          ess protocol explore --path profiles/websocket/generated/fragments.protospec.yaml
+          --inputs profiles/websocket/witnesses/fragments.inputs.json | grep -q '"verdict": "passed"'
       - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/websocket --check
       - cargo test -q --locked -p rfc6455-websocket
+
+  dns:
+    desc: Check the dns profile's lowered query model and its exploration, and its generated header codec and tests.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/dns --check
+      - cmd: >-
+          ess protocol explore --path profiles/dns/generated/query.protospec.yaml
+          --inputs profiles/dns/witnesses/query.inputs.json | grep -q '"verdict": "passed"'
+      - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/dns --check
+      - cargo test -q --locked -p rfc1035-dns
 
   docs-generate:
     desc: Rewrite the generated pages under website/docs/.

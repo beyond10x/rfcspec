@@ -1,6 +1,7 @@
 //! The profile rules `rfcspec check` adds to the overlay check: communication semantics against
 //! the overlay's machines (design section 6), every requirement in scope has a status (design
-//! section 5), and recorded runs against the current overlay.
+//! section 5), recorded runs against the current overlay, and overlay decisions against the
+//! recorded proposals.
 
 use std::{
     collections::BTreeSet,
@@ -159,6 +160,66 @@ pub fn runs(dir: &Path) -> Vec<String> {
             }
         })
         .collect()
+}
+
+/// The decision rule that needs the profile directory: every overlay decision names a proposal
+/// recorded under the profile's `proposals/` about the decision's item. Each problem names the
+/// item.
+pub fn decisions(dir: &Path, overlay: &Overlay) -> Vec<String> {
+    overlay
+        .decisions
+        .iter()
+        .filter_map(|decision| {
+            let item = &decision.item;
+            let Some(id) = &decision.proposal_id else {
+                return Some(format!("decision {item}: names no proposal"));
+            };
+            match rfcspec_propose::review::recorded(dir, id) {
+                Err(error) => Some(format!("decision {item}: proposal {id}: {error:#}")),
+                Ok(None) => Some(format!(
+                    "decision {item}: proposal {id} is not recorded under {}",
+                    dir.join(rfcspec_propose::PROPOSALS_DIR).display()
+                )),
+                Ok(Some(recorded)) if &recorded.item != item => Some(format!(
+                    "decision {item}: proposal {id} is about {}",
+                    recorded.item
+                )),
+                Ok(Some(recorded)) if recorded.task.reads_sections() => {
+                    element_decision(dir, overlay, decision, id)
+                }
+                Ok(Some(_)) => None,
+            }
+        })
+        .collect()
+}
+
+/// The rule for a decision on a layout or machine proposal, whose text is the sections the
+/// proposal read: its `text_digest` is the digest of those sections' current text, and an
+/// accepted proposal's layout or machine is in the overlay.
+fn element_decision(
+    dir: &Path,
+    overlay: &Overlay,
+    decision: &rfcspec_model::Decision,
+    id: &str,
+) -> Option<String> {
+    let item = &decision.item;
+    match rfcspec_propose::review::judged(dir, id) {
+        Err(error) => Some(format!("decision {item}: proposal {id}: {error:#}")),
+        Ok((digest, _)) if digest != decision.text_digest => Some(format!(
+            "decision {item}: text_digest {} is not {digest}, the digest of the text proposal {id} read",
+            decision.text_digest
+        )),
+        Ok((_, Some(name)))
+            if decision.kind == rfcspec_model::DecisionKind::Accept
+                && !overlay.layouts.iter().any(|l| l.name == name)
+                && !overlay.machines.iter().any(|m| m.name == name) =>
+        {
+            Some(format!(
+                "decision {item}: accept decision, but the overlay holds no {name}"
+            ))
+        }
+        Ok(_) => None,
+    }
 }
 
 #[cfg(test)]

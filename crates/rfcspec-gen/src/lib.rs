@@ -642,6 +642,58 @@ mod tests {
         );
     }
 
+    fn dns() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/dns")
+    }
+
+    fn dns_files() -> Vec<Generated> {
+        let source = fs::read_to_string(dns().join("sources/rfc1035.txt")).unwrap();
+        let catalogue = rfcspec_extract::extract(&rfcspec_doc::read(1035, "digest", &source));
+        assert!(catalogue.octet_examples.is_empty());
+        let overlay: Overlay = read_yaml(&dns().join("overlay.yaml")).unwrap();
+        rust(&overlay, &catalogue, "dns").unwrap()
+    }
+
+    #[test]
+    fn the_dns_header_crate_is_tested_with_z_0_accepted_and_z_1_refused() {
+        let files = dns_files();
+        assert!(files[0].text.contains("name = \"rfc1035-dns\""));
+        let lib = library(&files);
+        assert!(lib.contains("pub struct Header {"));
+        assert!(lib.contains("pub fn parse(bytes: &[u8]) -> Result<(Header, usize), Error>"));
+        assert!(lib.contains("pub fn print(header: &Header) -> Vec<u8>"));
+        assert!(!lib.contains("pub fn length(&self)"));
+        assert_eq!(lib.matches("fn example_").count(), 0);
+        let tests: Vec<&str> = lib
+            .match_indices("#[test]\n    fn ")
+            .map(|(at, _)| {
+                let rest = &lib[at + "#[test]\n    fn ".len()..];
+                &rest[..rest.find('(').unwrap()]
+            })
+            .collect();
+        assert_eq!(
+            tests,
+            [
+                "no_octets_are_incomplete",
+                "vector_z_0_accepted",
+                "vector_z_1_refused"
+            ]
+        );
+        assert_eq!(
+            test_body(lib, "vector_z_0_accepted"),
+            "fn vector_z_0_accepted() {\n        let bytes = octets(\"00 00 00 00 00 00 00 00 00 00 00 00\");\n        let (header, used) = parse(&bytes).unwrap();\n        assert_eq!(header.z, 0);\n        assert_eq!(used, bytes.len());\n        assert_eq!(print(&header), bytes);"
+        );
+        assert_eq!(
+            test_body(lib, "vector_z_1_refused"),
+            "fn vector_z_1_refused() {\n        let bytes = octets(\"00 00 00 10 00 00 00 00 00 00 00 00\");\n        assert_eq!(\n            parse(&bytes),\n            Err(Error::Constraint {\n                field: \"z\",\n                value: 1\n            })\n        );"
+        );
+    }
+
+    #[test]
+    fn the_committed_dns_codec_equals_a_fresh_generation() {
+        assert!(drift(&dns().join("generated/rust"), &dns_files()).is_empty());
+    }
+
     #[test]
     fn an_example_that_is_no_frame_header_is_refused_unless_a_finding_names_it() {
         let (overlay, mut catalogue) = websocket_inputs();

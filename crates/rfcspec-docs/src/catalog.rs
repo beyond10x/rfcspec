@@ -911,7 +911,7 @@ mod tests {
         load(&repository(), "profiles/websocket").unwrap()
     }
 
-    const WEBSOCKET_SCOPE: [&str; 3] = ["5.2", "5.5", "7"];
+    const WEBSOCKET_SCOPE: [&str; 5] = ["5.2", "5.4", "5.5", "5.6", "7"];
 
     fn in_websocket_scope(section: Option<&str>) -> bool {
         section.is_some_and(|section| {
@@ -944,7 +944,7 @@ mod tests {
             .iter()
             .map(|r| rfcspec_extract::keywords(&r.text).len())
             .sum();
-        assert_eq!(keywords, 149, "keyword occurrences outside the scope");
+        assert_eq!(keywords, 136, "keyword occurrences outside the scope");
         let entry = websocket();
         let reviewed: Vec<&str> = entry
             .overlay
@@ -973,7 +973,7 @@ mod tests {
             [
                 "| [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |".to_string(),
                 format!(
-                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 21 MUST, 6 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 16 MAY | 17 | 36 | 4 | {} | no recorded run |",
+                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY | 29 | 33 | 8 | {} | no recorded run |",
                     outside.len()
                 ),
             ]
@@ -1007,7 +1007,7 @@ mod tests {
         assert_eq!(
             rows(&page, "## RFCs"),
             [
-                "| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.5; 7 | K1 wire protocol |"
+                "| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol |"
             ]
         );
         assert_eq!(
@@ -1016,13 +1016,14 @@ mod tests {
                 "| tcp | bytes | ordered, reliable, no duplicates | full-duplex | single | session | none | connection | not declared | client, server |"
             ]
         );
-        assert!(page.contains("Reviewed: 57 requirements, by level 21 MUST, 6 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 16 MAY; by status 17 satisfied, 36 unsupported, 4 not applicable.\n"), "{page}");
+        assert!(page.contains("Reviewed: 70 requirements, by level 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY; by status 29 satisfied, 33 unsupported, 8 not applicable.\n"), "{page}");
         let unreviewed = entry.unreviewed().unwrap();
         assert!(page.contains(&format!(
             "Unreviewed: {} requirements of the mechanical catalogue of RFC 6455 have no status, by level {}.",
             unreviewed.len(),
             by_level(unreviewed.iter().map(|r| r.keyword.as_str()))
         )), "{page}");
+        assert!(page.contains("Unreviewed: 126 requirements of the mechanical catalogue of RFC 6455 have no status, by level 82 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 24 MAY, 1 OPTIONAL."), "{page}");
         assert_eq!(
             rows(&page, "## Requirement matrix").len(),
             entry.overlay.as_ref().unwrap().requirements.len()
@@ -1038,14 +1039,39 @@ mod tests {
             gaps.contains(&format!("| [G9]({GAPS}) | R7.1.1-4, R7.1.7-1 |").as_str()),
             "{page}"
         );
+        assert!(
+            gaps.contains(&format!("| [G10]({GAPS}) | R5.5.3-1 |").as_str()),
+            "{page}"
+        );
+        assert!(
+            gaps.contains(
+                &format!("| [G3]({GAPS}) | R5.4-6, R5.5.1-1, R5.5.1-3, R5.6-1 |").as_str()
+            ),
+            "{page}"
+        );
+        for stale in [
+            "Ping and Pong frames are not modelled",
+            "data frames are not modelled",
+            "carries no data frames",
+            "fragmentation are not modelled",
+            "fragmentation is not modelled",
+        ] {
+            assert!(!page.contains(stale), "{stale}: {page}");
+        }
         let generated = repository().join("profiles/websocket/generated");
         let paths: Vec<&str> = entry.generated.iter().map(|a| a.path.as_str()).collect();
         assert_eq!(
             paths,
-            ["close.protospec.yaml", "rust/Cargo.toml", "rust/src/lib.rs"]
+            [
+                "close.protospec.yaml",
+                "fragments.protospec.yaml",
+                "ping.protospec.yaml",
+                "rust/Cargo.toml",
+                "rust/src/lib.rs"
+            ]
         );
         let downloads = rows(&page, "## Downloads");
-        assert_eq!(downloads.len(), 3, "{page}");
+        assert_eq!(downloads.len(), 5, "{page}");
         for artifact in &entry.generated {
             let bytes = fs::read(generated.join(&artifact.path)).unwrap();
             assert_eq!(
@@ -1067,5 +1093,116 @@ mod tests {
                 artifact.path
             );
         }
+    }
+
+    /// A copy of every file of `profiles/websocket` under a scratch directory.
+    fn websocket_copy(name: &str) -> PathBuf {
+        let root = scratch(name);
+        let from = repository().join("profiles/websocket");
+        let dir = root.join("profiles/websocket");
+        for file in files(&from).unwrap() {
+            fs::create_dir_all(dir.join(&file).parent().unwrap()).unwrap();
+            fs::copy(from.join(&file), dir.join(&file)).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn accepting_two_proposals_and_rejecting_one_counts_two_fewer_unreviewed() {
+        use rfcspec_propose::{
+            Outcome, Task, Workspace,
+            double::Double,
+            record_blocking,
+            review::{Verdict, decide, write},
+        };
+        use serde_json::json;
+
+        let root = websocket_copy("reviewed");
+        let dir = root.join("profiles/websocket");
+        let status = |id: &str, quote: &str, start: usize, end: usize| {
+            json!({
+                "id": id,
+                "source": "capitals-text",
+                "level": "MUST",
+                "quote": quote,
+                "span": {"start": start, "end": end},
+                "status": {"not-applicable": "section 5.1 is outside the profile's scope"}
+            })
+        };
+        let answers = [
+            (
+                "R5.1-1",
+                status(
+                    "R5.1-1",
+                    "a client MUST mask all frames that it sends to the server",
+                    1490,
+                    1493,
+                ),
+            ),
+            (
+                "R5.1-2",
+                status(
+                    "R5.1-2",
+                    "The server MUST close the connection upon receiving a frame that is not masked.",
+                    1493,
+                    1496,
+                ),
+            ),
+            (
+                "R5.1-5",
+                status(
+                    "R5.1-5",
+                    "A client MUST close a connection if it detects a masked frame.",
+                    1499,
+                    1500,
+                ),
+            ),
+        ];
+        let model = Double::new("double-model", answers.iter().map(|(_, a)| a.clone()));
+        let workspace = Workspace::load(&dir).unwrap();
+        let ids: Vec<String> = answers
+            .iter()
+            .map(|(item, _)| {
+                match record_blocking(&workspace, &model, "double-model", Task::Status, item) {
+                    Ok(Outcome::Recorded(path)) => {
+                        path.file_stem().unwrap().to_str().unwrap().to_owned()
+                    }
+                    other => panic!("{item}: {other:?}"),
+                }
+            })
+            .collect();
+
+        let before = load(&root, "profiles/websocket").unwrap();
+        let unreviewed_before: Vec<String> = before
+            .unreviewed()
+            .unwrap()
+            .iter()
+            .map(|r| r.id.clone())
+            .collect();
+        for (id, verdict) in ids
+            .iter()
+            .zip([Verdict::Accept, Verdict::Accept, Verdict::Reject])
+        {
+            let reviewed = decide(&dir, id, verdict).unwrap_or_else(|error| panic!("{error}"));
+            write(&dir, &reviewed).unwrap();
+        }
+        let after = load(&root, "profiles/websocket").unwrap();
+        let unreviewed_after: Vec<&str> = after
+            .unreviewed()
+            .unwrap()
+            .iter()
+            .map(|r| r.id.as_str())
+            .collect();
+        assert_eq!(unreviewed_after.len(), unreviewed_before.len() - 2);
+        assert!(!unreviewed_after.contains(&"R5.1-1"));
+        assert!(!unreviewed_after.contains(&"R5.1-2"));
+        assert!(
+            unreviewed_after.contains(&"R5.1-5"),
+            "a rejected requirement stays unreviewed"
+        );
+        assert_eq!(
+            unreviewed_cell(&after),
+            (unreviewed_before.len() - 2).to_string()
+        );
     }
 }

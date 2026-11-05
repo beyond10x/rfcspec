@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:10:33Z",
+  "actor": "human:timo",
+  "artifact": "story:websocket-ping-machine",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-ess -p rfcspec-docs -p rfcspec-model -p rfcspec-extract -p rfcspec-cli exit 0; explore ping passed; task websocket; task time; docs generate --check; clippy"
+  }
+}

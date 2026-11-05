@@ -7,7 +7,7 @@
 
 mod check;
 
-pub use check::check;
+pub use check::{check, layout_problems, quote_problem};
 use std::collections::BTreeMap;
 
 use rfcspec_model::{
@@ -841,6 +841,99 @@ mod tests {
     fn the_rfc6455_catalogue_is_byte_identical_across_two_runs() {
         let first = to_json(&catalogue_6455()).unwrap();
         let second = to_json(&catalogue_6455()).unwrap();
+        assert_eq!(first.as_bytes(), second.as_bytes());
+    }
+
+    fn source_1035() -> String {
+        fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../profiles/dns/sources/rfc1035.txt"),
+        )
+        .unwrap()
+    }
+
+    fn catalogue_1035() -> Catalogue {
+        extract(&rfcspec_doc::read(1035, "digest", &source_1035()))
+    }
+
+    /// How often `word` occurs in `text` as a whole word, case-sensitively.
+    fn occurrences(text: &str, word: &str) -> usize {
+        text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .filter(|w| *w == word)
+            .count()
+    }
+
+    #[test]
+    fn rfc1035_holds_no_bcp14_keyword_and_its_catalogue_no_requirement() {
+        let text = source_1035();
+        for keyword in [
+            "MUST",
+            "SHOULD",
+            "MAY",
+            "SHALL",
+            "REQUIRED",
+            "RECOMMENDED",
+            "OPTIONAL",
+        ] {
+            assert_eq!(occurrences(&text, keyword), 0, "{keyword}");
+        }
+        assert_eq!(catalogue_1035().requirements.len(), 0);
+    }
+
+    #[test]
+    fn rfc1035_scoped_keyword_lines_lie_in_prose_candidates_and_the_z_field_does_not() {
+        let text = source_1035();
+        assert_eq!(
+            PROSE
+                .iter()
+                .map(|word| occurrences(&text, word))
+                .collect::<Vec<_>>(),
+            [23, 98, 46],
+            "must, should, may"
+        );
+        let lines: Vec<&str> = text.lines().collect();
+        assert!(lines[1472].contains("Must be zero"));
+        assert!(lines[2892].contains(" May 1987"));
+        let catalogue = catalogue_1035();
+        for (line, word) in [
+            (1447, "may"),
+            (1464, "may"),
+            (1501, "may"),
+            (1503, "may"),
+            (1761, "may"),
+            (1763, "may"),
+            (1764, "should"),
+            (1769, "should"),
+            (1772, "should"),
+            (1776, "should"),
+            (2529, "should"),
+            (2557, "should"),
+            (2559, "must"),
+            (2565, "should"),
+            (2566, "should"),
+        ] {
+            assert!(has_word(lines[line - 1], word), "{line}: {word}");
+            assert!(
+                catalogue
+                    .prose_candidates
+                    .iter()
+                    .any(|c| c.span.contains(line) && has_word(&c.text, word)),
+                "line {line} ({word}) is in no prose candidate"
+            );
+        }
+        assert!(
+            !catalogue
+                .prose_candidates
+                .iter()
+                .any(|c| c.span.contains(1473) || c.text.contains("Must be zero")),
+            "the Z field sentence is a prose candidate"
+        );
+    }
+
+    #[test]
+    fn the_rfc1035_catalogue_is_byte_identical_across_two_runs() {
+        let first = to_json(&catalogue_1035()).unwrap();
+        let second = to_json(&catalogue_1035()).unwrap();
         assert_eq!(first.as_bytes(), second.as_bytes());
     }
 }

@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:07:14Z",
+  "actor": "human:timo",
+  "artifact": "story:websocket-machine-guards",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-ess -p rfcspec-extract -p rfcspec-model (57 passed); task time; task websocket; clippy -D warnings"
+  }
+}

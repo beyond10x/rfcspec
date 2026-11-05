@@ -1,0 +1,44 @@
+format: rfcspec-overlay/1
+rfc: 6455
+kind: K1
+requirements:
+  - id: R5.2-1
+    source: capitals-text
+    level: MAY
+    quote: "The first fragment MAY also be the final fragment."
+    span: {start: 1556, end: 1557}
+    status: {satisfied: layout.frame-header}
+layouts:
+  - name: frame-header
+    quote: 'Payload length:  7 bits, 7+16 bits, or 7+64 bits'
+    span: {start: 1604, end: 1604}
+    fields:
+      - {name: fin, bits: 1, signed: false, order: big-endian}
+      - {name: rsv1, bits: 1, signed: false, order: big-endian}
+      - {name: rsv2, bits: 1, signed: false, order: big-endian}
+      - {name: rsv3, bits: 1, signed: false, order: big-endian}
+      - {name: opcode, bits: 4, signed: false, order: big-endian}
+      - {name: mask, bits: 1, signed: false, order: big-endian}
+      - {name: payload-len, bits: 7, signed: false, order: big-endian}
+      - name: extended-payload-length-16
+        bits: 16
+        signed: false
+        order: big-endian
+        presence: {field: payload-len, equals: 126}
+        constraints:
+          - {range: [126, 65535]}
+      - name: extended-payload-length-64
+        bits: 64
+        signed: false
+        order: big-endian
+        presence: {field: payload-len, equals: 127}
+        constraints:
+          - {range: [65536, 9223372036854775807]}
+      - name: masking-key
+        bits: 32
+        signed: false
+        order: big-endian
+        presence: {field: mask, equals: 1}
+    length: [extended-payload-length-64, extended-payload-length-16, payload-len]
+machines: []
+findings: []

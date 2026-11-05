@@ -1,0 +1,4 @@
+[
+  {"kind":"input","participant":"client","name":"query","payload":{"id":1}},
+  {"kind":"input","participant":"server","name":"late-response","payload":{"id":2}}
+]

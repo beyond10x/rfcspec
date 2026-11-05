@@ -19,13 +19,13 @@ requirements:
     level: MUST
     quote: "If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_."
     span: {start: 1562, end: 1565}
-    status: {unsupported: "failing the connection on a received frame header is not modelled: the close machine carries no data frames"}
+    status: {unsupported: "the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
   - id: R5.2-4
     source: capitals-text
     level: MUST
     quote: "If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_."
     span: {start: 1577, end: 1579}
-    status: {unsupported: "the opcode registry and failing the connection on an unknown opcode are not modelled: the close machine carries no data frames"}
+    status: {unsupported: "the opcode registry is not modelled: the fragments machine sends only opcodes 0 and 1, and no transition fails on an unknown opcode"}
   - id: R5.2-5
     source: capitals-text
     level: MUST
@@ -62,12 +62,84 @@ requirements:
     quote: "1 bit in length, MUST be 0 unless"
     span: {start: 1714, end: 1714}
     status: {unsupported: "the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.4-1
+    source: capitals-text
+    level: MAY
+    quote: "Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message."
+    span: {start: 1894, end: 1895}
+    status: {satisfied: fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong}
+  - id: R5.4-2
+    source: capitals-text
+    level: MUST NOT
+    quote: "Control frames themselves MUST NOT be fragmented."
+    span: {start: 1895, end: 1896}
+    status: {satisfied: fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong}
+  - id: R5.4-3
+    source: capitals-text
+    level: MUST
+    quote: "Message fragments MUST be delivered to the recipient in the order sent by the sender."
+    span: {start: 1898, end: 1899}
+    status: {unsupported: "delivery order is the tcp layer's ordered delivery, not an element of the fragments machine"}
+  - id: R5.4-4
+    source: capitals-text
+    level: MUST NOT
+    quote: "The fragments of one message MUST NOT be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving."
+    span: {start: 1911, end: 1913}
+    status: {satisfied: fragments.server.R5.4-4-interleaved-message}
+  - id: R5.4-5
+    source: capitals-text
+    level: MUST
+    quote: "An endpoint MUST be capable of handling control frames in the middle of a fragmented message."
+    span: {start: 1915, end: 1916}
+    status: {satisfied: fragments.server.R5.4-1-R5.4-5-pong-in-message}
+  - id: R5.4-6
+    source: capitals-text
+    level: MAY
+    quote: "A sender MAY create fragments of any size for non-control messages."
+    span: {start: 1918, end: 1919}
+    status: {unsupported: "ess-gap G3: fragment sizes are payload byte lengths; the data frames of the fragments machine carry only opcode and fin"}
+  - id: R5.4-7
+    source: capitals-text
+    level: MUST
+    quote: "Clients and servers MUST support receiving both fragmented and unfragmented messages."
+    span: {start: 1921, end: 1922}
+    status: {unsupported: "only the server receives data frames in the fragments machine; the client receives no message"}
+  - id: R5.4-8
+    source: capitals-text
+    level: MUST NOT
+    quote: "As control frames cannot be fragmented, an intermediary MUST NOT attempt to change the fragmentation of a control frame."
+    span: {start: 1924, end: 1925}
+    status: {not-applicable: "addressed to intermediaries, and the profile models two endpoints"}
+  - id: R5.4-9
+    source: capitals-text
+    level: MUST NOT
+    quote: "An intermediary MUST NOT change the fragmentation of a message if any reserved bit values are used and the meaning of these values is not known to the intermediary."
+    span: {start: 1927, end: 1929}
+    status: {not-applicable: "addressed to intermediaries, and the profile models two endpoints"}
+  - id: R5.4-10
+    source: capitals-text
+    level: MUST NOT
+    quote: "An intermediary MUST NOT change the fragmentation of any message in the context of a connection where extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions."
+    span: {start: 1931, end: 1934}
+    status: {not-applicable: "addressed to intermediaries, and the profile models two endpoints"}
+  - id: R5.4-11
+    source: capitals-text
+    level: MUST NOT
+    quote: "Similarly, an intermediary that didn't see the WebSocket handshake (and wasn't notified about its content) that resulted in a WebSocket connection MUST NOT change the fragmentation of any message of such connection."
+    span: {start: 1934, end: 1937}
+    status: {not-applicable: "addressed to intermediaries, and the profile models two endpoints"}
+  - id: R5.4-12
+    source: capitals-text
+    level: MUST
+    quote: "Since control frames cannot be fragmented, the type for all fragments in a message MUST be either text, binary, or one of the reserved opcodes."
+    span: {start: 1940, end: 1943}
+    status: {satisfied: fragments.server.R5.4-12-start-message}
   - id: R5.5-1
     source: capitals-text
     level: MUST
     quote: "All control frames MUST have a payload length of 125 bytes or less and MUST NOT be fragmented."
     span: {start: 1978, end: 1979}
-    status: {unsupported: "ess-gap G1: a payload length class that depends on the opcode needs a guard beyond equality, and fragmentation is not modelled"}
+    status: {unsupported: "ess-gap G1: a payload length class that depends on the opcode needs a guard beyond equality; that control frames are not fragmented is R5.4-2"}
   - id: R5.5.1-1
     source: capitals-text
     level: MAY
@@ -97,7 +169,7 @@ requirements:
     level: MUST NOT
     quote: "The application MUST NOT send any more data frames after sending a Close frame."
     span: {start: 2002, end: 2003}
-    status: {unsupported: "data frames are not modelled: the close machine sends nothing after its Close frame, but has no data frame to forbid"}
+    status: {satisfied: fragments.client.R5.5.1-5-R5.5.1-8-close-after-message}
   - id: R5.5.1-6
     source: capitals-text
     level: MUST
@@ -115,7 +187,7 @@ requirements:
     level: MAY
     quote: "An endpoint MAY delay sending a Close frame until its current message is sent (for instance, if the majority of a fragmented message is already sent, an endpoint MAY send the remaining fragments before sending a Close frame)."
     span: {start: 2008, end: 2012}
-    status: {unsupported: "messages and fragmentation are not modelled: the close machine has no current message to finish"}
+    status: {satisfied: fragments.client.R5.5.1-5-R5.5.1-8-close-after-message}
   - id: R5.5.1-9
     source: capitals-text
     level: MUST
@@ -133,37 +205,43 @@ requirements:
     level: MAY
     quote: "A Ping frame MAY include \"Application data\"."
     span: {start: 2040, end: 2040}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {satisfied: ping.client.R5.5.2-1-R5.5.2-4-send-ping}
   - id: R5.5.2-2
     source: capitals-text
     level: MUST
     quote: "Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a Close frame."
     span: {start: 2042, end: 2043}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {satisfied: ping.server.R5.5.2-2-R5.5.2-3-pong}
   - id: R5.5.2-3
     source: capitals-text
     level: SHOULD
     quote: "It SHOULD respond with Pong frame as soon as is practical."
     span: {start: 2043, end: 2044}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {satisfied: ping.server.R5.5.2-2-R5.5.2-3-pong}
   - id: R5.5.2-4
     source: capitals-text
     level: MAY
     quote: "An endpoint MAY send a Ping frame any time after the connection is established and before the connection is closed."
     span: {start: 2047, end: 2048}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {satisfied: ping.client.R5.5.2-1-R5.5.2-4-send-ping}
   - id: R5.5.3-1
     source: capitals-text
     level: MAY
     quote: "If an endpoint receives a Ping frame and has not yet sent Pong frame(s) in response to previous Ping frame(s), the endpoint MAY elect to send a Pong frame for only the most recently processed Ping frame."
     span: {start: 2064, end: 2067}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {unsupported: "ess-gap G10: sending a Pong for only the most recent Ping needs a guard on whether a later Ping is pending on the incoming channel"}
   - id: R5.5.3-2
     source: capitals-text
     level: MAY
     quote: "A Pong frame MAY be sent unsolicited."
     span: {start: 2079, end: 2079}
-    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+    status: {satisfied: fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong}
+  - id: R5.6-1
+    source: capitals-text
+    level: MUST
+    quote: "Note that a particular text frame might include a partial UTF-8 sequence; however, the whole message MUST contain valid UTF-8."
+    span: {start: 2096, end: 2098}
+    status: {unsupported: "ess-gap G3: UTF-8 validity is a property of the payload bytes; the data frames of the fragments machine carry only opcode and fin"}
   - id: R7.1.1-1
     source: capitals-text
     level: SHOULD
@@ -217,19 +295,19 @@ requirements:
     level: MUST
     quote: "Similarly, to do so, the server MUST _Close the WebSocket Connection_, and SHOULD log the problem."
     span: {start: 2389, end: 2390}
-    status: {unsupported: "failing the connection is not modelled for the server: no server transition fails"}
+    status: {unsupported: "the server never closes the connection on failing it: the fragments machine's server enters failed, a state its never_state property forbids, and no transition leaves it"}
   - id: R7.1.7-3
     source: capitals-text
     level: SHOULD
     quote: "If _The WebSocket Connection is Established_ prior to the point where the endpoint is required to _Fail the WebSocket Connection_, the endpoint SHOULD send a Close frame with an appropriate status code (Section 7.4) before proceeding to _Close the WebSocket Connection_."
     span: {start: 2392, end: 2395}
-    status: {unsupported: "failing the connection is modelled only for the closing timeout, after the Close frame was sent"}
+    status: {unsupported: "no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it"}
   - id: R7.1.7-4
     source: capitals-text
     level: MAY
     quote: "An endpoint MAY omit sending a Close frame if it believes the other side is unlikely to be able to receive and process the Close frame, due to the nature of the error that led the WebSocket connection to fail in the first place."
     span: {start: 2396, end: 2399}
-    status: {unsupported: "failing the connection is modelled only for the closing timeout, after the Close frame was sent"}
+    status: {unsupported: "no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it"}
   - id: R7.1.7-5
     source: capitals-text
     level: MUST NOT
@@ -319,7 +397,7 @@ requirements:
     level: MAY
     quote: "1003 indicates that an endpoint is terminating the connection because it has received a type of data it cannot accept (e.g., an endpoint that understands only text data MAY send this if it receives a binary message)."
     span: {start: 2512, end: 2515}
-    status: {unsupported: "data frames are not modelled: no endpoint of the close machine receives a binary message"}
+    status: {unsupported: "binary messages are not modelled: the fragments machine carries text messages only, so no endpoint receives a binary message"}
   - id: R7.4.1-3
     source: capitals-text
     level: MUST NOT
@@ -435,4 +513,234 @@ machines:
     properties:
       - {name: server-flushes-close, flush_before_close: server}
       - {name: closed-once, participant: client, event: connection-closed, max: 1}
+  - name: ping
+    transport: tcp
+    messages:
+      - {name: ping, fields: {data: Integer}}
+      - {name: pong, fields: {data: Integer}}
+      - {name: close-frame, fields: {code: Integer}}
+    participants:
+      - name: client
+        initial: open
+        states: [open, pinging, ponged, closing, closed]
+        fields:
+          - {name: ping-data, type: Integer, initial: 0}
+        inputs:
+          - {name: ping, fields: {data: Integer}}
+          - {name: close, fields: {code: Integer}}
+        transitions:
+          - implements: [R5.5.2-1, R5.5.2-4]
+            label: send-ping
+            from: open
+            to: pinging
+            on: {input: ping}
+            effects:
+              - {set: {field: ping-data, value: {input: data}}}
+              - {send: {message: ping, payload: {data: {input: data}}}}
+          - implements: [R5.5.2-2]
+            label: pong-echoed
+            from: pinging
+            to: ponged
+            on: {receive: pong}
+            guards:
+              - {left: {input: data}, right: {local: ping-data}}
+          - implements: [R7.1.2-1]
+            label: start-closing-handshake
+            from: open
+            to: closing
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}}}}
+          - implements: [R7.1.2-1]
+            label: close-after-pong
+            from: ponged
+            to: closed
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}}}}
+          - implements: [R5.5.2-1, R5.5.2-4]
+            label: ping-after-close
+            from: closing
+            to: closed
+            on: {input: ping}
+            effects:
+              - {send: {message: ping, payload: {data: {input: data}}}}
+      - name: server
+        initial: open
+        states: [open, close-received]
+        transitions:
+          - implements: [R5.5.2-2, R5.5.2-3]
+            label: pong
+            from: open
+            to: open
+            on: {receive: ping}
+            effects:
+              - {send: {message: pong, payload: {data: {input: data}}}}
+          - implements: [R5.5.2-2]
+            label: close-received
+            from: open
+            to: close-received
+            on: {receive: close-frame}
+          - implements: [R5.5.2-2]
+            label: ignore-ping-after-close
+            from: close-received
+            to: close-received
+            on: {receive: ping}
+    properties: []
+  - name: fragments
+    transport: tcp
+    messages:
+      - {name: data-frame, fields: {opcode: Integer, fin: Boolean}}
+      - {name: pong, fields: {fin: Boolean}}
+      - {name: close-frame, fields: {code: Integer}}
+    participants:
+      - name: client
+        initial: open
+        states: [open, texted, in-message, ponged, continued, finished, closed]
+        inputs:
+          - text
+          - start
+          - pong
+          - continue
+          - finish
+          - {name: close, fields: {code: Integer}}
+        transitions:
+          - implements: [R5.2-1]
+            label: send-text
+            from: open
+            to: texted
+            on: {input: text}
+            effects:
+              - {send: {message: data-frame, payload: {opcode: 1, fin: true}}}
+          - implements: [R5.4-12]
+            label: start-message
+            from: open
+            to: in-message
+            on: {input: start}
+            effects:
+              - {send: {message: data-frame, payload: {opcode: 1, fin: false}}}
+          - implements: [R5.4-1, R5.4-2, R5.5.3-2]
+            label: send-pong
+            from: in-message
+            to: ponged
+            on: {input: pong}
+            effects:
+              - {send: {message: pong, payload: {fin: true}}}
+          - implements: [R5.4-12]
+            label: continue-message
+            from: in-message
+            to: continued
+            on: {input: continue}
+            effects:
+              - {send: {message: data-frame, payload: {opcode: 0, fin: false}}}
+          - implements: [R5.4-12]
+            label: finish-after-pong
+            from: ponged
+            to: finished
+            on: {input: finish}
+            effects:
+              - {send: {message: data-frame, payload: {opcode: 0, fin: true}}}
+          - implements: [R5.4-12]
+            label: finish-message
+            from: continued
+            to: finished
+            on: {input: finish}
+            effects:
+              - {send: {message: data-frame, payload: {opcode: 0, fin: true}}}
+          - implements: [R5.5.1-5, R5.5.1-8]
+            label: close
+            from: open
+            to: closed
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}}}}
+          - implements: [R5.5.1-5, R5.5.1-8]
+            label: close-after-text
+            from: texted
+            to: closed
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}}}}
+          - implements: [R5.5.1-5, R5.5.1-8]
+            label: close-after-message
+            from: finished
+            to: closed
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}}}}
+      - name: server
+        initial: idle
+        states: [idle, in-message, failed, closed]
+        transitions:
+          - implements: [R5.2-1]
+            label: text-message
+            from: idle
+            to: idle
+            on: {receive: data-frame}
+            guards:
+              - {left: {input: opcode}, right: 1}
+              - {left: {input: fin}, right: true}
+            effects:
+              - {emit: message-received}
+          - implements: [R5.4-12]
+            label: start-message
+            from: idle
+            to: in-message
+            on: {receive: data-frame}
+            guards:
+              - {left: {input: opcode}, right: 1}
+              - {left: {input: fin}, right: false}
+          - implements: [R5.4-12]
+            label: continue-message
+            from: in-message
+            to: in-message
+            on: {receive: data-frame}
+            guards:
+              - {left: {input: opcode}, right: 0}
+              - {left: {input: fin}, right: false}
+          - implements: [R5.4-12]
+            label: finish-message
+            from: in-message
+            to: idle
+            on: {receive: data-frame}
+            guards:
+              - {left: {input: opcode}, right: 0}
+              - {left: {input: fin}, right: true}
+            effects:
+              - {emit: message-received}
+          - implements: [R5.4-4]
+            label: interleaved-message
+            from: in-message
+            to: failed
+            on: {receive: data-frame}
+            guards:
+              - {left: {input: opcode}, right: 1}
+          - implements: [R5.5.3-2]
+            label: pong
+            from: idle
+            to: idle
+            on: {receive: pong}
+            guards:
+              - {left: {input: fin}, right: true}
+          - implements: [R5.4-1, R5.4-5]
+            label: pong-in-message
+            from: in-message
+            to: in-message
+            on: {receive: pong}
+            guards:
+              - {left: {input: fin}, right: true}
+          - implements: [R5.4-2]
+            label: fragmented-control-frame
+            from: in-message
+            to: failed
+            on: {receive: pong}
+            guards:
+              - {left: {input: fin}, right: false}
+          - implements: [R5.5.1-5]
+            label: close-received
+            from: idle
+            to: closed
+            on: {receive: close-frame}
+    properties:
+      - {name: server-never-fails, participant: server, state: failed}
 findings: []
