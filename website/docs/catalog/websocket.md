@@ -43,7 +43,7 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R5.1-2 | MUST | all | (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. | lines 1493-1496 | unsupported | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
 | R5.1-5 | MUST | all | A client MUST close a connection if it detects a masked frame. | lines 1499-1500 | unsupported | The model does not enforce closing the connection when a masked frame is detected. |
 | R5.1-6 | MAY | all | In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. | lines 1500-1501 | unsupported | The model does not implement the optional use of status code 1002 as specified. |
-| R5.1-7 | MAY | all | A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). | lines 1519-1521 | unsupported | data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake |
+| R5.1-7 | MAY | all | A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). | lines 1519-1521 | unsupported | data frames are modelled only along the one path of the fragments machine (text, start, Pong, continue, finish, close), not at any time after the opening handshake |
 | R5.2-1 | MAY | all | The first fragment MAY also be the final fragment. | lines 1556-1557 | satisfied | layout.frame-header |
 | R5.2-2 | MUST | all | MUST be 0 unless an extension is negotiated that defines meanings for non-zero values. | lines 1561-1562 | unsupported | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-3 | MUST | all | If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1562-1565 | unsupported | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
@@ -137,7 +137,7 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R5.1-2 | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
 | R5.1-5 | The model does not enforce closing the connection when a masked frame is detected. |
 | R5.1-6 | The model does not implement the optional use of status code 1002 as specified. |
-| R5.1-7 | data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake |
+| R5.1-7 | data frames are modelled only along the one path of the fragments machine (text, start, Pong, continue, finish, close), not at any time after the opening handshake |
 | R5.2-2 | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-3 | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-4 | the opcode registry is not modelled: the fragments machine sends only opcodes 0 and 1, and no transition fails on an unknown opcode |
@@ -183,7 +183,7 @@ The files under [`profiles/websocket/generated/`](https://github.com/beyond10x/r
 | File | What | Bytes | SHA-256 |
 |---|---|---|---|
 | [`close.protospec.yaml`](pathname:///rfcspec/downloads/websocket/close.protospec.yaml) | `ess-protospec/1` model of machine `close` | 2838 | `767eb939e5907080beeda19138e1e2ee3e84dcbd0e2f7eb3a670273033e89395` |
-| [`fragments.protospec.yaml`](pathname:///rfcspec/downloads/websocket/fragments.protospec.yaml) | `ess-protospec/1` model of machine `fragments` | 8173 | `72c7e14e006b8727142b623e02a0e5dd1fbfbfcf6da0b92c15d06fb1b9336082` |
+| [`fragments.protospec.yaml`](pathname:///rfcspec/downloads/websocket/fragments.protospec.yaml) | `ess-protospec/1` model of machine `fragments` | 6843 | `7e090e804820ffe9b393be3957a7f0d2140ea10be7babe537e8fd59365fdbf1f` |
 | [`ping.protospec.yaml`](pathname:///rfcspec/downloads/websocket/ping.protospec.yaml) | `ess-protospec/1` model of machine `ping` | 3805 | `94fc4f4edde4d595f7b617056d99af1195362d8c9674da58006f24a3bbc3128c` |
 | [`rust/Cargo.toml`](pathname:///rfcspec/downloads/websocket/rust/Cargo.toml) | generated Rust crate | 301 | `ec96cd763d6ef5396db6daf001fc1f92b12a511921c2badf24e81662b6a7f5bb` |
 | [`rust/src/lib.rs`](pathname:///rfcspec/downloads/websocket/rust/src/lib.rs) | generated Rust crate | 17682 | `8d620033f2cc95da6532dd6c9588090b0a326b897ac619456b1c48126e3dcb71` |

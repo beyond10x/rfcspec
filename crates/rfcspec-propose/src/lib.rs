@@ -168,6 +168,9 @@ struct Subject {
     /// The catalogue id, the layout name or the profile name.
     id: String,
     keyword: String,
+    /// The BCP 14 level a requirement entry about the subject must give: the catalogue keyword
+    /// of a BCP 14 requirement; none for a prose candidate, which has no level to keep.
+    level: Option<String>,
     /// The text judged: the item's catalogue text, or the sections' text.
     text: String,
     span: Span,
@@ -318,6 +321,7 @@ impl Workspace {
                     item: self.item(&found.id),
                     id: found.id.clone(),
                     keyword: found.keyword.clone(),
+                    level: Some(found.keyword.clone()),
                     text: found.text.clone(),
                     span: found.span,
                     section: found.section.clone(),
@@ -336,6 +340,7 @@ impl Workspace {
                     item: self.item(&found.id),
                     id: found.id.clone(),
                     keyword: found.keyword.clone(),
+                    level: None,
                     text: found.text.clone(),
                     span: found.span,
                     section: self.section_of(found.span.start),
@@ -400,6 +405,7 @@ impl Workspace {
             item,
             id: id.to_owned(),
             keyword: String::new(),
+            level: None,
             text: blocks
                 .iter()
                 .map(|block| block.text())
@@ -627,7 +633,8 @@ impl Workspace {
 
     /// The checks every requirement entry passes: it is an overlay requirement entry for the
     /// item asked about, its quote occurs at its span in the locked source (the test `rfcspec
-    /// check` applies), its span lies within the item's, and its level is a BCP 14 level.
+    /// check` applies), its span lies within the item's, and its level is a BCP 14 level, the
+    /// catalogue keyword of a BCP 14 requirement (a prose candidate's entry chooses its level).
     fn entry(&self, subject: &Subject, response: &Value) -> Result<Requirement, String> {
         let entry: Requirement = serde_json::from_value(response.clone())
             .map_err(|error| format!("the answer is not an overlay requirement entry: {error}"))?;
@@ -646,6 +653,14 @@ impl Workspace {
         self.quoted(&entry.quote, entry.span, subject)?;
         if !LEVELS.contains(&entry.level.as_str()) {
             return Err(format!("level {:?} is no BCP 14 level", entry.level));
+        }
+        if let Some(level) = &subject.level
+            && entry.level != *level
+        {
+            return Err(format!(
+                "level {} differs from the catalogue level {level} of {}",
+                entry.level, subject.id
+            ));
         }
         Ok(entry)
     }

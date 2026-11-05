@@ -394,6 +394,52 @@ fn a_link_to_an_overlay_layout_is_recorded_and_one_to_a_missing_transition_refus
     }
 }
 
+/// `R5.1-1` is a MUST in the catalogue: a `requirement-link` answer giving it as MAY is refused,
+/// nothing is written, and the error names the proposal, the catalogue level and the proposed
+/// one. The same answer at MUST is recorded.
+#[test]
+fn a_link_whose_level_differs_from_the_catalogue_keyword_is_refused() {
+    let (_temp, dir) = fixture();
+    let workspace = Workspace::load(&dir).unwrap();
+    let r5_1_1 = |level: &str| {
+        let mut answer = link("layout.frame-header");
+        answer["id"] = json!("R5.1-1");
+        answer["level"] = json!(level);
+        answer["quote"] = json!(
+            "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details)."
+        );
+        answer["span"] = json!({"start": 1490, "end": 1493});
+        answer
+    };
+    let model = Double::new("double-model", [r5_1_1("MAY")]);
+    let error = record_blocking(
+        &workspace,
+        &model,
+        "double-model",
+        Task::RequirementLink,
+        "R5.1-1",
+    )
+    .expect_err("refused");
+    let ProposeError::CheckFailed { proposal_id, .. } = &error else {
+        panic!("{error}");
+    };
+    let message = error.to_string();
+    assert!(message.contains(proposal_id.as_str()), "{message}");
+    assert!(message.contains("MUST"), "{message}");
+    assert!(message.contains("MAY"), "{message}");
+    assert!(message.contains("level"), "{message}");
+    assert_eq!(proposals(&dir), Vec::<PathBuf>::new());
+
+    let model = Double::new("double-model", [r5_1_1("MUST")]);
+    recorded(record_blocking(
+        &workspace,
+        &model,
+        "double-model",
+        Task::RequirementLink,
+        "R5.1-1",
+    ));
+}
+
 #[test]
 fn a_link_to_a_transition_that_does_not_implement_the_requirement_is_refused() {
     let (_temp, dir) = fixture();

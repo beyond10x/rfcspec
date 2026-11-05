@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T11:48:39Z",
+  "actor": "human:timo",
+  "artifact": "story:proposal-level-check",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-propose (20) -p rfcspec-cli (109) exit 0; propose --replay replays all 10; task websocket; clippy -p rfcspec-propose"
+  }
+}
