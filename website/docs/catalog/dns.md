@@ -17,9 +17,9 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 ## RFCs
 
-| RFC | Title | Sections in scope | Kind |
-|---|---|---|---|
-| [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) | Domain Names - Implementation and Specification | 4.1.1; 4.2.1; 7.3 | K1 wire protocol |
+| RFC | Title | Sections in scope | Kind | Explorer |
+|---|---|---|---|---|
+| [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) | Domain Names - Implementation and Specification | 4.1.1; 4.2.1; 7.3 | K1 wire protocol | [RFC 1035 in the explorer](pathname:///rfcspec/explorer/?rfc=1035) |
 
 ## Communication semantics
 

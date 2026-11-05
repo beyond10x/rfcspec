@@ -269,6 +269,189 @@ types:
         type: String
         summary: UTC, YYYY-MM-DDTHH:MM:SSZ.
 
+  - name: rfcspec.profile.ExplorerStatus
+    kind: struct
+    naming:
+      summary: >-
+        One row of the view rfcspec.profile.Statuses, field for field, as the RFC explorer reads
+        it: the status one requirement of a profile's overlay has. A view row cannot be named as a
+        field type, so its fields are declared here, and a test reads each one back as the row.
+    fields:
+      - name: key
+        type: rfcspec.profile.StatusKey
+      - name: state
+        type: rfcspec.profile.Status.State
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: requirement_id
+        type: rfcspec.catalogue.ItemId
+      - name: kind
+        type: rfcspec.profile.StatusKind
+      - name: element
+        type: Optional<String>
+      - name: reason
+        type: Optional<String>
+      - name: evidence
+        type: Optional<List<rfcspec.profile.Evidence>>
+
+  - name: rfcspec.profile.ExplorerRequirement
+    kind: struct
+    naming:
+      summary: >-
+        One requirement entry of a profile's overlay as its profile page publishes it: its status
+        row, level, transports, quote, line span and the ESS gap its reason names.
+    fields:
+      - name: status
+        type: rfcspec.profile.ExplorerStatus
+      - name: level
+        type: String
+        summary: The level as the reviewer reads it; a prose requirement has one too.
+      - name: transports
+        type: List<String>
+        summary: The transports it applies to; empty means every transport.
+      - name: quote
+        type: String
+        summary: The quote the overlay holds and the profile page publishes; no other RFC text.
+      - name: start_line
+        type: Integer
+      - name: end_line
+        type: Integer
+      - name: gap
+        type: Optional<Integer>
+        summary: The number of the ESS gap an unsupported status's reason names.
+
+  - name: rfcspec.profile.ExplorerDecisionRow
+    kind: struct
+    naming:
+      summary: >-
+        One row of the view rfcspec.review.Decisions, field for field, as the RFC explorer reads
+        it. The explorer writes no edit: the edited entry is the requirement entry it shows.
+    fields:
+      - name: key
+        type: rfcspec.review.DecisionKey
+      - name: state
+        type: rfcspec.review.Decision.State
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: kind
+        type: rfcspec.review.DecisionKind
+      - name: proposal_id
+        type: Optional<rfcspec.review.ProposalId>
+      - name: edit
+        type: Optional<Json>
+      - name: errata_id
+        type: Optional<Integer>
+      - name: errata_status
+        type: Optional<rfcspec.review.ErrataStatus>
+      - name: corrected_text
+        type: Optional<String>
+      - name: reason
+        type: Optional<String>
+      - name: confirms
+        type: Optional<rfcspec.review.DecisionKey>
+
+  - name: rfcspec.profile.ExplorerDecision
+    kind: struct
+    naming:
+      summary: >-
+        One review decision of a profile's overlay with the recorded proposal it decided: the
+        proposal's model id and its file under the profile's proposals/.
+    fields:
+      - name: row
+        type: rfcspec.profile.ExplorerDecisionRow
+      - name: model_id
+        type: Optional<rfcspec.review.ModelId>
+      - name: proposal_path
+        type: Optional<String>
+        summary: The proposal file, relative to the repository root.
+
+  - name: rfcspec.profile.ExplorerMachine
+    kind: struct
+    naming:
+      summary: >-
+        One machine of a profile's overlay: the fields of the view rfcspec.profile.Machines but
+        unlinked_musts, which the lowering does not record, then its transport, the download of
+        its lowered ess-protospec/1 document and its committed input witness.
+    fields:
+      - name: key
+        type: rfcspec.profile.MachineKey
+      - name: state
+        type: rfcspec.profile.Machine.State
+      - name: name
+        type: String
+      - name: protospec_path
+        type: String
+        summary: The lowered document, relative to the repository root.
+      - name: protospec_digest
+        type: rfcspec.catalogue.Digest
+      - name: transport
+        type: String
+      - name: download
+        type: String
+        summary: The document's download, relative to the site's base URL.
+      - name: witness
+        type: String
+        summary: The input witness exploration reads, relative to the repository root.
+
+  - name: rfcspec.profile.ExplorerLayoutRow
+    kind: struct
+    naming:
+      summary: One row of the view rfcspec.catalogue.Layouts, field for field, as the RFC explorer reads it.
+    fields:
+      - name: layout_id
+        type: rfcspec.catalogue.ItemId
+      - name: state
+        type: rfcspec.catalogue.Layout.State
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: name
+        type: String
+
+  - name: rfcspec.profile.ExplorerLayout
+    kind: struct
+    naming:
+      summary: One layout of a profile's overlay, its row and its fields with their bit widths.
+    fields:
+      - name: row
+        type: rfcspec.profile.ExplorerLayoutRow
+      - name: fields
+        type: List<rfcspec.catalogue.LayoutField>
+
+  - name: rfcspec.profile.ExplorerProfile
+    kind: struct
+    naming:
+      summary: >-
+        The reviewed layer of one profile as the RFC explorer shows it below an RFC the profile
+        locks, one file per profile with an overlay, generated from what its profile page is
+        rendered from.
+    fields:
+      - name: format
+        type: String
+        summary: rfcspec-explorer-profile/1.
+      - name: profile
+        type: rfcspec.profile.ProfileName
+      - name: path
+        type: String
+        summary: The profile directory, relative to the repository root.
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+        summary: The RFC of the profile's overlay.
+      - name: unreviewed
+        type: Optional<List<rfcspec.catalogue.LevelCount>>
+        summary: >-
+          The requirements of the RFC's mechanical catalogue without a status, counted by level
+          as the profile page counts them; absent when the profile holds no locked source.
+      - name: requirements
+        type: List<rfcspec.profile.ExplorerRequirement>
+        summary: Every requirement entry of the overlay, in its order.
+      - name: decisions
+        type: List<rfcspec.profile.ExplorerDecision>
+        summary: Every review decision of the overlay, in the order recorded.
+      - name: machines
+        type: List<rfcspec.profile.ExplorerMachine>
+      - name: layouts
+        type: List<rfcspec.profile.ExplorerLayout>
+
 entities:
   - name: rfcspec.profile.Profile
     naming:

@@ -74,6 +74,7 @@ const OWNED: &[(&str, Owned)] = &[
     (catalog::PAGES, |path| path.ends_with(".md")),
     (catalog::DOWNLOADS, |_| true),
     (explorer::DIR, |_| true),
+    (explorer::PROFILES_DIR, |_| true),
 ];
 
 /// Every generated file, by path relative to the repository root.
@@ -85,7 +86,9 @@ fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
         (status::PAGE.to_owned(), status::page()),
         (status::DATA.to_owned(), status::data()),
     ]);
-    out.extend(catalog::outputs(root)?);
+    let entries = catalog::entries(root)?;
+    out.extend(catalog::render(&entries));
+    out.extend(explorer::profiles(root, &entries)?);
     out.extend(bulk::outputs(root)?);
     out.extend(explorer::outputs(root)?);
     Ok(out)
@@ -333,6 +336,7 @@ mod tests {
             "website/static/downloads/time/udp.protospec.yaml",
             "website/static/downloads/time/rust/Cargo.toml",
             "website/static/downloads/time/rust/src/lib.rs",
+            "website/static/data/profiles/time.json",
         ] {
             assert!(outputs.contains_key(path), "{path}");
         }
@@ -367,9 +371,10 @@ mod tests {
             check(&root),
             [
                 "stale or edited website/docs/catalog/time.md",
+                "stale or edited website/static/data/profiles/time.json",
                 "stale or edited website/static/downloads/time/tcp.protospec.yaml"
             ],
-            "a changed source makes its copy and the page that lists its digest stale"
+            "a changed source makes its copy and the page and explorer data that list its digest stale"
         );
         fs::remove_dir_all(root).unwrap();
     }
@@ -562,6 +567,13 @@ mod tests {
     fn the_repository_catalogue_and_rfc_index_are_current() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let mut outputs = catalog::outputs(&root).unwrap();
+        outputs.extend(explorer::profiles(&root, &catalog::entries(&root).unwrap()).unwrap());
+        for name in ["dns", "ntp", "time", "websocket"] {
+            assert!(
+                outputs.contains_key(&explorer::profile_path(name)),
+                "{name}"
+            );
+        }
         outputs.extend(bulk::outputs(&root).unwrap());
         outputs.extend(explorer::outputs(&root).unwrap());
         assert!(drift(&root, &outputs).is_empty());

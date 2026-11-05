@@ -241,9 +241,13 @@ pub fn entries(root: &Path) -> Result<Vec<Entry>> {
 
 /// Every catalogue file, by path relative to the repository root.
 pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
-    let entries = entries(root)?;
-    let mut out = BTreeMap::from([(INDEX.to_owned(), index(&entries))]);
-    for entry in &entries {
+    Ok(render(&entries(root)?))
+}
+
+/// Every catalogue file of the entries given, by path relative to the repository root.
+pub fn render(entries: &[Entry]) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::from([(INDEX.to_owned(), index(entries))]);
+    for entry in entries {
         out.insert(format!("{PAGES}/{}.md", entry.name), page(entry));
         for artifact in &entry.generated {
             out.insert(
@@ -252,7 +256,7 @@ pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
             );
         }
     }
-    Ok(out)
+    out
 }
 
 /// The rank of a BCP 14 level, so counts read MUST before SHOULD before MAY.
@@ -493,7 +497,9 @@ pub fn page(entry: &Entry) -> String {
 }
 
 fn rfcs(page: &mut String, entry: &Entry) {
-    page.push_str("## RFCs\n\n| RFC | Title | Sections in scope | Kind |\n|---|---|---|---|\n");
+    page.push_str(
+        "## RFCs\n\n| RFC | Title | Sections in scope | Kind | Explorer |\n|---|---|---|---|---|\n",
+    );
     for rfc in &entry.profile.rfcs {
         let sections = if rfc.sections.is_empty() {
             "the whole RFC".to_owned()
@@ -510,9 +516,10 @@ fn rfcs(page: &mut String, entry: &Entry) {
                 |k| format!("{k} {}", k.label()),
             );
         page.push_str(&format!(
-            "| [RFC {n}](https://www.rfc-editor.org/rfc/rfc{n}) | {} | {sections} | {} |\n",
+            "| [RFC {n}](https://www.rfc-editor.org/rfc/rfc{n}) | {} | {sections} | {} | [RFC {n} in the explorer]({}) |\n",
             cell(&rfc.title),
             cell(&kind),
+            crate::explorer::link(rfc.number),
             n = rfc.number,
         ));
     }
@@ -858,15 +865,17 @@ mod tests {
     }
 
     #[test]
-    fn the_rfcs_link_to_the_rfc_editor() {
+    fn the_rfcs_link_to_the_rfc_editor_and_to_their_explorer_view() {
         let page = page(&time());
         assert_eq!(
             rows(&page, "## RFCs"),
             [
-                "| [RFC 868](https://www.rfc-editor.org/rfc/rfc868) | Time Protocol | Time Protocol; The Time | K1 wire protocol |"
+                "| [RFC 868](https://www.rfc-editor.org/rfc/rfc868) | Time Protocol | Time Protocol; The Time | K1 wire protocol | [RFC 868 in the explorer](pathname:///rfcspec/explorer/?rfc=868) |"
             ]
         );
-        assert!(rows(&self::page(&fixture()), "## RFCs")[0].ends_with("| unclassified |"));
+        assert!(rows(&self::page(&fixture()), "## RFCs")[0].ends_with(
+            "| unclassified | [RFC 9999 in the explorer](pathname:///rfcspec/explorer/?rfc=9999) |"
+        ));
     }
 
     #[test]
@@ -1124,7 +1133,7 @@ mod tests {
         assert_eq!(
             rows(&page, "## RFCs"),
             [
-                "| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol |"
+                "| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol | [RFC 6455 in the explorer](pathname:///rfcspec/explorer/?rfc=6455) |"
             ]
         );
         assert_eq!(

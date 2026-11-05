@@ -3,6 +3,8 @@ version: '3'
 vars:
   TYPES: --path . --root rfcspec.catalogue.ExplorerShard --root rfcspec.catalogue.ExplorerIndex --names short --declared-field-order
   RUST_TYPES: --target rust --package rfcspec-explorer-types --rust-box-only-recursion
+  PROFILE_TYPES: --path . --root rfcspec.profile.ExplorerProfile --root rfcspec.profile.Statuses.row --root rfcspec.profile.Machines.row --root rfcspec.review.Decisions.row --root rfcspec.catalogue.Layouts.row --names qualified --declared-field-order
+  RUST_PROFILE_TYPES: --target rust --package rfcspec-explorer-profile-types --rust-box-only-recursion
 
 tasks:
   default:
@@ -118,20 +120,26 @@ tasks:
       - cargo run -q --locked -p rfcspec-docs -- generate --check
 
   types-generate:
-    desc: Rewrite the RFC explorer's types that ess/domains/catalogue.yaml determines, the Rust crate the shard writer uses and the TypeScript declarations the app reads.
+    desc: Rewrite the RFC explorer's types that ess/ determines, the Rust crates the shard and profile writers use and the TypeScript declarations the app reads.
     cmds:
-      - rm -rf generated/rust/rfcspec-explorer-types explorer/src/generated
+      - rm -rf generated/rust/rfcspec-explorer-types generated/rust/rfcspec-explorer-profile-types explorer/src/generated explorer/src/generated-profile
       - cd ess && ess generate types {{.TYPES}} {{.RUST_TYPES}} --out ../generated/rust/rfcspec-explorer-types
       - cd ess && ess generate types {{.TYPES}} --target typescript --out ../explorer/src/generated
+      - cd ess && ess generate types {{.PROFILE_TYPES}} {{.RUST_PROFILE_TYPES}} --out ../generated/rust/rfcspec-explorer-profile-types
+      - cd ess && ess generate types {{.PROFILE_TYPES}} --target typescript --out ../explorer/src/generated-profile
 
   types-check:
-    desc: Fail when the generated Rust or TypeScript explorer types differ from what ess/domains/catalogue.yaml determines.
+    desc: Fail when the generated Rust or TypeScript explorer types differ from what ess/ determines.
     cmds:
       - rm -rf target/types-drift
       - cd ess && ess generate types {{.TYPES}} {{.RUST_TYPES}} --out ../target/types-drift/rust
       - cd ess && ess generate types {{.TYPES}} --target typescript --out ../target/types-drift/ts
+      - cd ess && ess generate types {{.PROFILE_TYPES}} {{.RUST_PROFILE_TYPES}} --out ../target/types-drift/rust-profile
+      - cd ess && ess generate types {{.PROFILE_TYPES}} --target typescript --out ../target/types-drift/ts-profile
       - diff -r --exclude=.ess-output target/types-drift/rust generated/rust/rfcspec-explorer-types
+      - diff -r --exclude=.ess-output target/types-drift/rust-profile generated/rust/rfcspec-explorer-profile-types
       - diff -r --exclude=.ess-output target/types-drift/ts explorer/src/generated
+      - diff -r --exclude=.ess-output target/types-drift/ts-profile explorer/src/generated-profile
 
   explorer:
     desc: Install the RFC explorer app's locked dependencies, type-check it with vue-tsc, test it with vitest and build it with vite into website/static/explorer.

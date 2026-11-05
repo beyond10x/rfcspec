@@ -137,7 +137,10 @@ describe('App front page', () => {
     });
     const wrapper = mount(App);
     await flushPromises();
-    expect(fetched).toEqual(['http://localhost:3000/rfcspec/data/rfcs/99900.json']);
+    expect(fetched.sort()).toEqual([
+      'http://localhost:3000/rfcspec/data/rfc-index.json',
+      'http://localhost:3000/rfcspec/data/rfcs/99900.json',
+    ]);
     expect(wrapper.text()).toContain('RFC 99999 is not in the index');
   });
 });
