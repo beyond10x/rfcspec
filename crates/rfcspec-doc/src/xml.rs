@@ -16,7 +16,8 @@
 //! - every block carries the number and the anchor (its `anchor`, else its `pn`) of the innermost
 //!   section, `<references>`, abstract or note it lies in;
 //! - a `<t>`, and any other element holding only inline content (a list item, a table cell), is a
-//!   paragraph; a `<dl>` is one paragraph with one line per term and definition;
+//!   paragraph; a `<dl>` is one paragraph with one line per term and definition, each entry after
+//!   the first recorded as a sentence boundary (`entries`);
 //! - a `<sourcecode>` or `<artwork>` is a figure, its lines verbatim and its `type` kept; of an
 //!   `<artset>` only the artworks that are not SVG (`type="svg"` or holding elements) are;
 //! - inline markup is removed and references render as xml2rfc renders them in text: `[RFC8441]`
@@ -157,10 +158,12 @@ struct Context {
 }
 
 /// Text placed on the source lines of one element, with its `<bcp14>` marks as
-/// (line, byte offset in the line, keyword).
+/// (line, byte offset in the line, keyword), and the starts of its `<dl>` entries after the first
+/// as (line, byte offset in the line).
 struct Rendered {
     lines: Vec<String>,
     marks: Vec<(usize, usize, String)>,
+    entries: Vec<(usize, usize)>,
 }
 
 impl Rendered {
@@ -199,6 +202,27 @@ impl Rendered {
 
     /// The marks as offsets in the text the lines join to ([`Block::text`] of a paragraph).
     fn bcp14(&self) -> Vec<Bcp14Mark> {
+        let starts = self.starts();
+        self.marks
+            .iter()
+            .map(|(line, offset, keyword)| Bcp14Mark {
+                keyword: keyword.clone(),
+                offset: starts[*line] + offset,
+            })
+            .collect()
+    }
+
+    /// The entry starts as offsets in the text the lines join to.
+    fn entry_offsets(&self) -> Vec<usize> {
+        let starts = self.starts();
+        self.entries
+            .iter()
+            .map(|(line, offset)| starts[*line] + offset)
+            .collect()
+    }
+
+    /// The offset at which each line starts in the text the lines join to.
+    fn starts(&self) -> Vec<usize> {
         let mut starts = Vec::with_capacity(self.lines.len());
         let mut position = 0;
         let mut any = false;
@@ -212,13 +236,7 @@ impl Rendered {
                 any = true;
             }
         }
-        self.marks
-            .iter()
-            .map(|(line, offset, keyword)| Bcp14Mark {
-                keyword: keyword.clone(),
-                offset: starts[*line] + offset,
-            })
-            .collect()
+        starts
     }
 
     fn joined(&self) -> String {
@@ -296,6 +314,7 @@ impl Reader<'_> {
                 anchor: context.anchor.clone(),
                 figure_type: None,
                 bcp14: Vec::new(),
+                entries: Vec::new(),
             });
         }
         self.container(node, &context, out);
@@ -347,12 +366,13 @@ impl Reader<'_> {
     }
 
     /// A `<dl>` as one paragraph: each term and its definition on the line the term's text
-    /// starts on.
+    /// starts on, every entry after the first recorded as a sentence boundary.
     fn definitions(&self, node: Node, context: &Context, out: &mut Vec<Block>) {
         let span = self.span(node);
         let mut rendered = Rendered {
             lines: vec![String::new(); span.end - span.start + 1],
             marks: Vec::new(),
+            entries: Vec::new(),
         };
         let mut children = elements(node).peekable();
         while let Some(term) = children.next() {
@@ -385,6 +405,9 @@ impl Reader<'_> {
                 rendered.lines[index].push(' ');
             }
             let shift = rendered.lines[index].len();
+            if !rendered.is_empty() {
+                rendered.entries.push((index, shift));
+            }
             rendered.lines[index].push_str(&text);
             rendered.marks.extend(
                 marks
@@ -434,6 +457,7 @@ impl Reader<'_> {
             } else {
                 rendered.bcp14()
             },
+            entries: rendered.entry_offsets(),
         }
     }
 
@@ -443,6 +467,7 @@ impl Reader<'_> {
         let mut rendered = Rendered {
             lines: vec![String::new(); span.end - span.start + 1],
             marks: Vec::new(),
+            entries: Vec::new(),
         };
         self.inline(node, span.start, &mut rendered);
         rendered.trim(verbatim);
@@ -555,6 +580,39 @@ fn number_from_pn(pn: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_definition_list_is_one_paragraph_whose_later_entries_start_a_sentence() {
+        let text = "<rfc version=\"3\">\n<middle>\n<section pn=\"section-1\">\n<name>Intro</name>\n<dl>\n<dt>first:</dt>\n<dd>One <bcp14>MUST</bcp14> go.</dd>\n<dt>second:</dt> <dd>two</dd> <dt>third:</dt>\n<dd>three</dd>\n</dl>\n</section>\n</middle>\n</rfc>\n";
+        let document = read(1, "digest", text).unwrap();
+        let dl = &document.blocks[1];
+        assert_eq!(dl.kind, BlockKind::Paragraph);
+        assert_eq!(
+            dl.lines,
+            [
+                "",
+                "first: One MUST go.",
+                "",
+                "second: two third: three",
+                "",
+                ""
+            ]
+        );
+        let joined = dl.text();
+        let starts: Vec<&str> = dl.entries.iter().map(|&at| &joined[at..]).collect();
+        assert_eq!(starts, ["second: two third: three", "third: three"]);
+        assert!(
+            read(
+                1,
+                "digest",
+                &text.replace("<dl>", "<t>").replace("</dl>", "</t>")
+            )
+            .unwrap()
+            .blocks
+            .iter()
+            .all(|block| block.entries.is_empty())
+        );
+    }
 
     #[test]
     fn numbers_come_from_pn() {
