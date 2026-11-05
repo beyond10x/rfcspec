@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:text-reader-structure
 kind: story
-status: proposed
+status: active
 title: The text reader recognises appendix headings, lists and asides
 relations:
 - informed_by: epic:rfcxml-reader
@@ -27,9 +27,10 @@ scope:
   path: website/static/data/rfc-index.json
 - confidence: inferred
   path: website/static/data/rfcs
-revision: 9
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 9, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-05T21:24:57Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Story
 
