@@ -420,6 +420,48 @@ types:
           The RFC numbers the shard's update graphs and References name that have no row in the
           bulk summary, so the explorer shows them without a link.
 
+  - name: rfcspec.catalogue.ExplorerIndexRow
+    kind: struct
+    naming:
+      summary: >-
+        One Rfc of the bulk summary as the RFC explorer's list filters it: its index metadata, the
+        source format read, its requirement counts by level and the profiles whose lock holds it.
+        No SHA-256 and no requirement text; the RFC view shows the rest.
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: title
+        type: String
+      - name: status
+        type: String
+      - name: stream
+        type: String
+      - name: area
+        type: Optional<String>
+      - name: date
+        type: rfcspec.catalogue.YearMonth
+      - name: format
+        type: rfcspec.catalogue.SourceFormat
+      - name: counts
+        type: List<rfcspec.catalogue.LevelCount>
+      - name: profiles
+        type: List<String>
+        summary: The name of each profile under profiles/ whose rfcspec.lock holds the RFC, in name order.
+
+  - name: rfcspec.catalogue.ExplorerIndex
+    kind: struct
+    naming:
+      summary: >-
+        Every RFC of the bulk summary as the RFC explorer's front page lists and filters it, one
+        file generated from the bulk summary and the profiles' locks.
+    fields:
+      - name: format
+        type: String
+        summary: rfcspec-explorer-index/1.
+      - name: rfcs
+        type: List<rfcspec.catalogue.ExplorerIndexRow>
+        summary: Every summary row, in number order.
+
 entities:
   - name: rfcspec.catalogue.Rfc
     naming:

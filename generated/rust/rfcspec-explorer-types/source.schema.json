@@ -42,6 +42,85 @@
       "x-ess-kind": "newtype",
       "x-ess-name": "rfcspec.catalogue.Digest"
     },
+    "rfcspec.catalogue.ExplorerIndex": {
+      "additionalProperties": false,
+      "description": "Every RFC of the bulk summary as the RFC explorer's front page lists and filters it, one file generated from the bulk summary and the profiles' locks.",
+      "properties": {
+        "format": {
+          "description": "rfcspec-explorer-index/1.",
+          "type": "string"
+        },
+        "rfcs": {
+          "description": "Every summary row, in number order.",
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.ExplorerIndexRow"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "format",
+        "rfcs"
+      ],
+      "title": "ExplorerIndex",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerIndex"
+    },
+    "rfcspec.catalogue.ExplorerIndexRow": {
+      "additionalProperties": false,
+      "description": "One Rfc of the bulk summary as the RFC explorer's list filters it: its index metadata, the source format read, its requirement counts by level and the profiles whose lock holds it. No SHA-256 and no requirement text; the RFC view shows the rest.",
+      "properties": {
+        "area": {
+          "type": "string"
+        },
+        "counts": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.LevelCount"
+          },
+          "type": "array"
+        },
+        "date": {
+          "$ref": "#/$defs/rfcspec.catalogue.YearMonth"
+        },
+        "format": {
+          "$ref": "#/$defs/rfcspec.catalogue.SourceFormat"
+        },
+        "profiles": {
+          "description": "The name of each profile under profiles/ whose rfcspec.lock holds the RFC, in name order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rfc": {
+          "$ref": "#/$defs/rfcspec.catalogue.RfcNumber"
+        },
+        "status": {
+          "type": "string"
+        },
+        "stream": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rfc",
+        "title",
+        "status",
+        "stream",
+        "date",
+        "format",
+        "counts",
+        "profiles"
+      ],
+      "title": "ExplorerIndexRow",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerIndexRow"
+    },
     "rfcspec.catalogue.ExplorerReference": {
       "additionalProperties": false,
       "description": "One Reference of an RFC read from RFCXML as the RFC explorer shows it; the citing RFC is the one that lists it.",
@@ -310,8 +389,8 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-ess-provenance": {
-    "contract_digest": "slice-sha256/2:0eeb2d66c6876c4a55dcd5efe7e924c89600b7bde43d02eb88d5d2eaafb54193",
-    "source_digest": "6e3653b8f09794e43fa325c40474ef22ffd92694710fbf58ba04d1b7237b88ea",
+    "contract_digest": "slice-sha256/2:65ee1a2d0cbb0755d952afc64764f59dd75647d43fff6a5f20062e29c0c6a028",
+    "source_digest": "a316a467b3bf74a2f9d92b7bb8b727d587168559ff3f5424f911a64eb79192b8",
     "specification_version": "v1",
     "system": "rfcspec"
   }

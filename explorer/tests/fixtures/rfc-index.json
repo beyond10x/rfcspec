@@ -1,0 +1,283 @@
+{
+  "format": "rfcspec-explorer-index/1",
+  "rfcs": [
+    {
+      "rfc": 1,
+      "title": "Host Software",
+      "status": "UNKNOWN",
+      "stream": "Legacy",
+      "date": "1969-04",
+      "format": "text",
+      "counts": [],
+      "profiles": []
+    },
+    {
+      "rfc": 868,
+      "title": "Time Protocol",
+      "status": "INTERNET STANDARD",
+      "stream": "Legacy",
+      "date": "1983-05",
+      "format": "text",
+      "counts": [],
+      "profiles": [
+        "time"
+      ]
+    },
+    {
+      "rfc": 1035,
+      "title": "Domain names - implementation and specification",
+      "status": "INTERNET STANDARD",
+      "stream": "Legacy",
+      "date": "1987-11",
+      "format": "text",
+      "counts": [],
+      "profiles": [
+        "dns"
+      ]
+    },
+    {
+      "rfc": 2119,
+      "title": "Key words for use in RFCs to Indicate Requirement Levels",
+      "status": "BEST CURRENT PRACTICE",
+      "stream": "IETF",
+      "date": "1997-03",
+      "format": "text",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 5
+        },
+        {
+          "level": "MUST NOT",
+          "count": 1
+        },
+        {
+          "level": "SHOULD",
+          "count": 1
+        },
+        {
+          "level": "SHOULD NOT",
+          "count": 1
+        },
+        {
+          "level": "MAY",
+          "count": 1
+        }
+      ],
+      "profiles": []
+    },
+    {
+      "rfc": 5905,
+      "title": "Network Time Protocol Version 4: Protocol and Algorithms Specification",
+      "status": "PROPOSED STANDARD",
+      "stream": "IETF",
+      "area": "int",
+      "date": "2010-06",
+      "format": "text",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 6
+        },
+        {
+          "level": "MUST NOT",
+          "count": 1
+        },
+        {
+          "level": "SHOULD",
+          "count": 3
+        },
+        {
+          "level": "MAY",
+          "count": 3
+        }
+      ],
+      "profiles": [
+        "ntp"
+      ]
+    },
+    {
+      "rfc": 6455,
+      "title": "The WebSocket Protocol",
+      "status": "PROPOSED STANDARD",
+      "stream": "IETF",
+      "area": "art",
+      "date": "2011-12",
+      "format": "text",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 108
+        },
+        {
+          "level": "MUST NOT",
+          "count": 23
+        },
+        {
+          "level": "SHOULD",
+          "count": 18
+        },
+        {
+          "level": "SHOULD NOT",
+          "count": 4
+        },
+        {
+          "level": "MAY",
+          "count": 42
+        },
+        {
+          "level": "OPTIONAL",
+          "count": 1
+        }
+      ],
+      "profiles": [
+        "websocket"
+      ]
+    },
+    {
+      "rfc": 7540,
+      "title": "Hypertext Transfer Protocol Version 2 (HTTP/2)",
+      "status": "PROPOSED STANDARD",
+      "stream": "IETF",
+      "area": "wit",
+      "date": "2015-05",
+      "format": "text",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 154
+        },
+        {
+          "level": "MUST NOT",
+          "count": 43
+        },
+        {
+          "level": "SHOULD",
+          "count": 24
+        },
+        {
+          "level": "SHOULD NOT",
+          "count": 5
+        },
+        {
+          "level": "MAY",
+          "count": 35
+        }
+      ],
+      "profiles": []
+    },
+    {
+      "rfc": 8441,
+      "title": "Bootstrapping WebSockets with HTTP/2",
+      "status": "PROPOSED STANDARD",
+      "stream": "IETF",
+      "area": "wit",
+      "date": "2018-09",
+      "format": "text",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 4
+        },
+        {
+          "level": "MUST NOT",
+          "count": 3
+        },
+        {
+          "level": "MAY",
+          "count": 2
+        }
+      ],
+      "profiles": []
+    },
+    {
+      "rfc": 8763,
+      "title": "Deployment Considerations for Information-Centric Networking (ICN)",
+      "status": "INFORMATIONAL",
+      "stream": "IRTF",
+      "date": "2020-04",
+      "format": "xml",
+      "counts": [],
+      "profiles": []
+    },
+    {
+      "rfc": 9220,
+      "title": "Bootstrapping WebSockets with HTTP/3",
+      "status": "PROPOSED STANDARD",
+      "stream": "IETF",
+      "area": "wit",
+      "date": "2022-06",
+      "format": "xml",
+      "counts": [
+        {
+          "level": "SHOULD",
+          "count": 1
+        },
+        {
+          "level": "MAY",
+          "count": 1
+        }
+      ],
+      "profiles": []
+    },
+    {
+      "rfc": 9915,
+      "title": "Dynamic Host Configuration Protocol for IPv6 (DHCPv6)",
+      "status": "INTERNET STANDARD",
+      "stream": "IETF",
+      "area": "int",
+      "date": "2026-01",
+      "format": "xml",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 172
+        },
+        {
+          "level": "MUST NOT",
+          "count": 41
+        },
+        {
+          "level": "SHOULD",
+          "count": 59
+        },
+        {
+          "level": "SHOULD NOT",
+          "count": 15
+        },
+        {
+          "level": "RECOMMENDED",
+          "count": 1
+        },
+        {
+          "level": "MAY",
+          "count": 57
+        }
+      ],
+      "profiles": []
+    },
+    {
+      "rfc": 9962,
+      "title": "A Decentralized Locator/ID Separation Protocol Mapping System (LISP-Decent)",
+      "status": "INFORMATIONAL",
+      "stream": "INDEPENDENT",
+      "date": "2026-05",
+      "format": "xml",
+      "counts": [
+        {
+          "level": "MUST",
+          "count": 10
+        },
+        {
+          "level": "SHOULD",
+          "count": 4
+        },
+        {
+          "level": "MAY",
+          "count": 2
+        }
+      ],
+      "profiles": []
+    }
+  ]
+}
