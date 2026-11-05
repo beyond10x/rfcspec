@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-05T14:27:21Z",
+  "actor": "human:timo",
+  "artifact": "story:bulk-xml-summary",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:rfcxml-parallel-round-1",
+    "review": "review-result:rfcxml-parallel-round-1",
+    "outcome": "fixed"
+  }
+}
