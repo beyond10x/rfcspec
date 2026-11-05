@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 894,
+      "start": 891
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "28740961cfdfe050419bbe75e7a239e71565423cc071b7e742cd17af3d1081b5",
+  "inputs": {
+    "item": "rfc6455/R4.1-11",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 894,
+      "start": 891
+    },
+    "text": "For the purpose of proxy autoconfiguration scripts, the URI to pass the function MUST be constructed from /host/, /port/, /resource name/, and the /secure/ flag using the definition of a WebSocket URI as given in Section 3."
+  },
+  "item": "rfc6455/R4.1-11",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "16edcf71fbf95375eec173d958580b40195ae7bf37e70d3b7e9123890822cf78",
+  "response": {
+    "id": "R4.1-11",
+    "level": "MUST",
+    "quote": "For the purpose of proxy autoconfiguration scripts, the URI to pass the function MUST be constructed from /host/, /port/, /resource name/, and the /secure/ flag using the definition of a WebSocket URI as given in Section 3.",
+    "source": "capitals-text",
+    "span": {
+      "end": 894,
+      "start": 891
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the construction of WebSocket URIs for proxy autoconfiguration scripts as required."
+    }
+  },
+  "task": "status"
+}

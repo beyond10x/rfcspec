@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2249,
+      "start": 2248
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "cbad269b845b6253ffd905d1e628d0c47bf3e7261290ba31481553c757a5d78a",
+  "inputs": {
+    "item": "rfc6455/R6.2-4",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2249,
+      "start": 2248
+    },
+    "text": "Subsequent data frames MUST be interpreted as belonging to a new WebSocket message."
+  },
+  "item": "rfc6455/R6.2-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "86cff3939901cc7cecf254bce7410c9ed46b3268a87cf4cc0c9025c4decec106",
+  "response": {
+    "id": "R6.2-4",
+    "level": "MUST",
+    "quote": "Subsequent data frames MUST be interpreted as belonging to a new WebSocket message.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2249,
+      "start": 2248
+    },
+    "status": {
+      "unsupported": "The model does not handle subsequent data frames as new WebSocket messages, likely due to lack of support for message fragmentation."
+    }
+  },
+  "task": "status"
+}

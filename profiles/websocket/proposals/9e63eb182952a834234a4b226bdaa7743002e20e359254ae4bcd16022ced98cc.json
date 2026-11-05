@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 974,
+      "start": 973
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "de3784533d51127ce91dca4b79f5a69391159e3157cded5b3da8bcadb5053c91",
+  "inputs": {
+    "item": "rfc6455/R4.1-27",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 974,
+      "start": 973
+    },
+    "text": "The request MUST include a header field with the name |Origin| [RFC6454] if the request is coming from a browser client."
+  },
+  "item": "rfc6455/R4.1-27",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "9e63eb182952a834234a4b226bdaa7743002e20e359254ae4bcd16022ced98cc",
+  "response": {
+    "id": "R4.1-27",
+    "level": "MUST",
+    "quote": "The request MUST include a header field with the name |Origin| [RFC6454] if the request is coming from a browser client.",
+    "source": "capitals-text",
+    "span": {
+      "end": 974,
+      "start": 973
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not support including the Origin header field as required."
+    }
+  },
+  "task": "status"
+}

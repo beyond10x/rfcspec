@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2209,
+      "start": 2208
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c6dd2d7d29044f5ee37c92edf6115fb079be8dbc33c5ea70189ca33be1d53053",
+  "inputs": {
+    "item": "rfc6455/R6.1-7",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2209,
+      "start": 2208
+    },
+    "text": "The FIN bit (frame-fin) of the last frame containing the data MUST be set to 1 as defined in Section 5.2."
+  },
+  "item": "rfc6455/R6.1-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "1949c6e540caf22a3a956763f979347be91ebbdc7795bd71ccb4aba51478d1be",
+  "response": {
+    "id": "R6.1-7",
+    "level": "MUST",
+    "quote": "The FIN bit (frame-fin) of the last frame containing the data MUST be set to 1 as defined in Section 5.2.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2209,
+      "start": 2208
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce setting the FIN bit in the last frame as required."
+    }
+  },
+  "task": "status"
+}

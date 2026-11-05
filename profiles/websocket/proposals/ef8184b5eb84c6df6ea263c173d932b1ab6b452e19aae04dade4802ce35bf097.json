@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 914,
+      "start": 912
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "0177faf0a21374f080cbdd332ed2bff29be61123c72920498f89e1d85d0fecce",
+  "inputs": {
+    "item": "rfc6455/R4.1-13",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 914,
+      "start": 912
+    },
+    "text": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818]."
+  },
+  "item": "rfc6455/R4.1-13",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "ef8184b5eb84c6df6ea263c173d932b1ab6b452e19aae04dade4802ce35bf097",
+  "response": {
+    "id": "R4.1-13",
+    "level": "MUST",
+    "quote": "If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818].",
+    "source": "capitals-text",
+    "span": {
+      "end": 914,
+      "start": 912
+    },
+    "status": {
+      "unsupported": "The protocol profile does not implement TLS handshake functionality as required."
+    }
+  },
+  "task": "status"
+}

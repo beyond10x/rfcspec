@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1059,
+      "start": 1055
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "06f18542984f88606a783a696761781136fdea8b5a5f100155d1232a41aa7a22",
+  "inputs": {
+    "item": "rfc6455/R4.1-40",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1059,
+      "start": 1055
+    },
+    "text": "If the response includes a |Sec-WebSocket-Extensions| header field and this header field indicates the use of an extension that was not present in the client's handshake (the server has indicated an extension not requested by the client), the client MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R4.1-40",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "22644ae049c10fde0422887fc6be2b1827e6a9bcd4944b20586c3f5e9264cf76",
+  "response": {
+    "id": "R4.1-40",
+    "level": "MUST",
+    "quote": "If the response includes a |Sec-WebSocket-Extensions| header field and this header field indicates the use of an extension that was not present in the client's handshake (the server has indicated an extension not requested by the client), the client MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1059,
+      "start": 1055
+    },
+    "status": {
+      "unsupported": "The protocol profile does not handle extensions not requested by the client."
+    }
+  },
+  "task": "status"
+}

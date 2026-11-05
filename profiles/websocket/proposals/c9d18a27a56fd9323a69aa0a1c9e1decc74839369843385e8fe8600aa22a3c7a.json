@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 812,
+      "start": 811
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "8b774250b1cc6a5b736ca4ff19b64ad9a3982338f875de2f53d5b1964fe22ff2",
+  "inputs": {
+    "item": "rfc6455/R4.1-4",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 812,
+      "start": 811
+    },
+    "text": "If any of the components are invalid, the client MUST _Fail the WebSocket Connection_ and abort these steps."
+  },
+  "item": "rfc6455/R4.1-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "c9d18a27a56fd9323a69aa0a1c9e1decc74839369843385e8fe8600aa22a3c7a",
+  "response": {
+    "id": "R4.1-4",
+    "level": "MUST",
+    "quote": "If any of the components are invalid, the client MUST _Fail the WebSocket Connection_ and abort these steps.",
+    "source": "capitals-text",
+    "span": {
+      "end": 812,
+      "start": 811
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement failure handling for invalid WebSocket URI components as required."
+    }
+  },
+  "task": "status"
+}

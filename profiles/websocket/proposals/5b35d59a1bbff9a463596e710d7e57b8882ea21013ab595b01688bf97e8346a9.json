@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1248,
+      "start": 1242
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c9bddf319f3fa9ea307c20d2f50a26aa846e71d6674d17f1adb842f6d0f86e6c",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-6",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1248,
+      "start": 1242
+    },
+    "text": "If this version does not match a version understood by the server, the server MUST abort the WebSocket handshake described in this section and instead send an appropriate HTTP error code (such as 426 Upgrade Required) and a |Sec-WebSocket-Version| header field indicating the version(s) the server is capable of understanding."
+  },
+  "item": "rfc6455/R4.2.2-6",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "5b35d59a1bbff9a463596e710d7e57b8882ea21013ab595b01688bf97e8346a9",
+  "response": {
+    "id": "R4.2.2-6",
+    "level": "MUST",
+    "quote": "If this version does not match a version understood by the server, the server MUST abort the WebSocket handshake described in this section and instead send an appropriate HTTP error code (such as 426 Upgrade Required) and a |Sec-WebSocket-Version| header field indicating the version(s) the server is capable of understanding.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1248,
+      "start": 1242
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the requirement to abort the handshake and return an HTTP error code when version mismatch occurs."
+    }
+  },
+  "task": "status"
+}

@@ -186,13 +186,10 @@ fn accept_edit_and_reject_each_write_their_decision_and_the_profile_still_checks
         edited
     );
     assert_eq!(position(&after, "R5.1-5"), None);
+    let first = position(&after, "R5.1-1").unwrap();
     assert_eq!(
-        (
-            position(&after, "R5.1-1"),
-            position(&after, "R5.1-2"),
-            position(&after, "R5.2-1")
-        ),
-        (Some(0), Some(1), Some(2)),
+        (position(&after, "R5.1-2"), position(&after, "R5.2-1")),
+        (Some(first + 1), Some(first + 2)),
         "in catalogue order"
     );
     assert_eq!(after.layouts, before.layouts);

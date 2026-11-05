@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2252,
+      "start": 2251
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "de9bbcc113900a30c7cfaaa7f7e6d43d07963e98e7b67eed166ddb47a3647912",
+  "inputs": {
+    "item": "rfc6455/R6.2-5",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2252,
+      "start": 2251
+    },
+    "text": "Extensions (Section 9) MAY change the semantics of how data is read, specifically including what comprises a message boundary."
+  },
+  "item": "rfc6455/R6.2-5",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "7416fca4e22a240f49ae863eaf3f72cd2416f937d12d5774665bd7df8117b8fe",
+  "response": {
+    "id": "R6.2-5",
+    "level": "MAY",
+    "quote": "Extensions (Section 9) MAY change the semantics of how data is read, specifically including what comprises a message boundary.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2252,
+      "start": 2251
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not use extensions that modify message boundary semantics."
+    }
+  },
+  "task": "status"
+}

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3369,
+      "start": 3367
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "eb5e33a318b1aa190947bdf9e04bedf4efe8884dee341c3a21226a772216c527",
+  "inputs": {
+    "item": "rfc6455/R11.3.5-1",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "11.3.5",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3369,
+      "start": 3367
+    },
+    "text": "The |Sec-WebSocket-Version| header field MAY appear multiple times in an HTTP response (which is logically the same as a single |Sec-WebSocket-Version| header field that contains all values)."
+  },
+  "item": "rfc6455/R11.3.5-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "b4b4822172a4f932253aa377c49a94add67ee092021d9a11e191c610f725f368",
+  "response": {
+    "id": "R11.3.5-1",
+    "level": "MAY",
+    "quote": "The |Sec-WebSocket-Version| header field MAY appear multiple times in an HTTP response (which is logically the same as a single |Sec-WebSocket-Version| header field that contains all values).",
+    "source": "capitals-text",
+    "span": {
+      "end": 3369,
+      "start": 3367
+    },
+    "status": {
+      "unsupported": "The model does not allow the Sec-WebSocket-Version header field to appear multiple times in an HTTP response."
+    }
+  },
+  "task": "status"
+}

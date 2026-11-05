@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1004,
+      "start": 1001
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "27e7d8cdadbb969ff755a8197b9664b1ed0e24195e775605c09dbeeb86665dfd",
+  "inputs": {
+    "item": "rfc6455/R4.1-32",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1004,
+      "start": 1001
+    },
+    "text": "The elements that comprise this value MUST be non-empty strings with characters in the range U+0021 to U+007E not including separator characters as defined in [RFC2616] and MUST all be unique strings."
+  },
+  "item": "rfc6455/R4.1-32",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "dbf7424d31d58d5e8f717e262dba62ca918a0b94494c5a629cba773270c87052",
+  "response": {
+    "id": "R4.1-32",
+    "level": "MUST",
+    "quote": "The elements that comprise this value MUST be non-empty strings with characters in the range U+0021 to U+007E not including separator characters as defined in [RFC2616] and MUST all be unique strings.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1004,
+      "start": 1001
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce uniqueness or character restrictions on subprotocol elements."
+    }
+  },
+  "task": "status"
+}

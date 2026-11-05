@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2258,
+      "start": 2257
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "2fc4f45b2ea7931b57da81cc6f384ac8381778ac5cb05f18a4b30b740414712a",
+  "inputs": {
+    "item": "rfc6455/R6.2-7",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2258,
+      "start": 2257
+    },
+    "text": "A server MUST remove masking for data frames received from a client as described in Section 5.3."
+  },
+  "item": "rfc6455/R6.2-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "21efb4a3df1a6b9d72e63b5a0eb78d9aca51a2b207322beed961661dc478095d",
+  "response": {
+    "id": "R6.2-7",
+    "level": "MUST",
+    "quote": "A server MUST remove masking for data frames received from a client as described in Section 5.3.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2258,
+      "start": 2257
+    },
+    "status": {
+      "not-applicable": "The RFC already complies with BCP 14 by using all caps for the MUST keyword."
+    }
+  },
+  "task": "status"
+}

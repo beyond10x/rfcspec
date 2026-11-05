@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3230,
+      "start": 3228
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "d9aace1e10437f5b57d23e1f07526840fc3d9d91cd93eb3b3ff618687d3af801",
+  "inputs": {
+    "item": "rfc6455/R11.3.2-1",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "11.3.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3230,
+      "start": 3228
+    },
+    "text": "The |Sec-WebSocket-Extensions| header field MAY appear multiple times in an HTTP request (which is logically the same as a single |Sec-WebSocket-Extensions| header field that contains all values."
+  },
+  "item": "rfc6455/R11.3.2-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "32c4a062e7897eb7864a5b5612cb7f0fe0dc00bd1148d5da4ece11a77ea2ef52",
+  "response": {
+    "id": "R11.3.2-1",
+    "level": "MAY",
+    "quote": "The |Sec-WebSocket-Extensions| header field MAY appear multiple times in an HTTP request (which is logically the same as a single |Sec-WebSocket-Extensions| header field that contains all values.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3230,
+      "start": 3228
+    },
+    "status": {
+      "not-applicable": "The model is not required to support optional features specified with 'MAY'."
+    }
+  },
+  "task": "status"
+}

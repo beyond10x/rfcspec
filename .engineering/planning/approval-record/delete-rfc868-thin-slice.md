@@ -2,11 +2,13 @@
 format: aep.planning-md/3
 id: approval-record:delete-rfc868-thin-slice
 kind: approval-record
-status: draft
+status: approved
 title: Delete remote branch rfc868-thin-slice (head 04e0840)
 relations:
 - decides: epic:rfc868-thin-slice
-revision: 1
+revision: 2
+transitions:
+- {from: "draft", to: "approved", at: "2026-11-05T12:08:00Z", actor: "human:timo", revision: 2}
 ---
 ## Decision
 

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2901,
+      "start": 2898
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "17b4206df39b22f74a24da65e542bef83e37098e89a78598f42f3731fe212c63",
+  "inputs": {
+    "item": "rfc6455/R10.4-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "10.4",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2901,
+      "start": 2898
+    },
+    "text": "Implementations that have implementation- and/or platform-specific limitations regarding the frame size or total message size after reassembly from multiple frames MUST protect themselves against exceeding those limits."
+  },
+  "item": "rfc6455/R10.4-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "45258d9c9d6fb31412d06ac49f143d5579f08c82f7074cfb90aab469789f96d7",
+  "response": {
+    "id": "R10.4-1",
+    "level": "MUST",
+    "quote": "Implementations that have implementation- and/or platform-specific limitations regarding the frame size or total message size after reassembly from multiple frames MUST protect themselves against exceeding those limits.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2901,
+      "start": 2898
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not implement frame/message size limits or protection mechanisms against exceeding them."
+    }
+  },
+  "task": "status"
+}

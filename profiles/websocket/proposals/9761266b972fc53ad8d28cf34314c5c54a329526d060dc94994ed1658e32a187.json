@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3315,
+      "start": 3314
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "e7a89bac1beb595c516128285a880f17e829399e260e1c6376548033d38cbf07",
+  "inputs": {
+    "item": "rfc6455/R11.3.4-2",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "11.3.4",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3315,
+      "start": 3314
+    },
+    "text": "However, the |Sec-WebSocket-Protocol| header field MUST NOT appear more than once in an HTTP response."
+  },
+  "item": "rfc6455/R11.3.4-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "9761266b972fc53ad8d28cf34314c5c54a329526d060dc94994ed1658e32a187",
+  "response": {
+    "id": "R11.3.4-2",
+    "level": "MUST NOT",
+    "quote": "However, the |Sec-WebSocket-Protocol| header field MUST NOT appear more than once in an HTTP response.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3315,
+      "start": 3314
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce restrictions on HTTP response header field multiplicity."
+    }
+  },
+  "task": "status"
+}

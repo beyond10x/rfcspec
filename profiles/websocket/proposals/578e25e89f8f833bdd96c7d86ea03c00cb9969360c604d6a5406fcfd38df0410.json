@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 949,
+      "start": 948
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "a6fb0a315ea5243bab371a6a2bfb04a54a096806ecdb90664f41e881bb006a9d",
+  "inputs": {
+    "item": "rfc6455/R4.1-22",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 949,
+      "start": 948
+    },
+    "text": "The request MUST contain an |Upgrade| header field whose value MUST include the \"websocket\" keyword."
+  },
+  "item": "rfc6455/R4.1-22",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "578e25e89f8f833bdd96c7d86ea03c00cb9969360c604d6a5406fcfd38df0410",
+  "response": {
+    "id": "R4.1-22",
+    "level": "MUST",
+    "quote": "The request MUST contain an |Upgrade| header field whose value MUST include the \"websocket\" keyword.",
+    "source": "capitals-text",
+    "span": {
+      "end": 949,
+      "start": 948
+    },
+    "status": {
+      "unsupported": "The model does not support the required header field"
+    }
+  },
+  "task": "status"
+}

@@ -1032,11 +1032,11 @@ mod tests {
             .filter(|r| reviewed.contains(&r.id.as_str()))
             .count();
         assert_eq!(
-            outside_with_status, 7,
-            "the accepted and edited proposals of sections 5.1 and 5.3"
+            outside_with_status, 85,
+            "the accepted and edited proposals outside the profile sections"
         );
         let expected = outside.len() - outside_with_status;
-        assert_eq!(expected, 119);
+        assert_eq!(expected, 41);
         assert_eq!(unreviewed_cell(&entry), expected.to_string());
         let page = index(&[time(), entry]);
         let rows = rows(&page, "newest recorded run.");
@@ -1045,7 +1045,7 @@ mod tests {
             [
                 "| [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |".to_string(),
                 format!(
-                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY | 29 | 40 | 8 | {expected} | no recorded run |"
+                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 87 MUST, 21 MUST NOT, 14 SHOULD, 4 SHOULD NOT, 29 MAY | 29 | 117 | 9 | {expected} | no recorded run |"
                 ),
             ]
         );
@@ -1087,20 +1087,21 @@ mod tests {
                 "| tcp | bytes | ordered, reliable, no duplicates | full-duplex | single | session | none | connection | not declared | client, server |"
             ]
         );
-        assert!(page.contains("Reviewed: 77 requirements, by level 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY; by status 29 satisfied, 40 unsupported, 8 not applicable.\n"), "{page}");
+        assert!(page.contains("Reviewed: 155 requirements, by level 87 MUST, 21 MUST NOT, 14 SHOULD, 4 SHOULD NOT, 29 MAY; by status 29 satisfied, 117 unsupported, 9 not applicable.\n"), "{page}");
         let unreviewed = entry.unreviewed().unwrap();
         assert!(page.contains(&format!(
             "Unreviewed: {} requirements of the mechanical catalogue of RFC 6455 have no status, by level {}.",
             unreviewed.len(),
             by_level(unreviewed.iter().map(|r| r.keyword.as_str()))
         )), "{page}");
-        assert!(page.contains("Unreviewed: 119 requirements of the mechanical catalogue of RFC 6455 have no status, by level 77 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 22 MAY, 1 OPTIONAL."), "{page}");
+        assert!(page.contains("Unreviewed: 41 requirements of the mechanical catalogue of RFC 6455 have no status, by level 21 MUST, 2 MUST NOT, 4 SHOULD, 13 MAY, 1 OPTIONAL."), "{page}");
         let rejected: Vec<&str> = rows(&page, "## Rejected proposals")
             .iter()
             .map(|row| row.split(" | ").next().unwrap())
             .collect();
+        assert_eq!(rejected.len(), 29, "{rejected:?}");
         assert_eq!(
-            rejected,
+            rejected[..3],
             ["| rfc6455/R5.1-4", "| rfc6455/R5.1-3", "| rfc6455/R5.3-1"]
         );
         assert_eq!(

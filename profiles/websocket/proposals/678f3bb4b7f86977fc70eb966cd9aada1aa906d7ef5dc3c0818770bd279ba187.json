@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 793,
+      "start": 791
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "5468d8b85b47bc832c0848f630daa949eba867db7a0e02825f687bfca7f35a9c",
+  "inputs": {
+    "item": "rfc6455/R4.1-1",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 793,
+      "start": 791
+    },
+    "text": "Clients running in controlled environments, e.g., browsers on mobile handsets tied to specific carriers, MAY offload the management of the connection to another agent on the network."
+  },
+  "item": "rfc6455/R4.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "678f3bb4b7f86977fc70eb966cd9aada1aa906d7ef5dc3c0818770bd279ba187",
+  "response": {
+    "id": "R4.1-1",
+    "level": "MAY",
+    "quote": "Clients running in controlled environments, e.g., browsers on mobile handsets tied to specific carriers, MAY offload the management of the connection to another agent on the network.",
+    "source": "capitals-text",
+    "span": {
+      "end": 793,
+      "start": 791
+    },
+    "status": {
+      "not-applicable": "The model is not required to implement optional recommendations specified with 'MAY'."
+    }
+  },
+  "task": "status"
+}

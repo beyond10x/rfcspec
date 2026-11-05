@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2229,
+      "start": 2226
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "f97a416b32b9692b36689a85dabd0948e4ec560f872e1fae9041c1de708f4592",
+  "inputs": {
+    "item": "rfc6455/R6.2-3",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2229,
+      "start": 2226
+    },
+    "text": "Upon receiving a data frame (Section 5.6), the endpoint MUST note the /type/ of the data as defined by the opcode (frame-opcode) from Section 5.2."
+  },
+  "item": "rfc6455/R6.2-3",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "63a0551caa4839f0be2939f47a507966d629e7d7adb411ca417a25ffa1743cf2",
+  "response": {
+    "id": "R6.2-3",
+    "level": "MUST",
+    "quote": "Upon receiving a data frame (Section 5.6), the endpoint MUST note the /type/ of the data as defined by the opcode (frame-opcode) from Section 5.2.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2229,
+      "start": 2226
+    },
+    "status": {
+      "unsupported": "The model does not implement handling of data frames or opcode-based type determination."
+    }
+  },
+  "task": "status"
+}

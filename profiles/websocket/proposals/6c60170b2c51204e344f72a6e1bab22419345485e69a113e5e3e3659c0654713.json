@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1075,
+      "start": 1071
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "67372a4ec1db7d23a9f39e6cc67b02b275ad75e8182dd62e767d774fda48eff0",
+  "inputs": {
+    "item": "rfc6455/R4.1-41",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1075,
+      "start": 1071
+    },
+    "text": "If the response includes a |Sec-WebSocket-Protocol| header field and this header field indicates the use of a subprotocol that was not present in the client's handshake (the server has indicated a subprotocol not requested by the client), the client MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R4.1-41",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "6c60170b2c51204e344f72a6e1bab22419345485e69a113e5e3e3659c0654713",
+  "response": {
+    "id": "R4.1-41",
+    "level": "MUST",
+    "quote": "If the response includes a |Sec-WebSocket-Protocol| header field and this header field indicates the use of a subprotocol that was not present in the client's handshake (the server has indicated a subprotocol not requested by the client), the client MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1075,
+      "start": 1071
+    },
+    "status": {
+      "unsupported": "The model does not implement logic to check for mismatched subprotocols in the server's response or fail the connection accordingly."
+    }
+  },
+  "task": "status"
+}

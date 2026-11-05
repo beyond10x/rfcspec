@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1199,
+      "start": 1194
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "d86b7090a144eca6a38b2f82a87f5b7d94b9dffd03d67bbf1528daa02bc8a233",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1199,
+      "start": 1194
+    },
+    "text": "If this fails (e.g., the client indicated a host name in the extended client hello \"server_name\" extension that the server does not host), then close the connection; otherwise, all further communication for the connection (including the server's handshake) MUST run through the encrypted tunnel [RFC5246]."
+  },
+  "item": "rfc6455/R4.2.2-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "f84c866847f52f4b1792122f0a080f9a13b9a5cd02eaf17b64a7121123ae786d",
+  "response": {
+    "id": "R4.2.2-2",
+    "level": "MUST",
+    "quote": "If this fails (e.g., the client indicated a host name in the extended client hello \"server_name\" extension that the server does not host), then close the connection; otherwise, all further communication for the connection (including the server's handshake) MUST run through the encrypted tunnel [RFC5246].",
+    "source": "capitals-text",
+    "span": {
+      "end": 1199,
+      "start": 1194
+    },
+    "status": {
+      "not-applicable": "The protocol profile does not implement TLS or encrypted tunneling, making this requirement inapplicable."
+    }
+  },
+  "task": "status"
+}

@@ -28,8 +28,9 @@ A model may propose what the pipeline cannot derive mechanically, such as a requ
 status. `rfcspec propose` records each answer as a proposal under the profile's `proposals/`,
 with the model id and the spans it cites; `rfcspec propose --replay` reproduces every recording
 offline, and the gate runs it. A proposal changes nothing until `rfcspec review` accepts, edits
-or rejects it into the profile's overlay. `profiles/websocket/proposals/` holds the first set,
-for RFC 6455 sections 5.1 and 5.3. The contract is
+or rejects it into the profile's overlay. `profiles/websocket/proposals/` holds 114,
+one for each RFC 6455 requirement outside the profile's sections that got a well-formed answer.
+The contract is
 [design section 9](docs/design/rfcspec.md#9-ai-in-the-pipeline).
 
 ```console

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2851,
+      "start": 2849
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "82d3124c18abf055aef6169c7300f0d90b77f8ca81b6e76f735535a22e6691e8",
+  "inputs": {
+    "item": "rfc6455/R10.3-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "10.3",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2851,
+      "start": 2849
+    },
+    "text": "Clients MUST choose a new masking key for each frame, using an algorithm that cannot be predicted by end applications that provide data."
+  },
+  "item": "rfc6455/R10.3-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "f53bd7559af6a5c3a93a957ef3fc3077754c149ebacb6d8e7e22fa5634370a95",
+  "response": {
+    "id": "R10.3-1",
+    "level": "MUST",
+    "quote": "Clients MUST choose a new masking key for each frame, using an algorithm that cannot be predicted by end applications that provide data.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2851,
+      "start": 2849
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the requirement to generate unique masking keys per frame."
+    }
+  },
+  "task": "status"
+}

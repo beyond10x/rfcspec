@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1257,
+      "start": 1254
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "9595bb35759b6c7c386e41f247b76a720b162f99d80479b215fba34c11685f37",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-7",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1257,
+      "start": 1254
+    },
+    "text": "If the requested service is not available, the server MUST send an appropriate HTTP error code (such as 404 Not Found) and abort the WebSocket handshake."
+  },
+  "item": "rfc6455/R4.2.2-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "42defb9e325cc00f96e702625f88c988c0db4e5dd8a17a2ff9e113cbea967af0",
+  "response": {
+    "id": "R4.2.2-7",
+    "level": "MUST",
+    "quote": "If the requested service is not available, the server MUST send an appropriate HTTP error code (such as 404 Not Found) and abort the WebSocket handshake.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1257,
+      "start": 1254
+    },
+    "status": {
+      "unsupported": "The model does not implement handling of unavailable services with HTTP error codes and handshake abortion."
+    }
+  },
+  "task": "status"
+}

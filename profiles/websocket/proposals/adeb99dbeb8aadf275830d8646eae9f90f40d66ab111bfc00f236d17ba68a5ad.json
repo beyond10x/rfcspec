@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2219,
+      "start": 2218
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "56201a91611610f35022a1227a8a6b8907c14f2c0ae45e00ac7002cd6cb9301d",
+  "inputs": {
+    "item": "rfc6455/R6.1-9",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2219,
+      "start": 2218
+    },
+    "text": "The frame(s) that have been formed MUST be transmitted over the underlying network connection."
+  },
+  "item": "rfc6455/R6.1-9",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "adeb99dbeb8aadf275830d8646eae9f90f40d66ab111bfc00f236d17ba68a5ad",
+  "response": {
+    "id": "R6.1-9",
+    "level": "MUST",
+    "quote": "The frame(s) that have been formed MUST be transmitted over the underlying network connection.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2219,
+      "start": 2218
+    },
+    "status": {
+      "not-applicable": "The protocol profile does not use frames and thus does not require transmission over the network connection."
+    }
+  },
+  "task": "status"
+}

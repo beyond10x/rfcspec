@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2708,
+      "start": 2707
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "f5bbe4259e15e2ad279c038a055e5a2a3aae74794ff2789a6fd03670ea54b51d",
+  "inputs": {
+    "item": "rfc6455/R9.1-5",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "9.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2708,
+      "start": 2707
+    },
+    "text": "The parameters supplied with any given extension MUST be defined for that extension."
+  },
+  "item": "rfc6455/R9.1-5",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4261a75028c03e693a67054207e35e1fc693473c68e984f8eb1739263c4faa7d",
+  "response": {
+    "id": "R9.1-5",
+    "level": "MUST",
+    "quote": "The parameters supplied with any given extension MUST be defined for that extension.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2708,
+      "start": 2707
+    },
+    "status": {
+      "unsupported": "The model does not implement extension parameter validation."
+    }
+  },
+  "task": "status"
+}

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 966,
+      "start": 965
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c8d5da8d28c49bcf1aad113479553567b62cc9edddc80bee0a02b3a446a0651f",
+  "inputs": {
+    "item": "rfc6455/R4.1-26",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 966,
+      "start": 965
+    },
+    "text": "The nonce MUST be selected randomly for each connection."
+  },
+  "item": "rfc6455/R4.1-26",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "459f1a5fb4fde612a025e0039b23152f97b2a968a7126008426d5526930b357a",
+  "response": {
+    "id": "R4.1-26",
+    "level": "MUST",
+    "quote": "The nonce MUST be selected randomly for each connection.",
+    "source": "capitals-text",
+    "span": {
+      "end": 966,
+      "start": 965
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement random nonce selection per connection."
+    }
+  },
+  "task": "status"
+}

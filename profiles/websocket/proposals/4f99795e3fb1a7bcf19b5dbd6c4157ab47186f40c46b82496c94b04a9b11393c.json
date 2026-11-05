@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1028,
+      "start": 1028
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c2bce4f4b34aadf3dad2c56076fb98cb16cfc793a3424374d8af4bf48b7e6ef8",
+  "inputs": {
+    "item": "rfc6455/R4.1-36",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1028,
+      "start": 1028
+    },
+    "text": "The client MUST validate the server's response as follows:"
+  },
+  "item": "rfc6455/R4.1-36",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4f99795e3fb1a7bcf19b5dbd6c4157ab47186f40c46b82496c94b04a9b11393c",
+  "response": {
+    "id": "R4.1-36",
+    "level": "MUST",
+    "quote": "The client MUST validate the server's response as follows:",
+    "source": "capitals-text",
+    "span": {
+      "end": 1028,
+      "start": 1028
+    },
+    "status": {
+      "unsupported": "Model does not implement client validation of server responses as required"
+    }
+  },
+  "task": "status"
+}
