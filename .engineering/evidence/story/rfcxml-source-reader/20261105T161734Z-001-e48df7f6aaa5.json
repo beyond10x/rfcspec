@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T16:17:34Z",
+  "actor": "human:timo",
+  "artifact": "story:rfcxml-source-reader",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-doc -p rfcspec-source -p rfcspec-model -p rfcspec-cli -p rfcspec-propose -p rfcspec-docs (all ok); fmt; clippy -D warnings; rfcspec-docs generate --check"
+  }
+}
