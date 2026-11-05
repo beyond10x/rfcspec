@@ -20,6 +20,34 @@ requirements:
     quote: Implementations SHOULD set the association mode to 3 and run a short client/server exchange to determine the propagation delay.
     span: {start: 1926, end: 1927}
     status: {unsupported: "applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only"}
-layouts: []
+  - id: R-VN-1
+    source: prose
+    level: MUST
+    quote: Format checks require correct field length and alignment, acceptable version number (1-4)
+    span: {start: 1812, end: 1814}
+    status: {satisfied: layout.header}
+layouts:
+  - name: header
+    quote: The basic header extends from the beginning of the packet to the end of the Transmit Timestamp field.
+    span: {start: 1083, end: 1084}
+    fields:
+      - {name: leap, bits: 2, signed: false, order: big-endian}
+      - name: version
+        bits: 3
+        signed: false
+        order: big-endian
+        constraints:
+          - {range: [1, 4]}
+      - {name: mode, bits: 3, signed: false, order: big-endian}
+      - {name: stratum, bits: 8, signed: false, order: big-endian}
+      - {name: poll, bits: 8, signed: true, order: big-endian}
+      - {name: precision, bits: 8, signed: true, order: big-endian}
+      - {name: rootdelay, bits: 32, signed: false, order: big-endian}
+      - {name: rootdisp, bits: 32, signed: false, order: big-endian}
+      - {name: refid, bits: 32, signed: false, order: big-endian}
+      - {name: reftime, bits: 64, signed: false, order: big-endian}
+      - {name: org, bits: 64, signed: false, order: big-endian}
+      - {name: rec, bits: 64, signed: false, order: big-endian}
+      - {name: xmt, bits: 64, signed: false, order: big-endian}
 machines: []
 findings: []

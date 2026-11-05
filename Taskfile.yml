@@ -13,6 +13,7 @@ tasks:
       - task: time
       - task: websocket
       - task: dns
+      - task: ntp
       - task: bulk
       - task: docs-check
       - cargo fmt --all --check
@@ -76,6 +77,12 @@ tasks:
           --inputs profiles/dns/witnesses/query.inputs.json | grep -q '"verdict": "passed"'
       - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/dns --check
       - cargo test -q --locked -p rfc1035-dns
+
+  ntp:
+    desc: Check the ntp profile's generated header codec and its tests.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/ntp --check
+      - cargo test -q --locked -p rfc5905-ntp
 
   bulk:
     desc: Check the committed bulk summary offline against itself and against the RFCs the profiles lock.
