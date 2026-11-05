@@ -6,6 +6,7 @@ status: draft
 title: Lock RFC 9220's RFCXML v3 source and read it into the normalized document, with section anchors and bcp14 marks
 relations:
 - decomposes: epic:rfcxml-reader
+- depends_on: epic:ntp-profile
 scope:
 - confidence: inferred
   path: AGENTS.md
