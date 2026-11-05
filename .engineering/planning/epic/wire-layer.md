@@ -6,7 +6,7 @@ status: draft
 title: 'Wire layer: ABNF to grammar and codec, ASCII-art diagrams to layouts (milestone M1)'
 relations:
 - informed_by: epic:rfcxml-reader
-revision: 1
+revision: 2
 ---
 ## Outcome
 
@@ -16,4 +16,4 @@ Operator direction, 2026-11-05: "this would be like an awesome programmatic way 
 
 ## Status
 
-Draft, not decomposed. Ordered after epic:ntp-profile, epic:rfcxml-reader and epic:rfc-explorer unless the operator moves it.
+Decomposed 2026-11-05 into 11 stories (wire-scaffold to wire-m1-record, plus frame-codec-vectors), reviewed by the four-critic panel in two rounds (review-result:wire-*-round-1, -round-2). Waves 5 and 6 start it: wire-scaffold, then abnf-core and catalogue-grammars. decision-blocker:wire-grammar-layout-pairing is cleared: M1 stores no grammar-layout pairing.
