@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T14:10:05Z",
+  "actor": "human:timo",
+  "artifact": "story:ntp-source-catalogue",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "targeted cargo tests and rfcspec check --all profiles in the unit worktree"
+  }
+}

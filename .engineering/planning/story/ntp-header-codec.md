@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-header-codec
 kind: story
-status: proposed
+status: implemented
 title: Generate the RFC 5905 header codec with signed Poll and Precision, tested with the version range 1-4
 relations:
 - decomposes: epic:ntp-profile
@@ -28,9 +28,11 @@ scope:
   path: website/docs/catalog/ntp.md
 - confidence: cited
   path: website/static/downloads/ntp
-revision: 5
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 5}
+- {from: "proposed", to: "active", at: "2026-11-05T14:10:28Z", actor: "human:timo", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-05T14:28:26Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Story
 

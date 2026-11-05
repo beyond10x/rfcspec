@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-source-catalogue
 kind: story
-status: active
+status: implemented
 title: 'Lock, read and extract RFC 5905 into profiles/ntp: 110 pages, 37 numbered sections, 13 BCP 14 requirements'
 relations:
 - decomposes: epic:ntp-profile
@@ -25,10 +25,11 @@ scope:
   path: website/docs/catalog/index.md
 - confidence: cited
   path: website/docs/catalog/ntp.md
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 3}
 - {from: "proposed", to: "active", at: "2026-11-05T13:50:49Z", actor: "human:timo", revision: 4}
+- {from: "active", to: "implemented", at: "2026-11-05T14:10:06Z", actor: "human:timo", revision: 6, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 

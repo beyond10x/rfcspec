@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T14:40:00Z",
+  "actor": "human:timo",
+  "artifact": "story:ntp-header-codec",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-gen -p rfc5905-ntp (11+23+7 ok); cargo test -p rfcspec-cli --test ntp (27 ok); cargo fmt --check; clippy -D warnings"
+  }
+}
