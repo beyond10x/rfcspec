@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 721,
+      "start": 718
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "2883833affa4c266402cba3ad881b3d1885ffe79bc680b1e6b46330c4f9ddfaa",
+  "inputs": {
+    "item": "rfc6455/R2.1-1",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "2.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 721,
+      "start": 718
+    },
+    "text": "When an implementation is required to _send_ data as part of the WebSocket Protocol, the implementation MAY delay the actual transmission arbitrarily, e.g., buffering data so as to send fewer IP packets."
+  },
+  "item": "rfc6455/R2.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "d2e5755630ab140430d72d0403bca36be1e7b6d61c8c43049c7ef400c5e852a9",
+  "response": {
+    "id": "R2.1-1",
+    "level": "MAY",
+    "quote": "When an implementation is required to _send_ data as part of the WebSocket Protocol, the implementation MAY delay the actual transmission arbitrarily, e.g., buffering data so as to send fewer IP packets.",
+    "source": "capitals-text",
+    "span": {
+      "end": 721,
+      "start": 718
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not include any requirements related to delaying transmission or buffering data."
+    }
+  },
+  "task": "status"
+}

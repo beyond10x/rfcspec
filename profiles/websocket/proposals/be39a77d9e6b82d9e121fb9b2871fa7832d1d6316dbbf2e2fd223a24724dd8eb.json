@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2226,
+      "start": 2225
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "d84372e1b5b4f11eb6c5e4978d651d837259674bcd027d063933808d2ab92244",
+  "inputs": {
+    "item": "rfc6455/R6.2-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2226,
+      "start": 2225
+    },
+    "text": "If a control frame (Section 5.5) is received, the frame MUST be handled as defined by Section 5.5."
+  },
+  "item": "rfc6455/R6.2-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "be39a77d9e6b82d9e121fb9b2871fa7832d1d6316dbbf2e2fd223a24724dd8eb",
+  "response": {
+    "id": "R6.2-2",
+    "level": "MUST",
+    "quote": "If a control frame (Section 5.5) is received, the frame MUST be handled as defined by Section 5.5.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2226,
+      "start": 2225
+    },
+    "status": {
+      "unsupported": "Model does not process control frames as specified in Section 5.5."
+    }
+  },
+  "task": "status"
+}

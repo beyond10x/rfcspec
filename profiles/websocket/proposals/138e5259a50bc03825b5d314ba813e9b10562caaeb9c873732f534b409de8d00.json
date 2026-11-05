@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2707,
+      "start": 2706
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "87b485f6218962ab559ffbb45140cbda5bcb725828610608b226cbcd9e608b9b",
+  "inputs": {
+    "item": "rfc6455/R9.1-4",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "9.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2707,
+      "start": 2706
+    },
+    "text": "Any extension-token used MUST be a registered token (see Section 11.4)."
+  },
+  "item": "rfc6455/R9.1-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "138e5259a50bc03825b5d314ba813e9b10562caaeb9c873732f534b409de8d00",
+  "response": {
+    "id": "R9.1-4",
+    "level": "MUST",
+    "quote": "Any extension-token used MUST be a registered token (see Section 11.4).",
+    "source": "capitals-text",
+    "span": {
+      "end": 2707,
+      "start": 2706
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce registration of extension-tokens as required."
+    }
+  },
+  "task": "status"
+}

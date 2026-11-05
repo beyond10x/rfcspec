@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2255,
+      "start": 2253
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "6d8ba8d95352391a68bd7eff1fae65770acc5e988799cd251ff4c89f4511a773",
+  "inputs": {
+    "item": "rfc6455/R6.2-6",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "6.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2255,
+      "start": 2253
+    },
+    "text": "Extensions, in addition to adding \"Extension data\" before the \"Application data\" in a payload, MAY also modify the \"Application data\" (such as by compressing it)."
+  },
+  "item": "rfc6455/R6.2-6",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "12fc7dbe10023f7e728df9b02ff45adbbed243038b368ba5cfe9d5081ede9aa5",
+  "response": {
+    "id": "R6.2-6",
+    "level": "MAY",
+    "quote": "Extensions, in addition to adding \"Extension data\" before the \"Application data\" in a payload, MAY also modify the \"Application data\" (such as by compressing it).",
+    "source": "capitals-text",
+    "span": {
+      "end": 2255,
+      "start": 2253
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement extension modifications to application data."
+    }
+  },
+  "task": "status"
+}

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 999,
+      "start": 998
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "38e99ca74a7f4dabba1f0111f684a362dfc90606412e72b4bfa55483cd1ff425",
+  "inputs": {
+    "item": "rfc6455/R4.1-31",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 999,
+      "start": 998
+    },
+    "text": "The request MAY include a header field with the name |Sec-WebSocket-Protocol|."
+  },
+  "item": "rfc6455/R4.1-31",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "5d95514da5e2423ac5ac59c9244b5d383ea357e1b64aad7da6486877bab1685f",
+  "response": {
+    "id": "R4.1-31",
+    "level": "MAY",
+    "quote": "The request MAY include a header field with the name |Sec-WebSocket-Protocol|.",
+    "source": "capitals-text",
+    "span": {
+      "end": 999,
+      "start": 998
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not need to implement optional features specified with 'MAY'."
+    }
+  },
+  "task": "status"
+}

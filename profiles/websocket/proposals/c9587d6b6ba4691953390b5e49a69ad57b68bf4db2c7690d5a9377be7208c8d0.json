@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1045,
+      "start": 1042
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c805de8b1a4bd828597438b49261b9a1cd1e74007353af124fa236b6ca0bdf22",
+  "inputs": {
+    "item": "rfc6455/R4.1-38",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1045,
+      "start": 1042
+    },
+    "text": "If the response lacks a |Connection| header field or the |Connection| header field doesn't contain a token that is an ASCII case-insensitive match for the value \"Upgrade\", the client MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R4.1-38",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "c9587d6b6ba4691953390b5e49a69ad57b68bf4db2c7690d5a9377be7208c8d0",
+  "response": {
+    "id": "R4.1-38",
+    "level": "MUST",
+    "quote": "If the response lacks a |Connection| header field or the |Connection| header field doesn't contain a token that is an ASCII case-insensitive match for the value \"Upgrade\", the client MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1045,
+      "start": 1042
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the required check for the |Connection| header field's \"Upgrade\" token."
+    }
+  },
+  "task": "status"
+}

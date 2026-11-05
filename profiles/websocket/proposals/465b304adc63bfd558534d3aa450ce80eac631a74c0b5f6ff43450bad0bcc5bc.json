@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2653,
+      "start": 2651
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "8c1b09b6d006db43e812675d9c0dde08c295bdc9f3493d6c4b5f6c9385a48711",
+  "inputs": {
+    "item": "rfc6455/R9-1",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "9",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2653,
+      "start": 2651
+    },
+    "text": "WebSocket clients MAY request extensions to this specification, and WebSocket servers MAY accept some or all extensions requested by the client."
+  },
+  "item": "rfc6455/R9-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "465b304adc63bfd558534d3aa450ce80eac631a74c0b5f6ff43450bad0bcc5bc",
+  "response": {
+    "id": "R9-1",
+    "level": "MAY",
+    "quote": "WebSocket clients MAY request extensions to this specification, and WebSocket servers MAY accept some or all extensions requested by the client.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2653,
+      "start": 2651
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not support extensions, making this requirement irrelevant."
+    }
+  },
+  "task": "status"
+}

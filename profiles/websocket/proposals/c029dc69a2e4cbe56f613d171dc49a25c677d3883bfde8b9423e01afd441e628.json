@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1024,
+      "start": 1021
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "5fd098bfc51eb1a3abe7381fb6a47b99117971662b51d332d7366cd9e25a8c5e",
+  "inputs": {
+    "item": "rfc6455/R4.1-34",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1024,
+      "start": 1021
+    },
+    "text": "The request MAY include any other header fields, for example, cookies [RFC6265] and/or authentication-related header fields such as the |Authorization| header field [RFC2616], which are processed according to documents that define them."
+  },
+  "item": "rfc6455/R4.1-34",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "c029dc69a2e4cbe56f613d171dc49a25c677d3883bfde8b9423e01afd441e628",
+  "response": {
+    "id": "R4.1-34",
+    "level": "MAY",
+    "quote": "The request MAY include any other header fields, for example, cookies [RFC6265] and/or authentication-related header fields such as the |Authorization| header field [RFC2616], which are processed according to documents that define them.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1024,
+      "start": 1021
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not allow including arbitrary header fields in requests."
+    }
+  },
+  "task": "status"
+}

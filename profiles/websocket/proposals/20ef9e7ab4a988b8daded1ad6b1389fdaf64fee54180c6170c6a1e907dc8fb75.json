@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 801,
+      "start": 797
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "3abcd315ce24f4691fba8d05b944177e31dd9d35fd3c7721436c6b391a969a9c",
+  "inputs": {
+    "item": "rfc6455/R4.1-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 801,
+      "start": 797
+    },
+    "text": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response."
+  },
+  "item": "rfc6455/R4.1-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "20ef9e7ab4a988b8daded1ad6b1389fdaf64fee54180c6170c6a1e907dc8fb75",
+  "response": {
+    "id": "R4.1-2",
+    "level": "MUST",
+    "quote": "When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response.",
+    "source": "capitals-text",
+    "span": {
+      "end": 801,
+      "start": 797
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the required handshake procedure for establishing WebSocket connections."
+    }
+  },
+  "task": "status"
+}

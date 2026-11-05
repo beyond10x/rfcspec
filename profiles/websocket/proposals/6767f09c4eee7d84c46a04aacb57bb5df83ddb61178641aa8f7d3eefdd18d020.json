@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1079,
+      "start": 1077
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "4d67b564a198719a7662f88c1c3ff071d0dcad3e53357f1b36095ebfbb8cc287",
+  "inputs": {
+    "item": "rfc6455/R4.1-42",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1079,
+      "start": 1077
+    },
+    "text": "If the server's response does not conform to the requirements for the server's handshake as defined in this section and in Section 4.2.2, the client MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R4.1-42",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "6767f09c4eee7d84c46a04aacb57bb5df83ddb61178641aa8f7d3eefdd18d020",
+  "response": {
+    "id": "R4.1-42",
+    "level": "MUST",
+    "quote": "If the server's response does not conform to the requirements for the server's handshake as defined in this section and in Section 4.2.2, the client MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1079,
+      "start": 1077
+    },
+    "status": {
+      "unsupported": "The model does not include a mechanism to fail the WebSocket connection as required."
+    }
+  },
+  "task": "status"
+}

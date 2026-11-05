@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1271,
+      "start": 1267
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "743aa38999ffd499dc27aeb74e7fb2092c42377aab47557a61df56577d6cd52e",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-9",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1271,
+      "start": 1267
+    },
+    "text": "The absence of such a field is equivalent to the null value (meaning that if the server does not wish to agree to one of the suggested subprotocols, it MUST NOT send back a |Sec-WebSocket-Protocol| header field in its response)."
+  },
+  "item": "rfc6455/R4.2.2-9",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "85628ff98e1a75f2c52431ac999fded5ce02a12a9889a0049027a9fd1861acb7",
+  "response": {
+    "id": "R4.2.2-9",
+    "level": "MUST NOT",
+    "quote": "The absence of such a field is equivalent to the null value (meaning that if the server does not wish to agree to one of the suggested subprotocols, it MUST NOT send back a |Sec-WebSocket-Protocol| header field in its response).",
+    "source": "capitals-text",
+    "span": {
+      "end": 1271,
+      "start": 1267
+    },
+    "status": {
+      "not-applicable": "the protocol profile does not support subprotocols"
+    }
+  },
+  "task": "status"
+}

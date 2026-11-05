@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1264,
+      "start": 1261
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "07c297e8899399f52aa8175ddfc52ce981d04ba0df32eb007fb30b7c18ba252c",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-8",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1264,
+      "start": 1261
+    },
+    "text": "The value chosen MUST be derived from the client's handshake, specifically by selecting one of the values from the |Sec-WebSocket-Protocol| field that the server is willing to use for this connection (if any)."
+  },
+  "item": "rfc6455/R4.2.2-8",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "1184a3d23beea59a04378750e12f959cc557f9523c5d68e1ab12283b68d84e3d",
+  "response": {
+    "id": "R4.2.2-8",
+    "level": "MUST",
+    "quote": "The value chosen MUST be derived from the client's handshake, specifically by selecting one of the values from the |Sec-WebSocket-Protocol| field that the server is willing to use for this connection (if any).",
+    "source": "capitals-text",
+    "span": {
+      "end": 1264,
+      "start": 1261
+    },
+    "status": {
+      "unsupported": "The model does not support deriving the subprotocol value from the client's handshake as specified."
+    }
+  },
+  "task": "status"
+}

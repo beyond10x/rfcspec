@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2946,
+      "start": 2946
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "cef21cd17fdf5d5be16cac55273168323d084bbf08d9cd8c639df7ab362a2bcf",
+  "inputs": {
+    "item": "rfc6455/R10.7-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "10.7",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2946,
+      "start": 2946
+    },
+    "text": "Incoming data MUST always be validated by both clients and servers."
+  },
+  "item": "rfc6455/R10.7-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "bdfc61cbfd02ec7ad1dae2c834da0965f18b7e61d675bd8cc14fd40c7423d589",
+  "response": {
+    "id": "R10.7-1",
+    "level": "MUST",
+    "quote": "Incoming data MUST always be validated by both clients and servers.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2946,
+      "start": 2946
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement validation of incoming data as required."
+    }
+  },
+  "task": "status"
+}

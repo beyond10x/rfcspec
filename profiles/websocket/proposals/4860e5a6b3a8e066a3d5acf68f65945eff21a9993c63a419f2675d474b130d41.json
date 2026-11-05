@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 934,
+      "start": 933
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "208c55fd96eb3ab43205069ad62cdbefc71d6eebb0f8eb170a9366bdacade59c",
+  "inputs": {
+    "item": "rfc6455/R4.1-19",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 934,
+      "start": 933
+    },
+    "text": "The method of the request MUST be GET, and the HTTP version MUST be at least 1.1."
+  },
+  "item": "rfc6455/R4.1-19",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4860e5a6b3a8e066a3d5acf68f65945eff21a9993c63a419f2675d474b130d41",
+  "response": {
+    "id": "R4.1-19",
+    "level": "MUST",
+    "quote": "The method of the request MUST be GET, and the HTTP version MUST be at least 1.1.",
+    "source": "capitals-text",
+    "span": {
+      "end": 934,
+      "start": 933
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce the required method (GET) or HTTP version (≥1.1) constraints."
+    }
+  },
+  "task": "status"
+}

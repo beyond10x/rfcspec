@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2932,
+      "start": 2930
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "f4f65c783900c689a38ace192d171b6128276eaead778386b87f2b4e1f11dd3b",
+  "inputs": {
+    "item": "rfc6455/R10.6-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "10.6",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2932,
+      "start": 2930
+    },
+    "text": "WebSocket implementations MUST support TLS and SHOULD employ it when communicating with their peers."
+  },
+  "item": "rfc6455/R10.6-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "42af1a0d86e1c3d24d8981e0e2b85d1a0e632afde1ceb51dad9a90e707d04407",
+  "response": {
+    "id": "R10.6-1",
+    "level": "MUST",
+    "quote": "WebSocket implementations MUST support TLS and SHOULD employ it when communicating with their peers.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2932,
+      "start": 2930
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement TLS support as required."
+    }
+  },
+  "task": "status"
+}

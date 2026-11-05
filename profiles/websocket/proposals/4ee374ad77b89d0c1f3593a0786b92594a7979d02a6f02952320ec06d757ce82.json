@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 665,
+      "start": 662
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "64e2995c2beb64cf801830b516e35ba6731c328280c4765829d7200fc4851b2e",
+  "inputs": {
+    "item": "rfc6455/R2-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 665,
+      "start": 662
+    },
+    "text": "Requirements phrased in the imperative as part of algorithms (such as \"strip any leading space characters\" or \"return false and abort these steps\") are to be interpreted with the meaning of the key word (\"MUST\", \"SHOULD\", \"MAY\", etc.) used in introducing the algorithm."
+  },
+  "item": "rfc6455/R2-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4ee374ad77b89d0c1f3593a0786b92594a7979d02a6f02952320ec06d757ce82",
+  "response": {
+    "id": "R2-1",
+    "level": "MUST",
+    "quote": "Requirements phrased in the imperative as part of algorithms (such as \"strip any leading space characters\" or \"return false and abort these steps\") are to be interpreted with the meaning of the key word (\"MUST\", \"SHOULD\", \"MAY\", etc.) used in introducing the algorithm.",
+    "source": "capitals-text",
+    "span": {
+      "end": 665,
+      "start": 662
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not support interpreting imperative algorithmic requirements with BCP 14 keyword semantics."
+    }
+  },
+  "task": "status"
+}

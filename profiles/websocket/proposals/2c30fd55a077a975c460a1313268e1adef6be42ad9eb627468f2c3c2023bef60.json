@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2182,
+      "start": 2181
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "a5a1dd5d9e8c1be5c4b150a5f4ced5556633a9d76bb9ee862cbfcea7e569ccf3",
+  "inputs": {
+    "item": "rfc6455/R6.1-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2182,
+      "start": 2181
+    },
+    "text": "To _Send a WebSocket Message_ comprising of /data/ over a WebSocket connection, an endpoint MUST perform the following steps."
+  },
+  "item": "rfc6455/R6.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "2c30fd55a077a975c460a1313268e1adef6be42ad9eb627468f2c3c2023bef60",
+  "response": {
+    "id": "R6.1-1",
+    "level": "MUST",
+    "quote": "To _Send a WebSocket Message_ comprising of /data/ over a WebSocket connection, an endpoint MUST perform the following steps.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2182,
+      "start": 2181
+    },
+    "status": {
+      "unsupported": "The model does not implement the required steps for sending WebSocket messages."
+    }
+  },
+  "task": "status"
+}

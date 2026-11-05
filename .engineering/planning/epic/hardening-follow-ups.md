@@ -2,12 +2,13 @@
 format: aep.planning-md/3
 id: epic:hardening-follow-ups
 kind: epic
-status: active
+status: implemented
 title: Close the adversary and implementation gaps of the follow-up epics
-revision: 3
+revision: 4
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T11:45:37Z", actor: "human:timo", revision: 2}
 - {from: "proposed", to: "active", at: "2026-11-05T11:45:37Z", actor: "human:timo", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-05T11:59:39Z", actor: "human:timo", revision: 4}
 ---
 ## Outcome
 

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 965,
+      "start": 963
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "b05162a1e492d82f8b0b0c732393e20f33e13b2e86feb884d04d4199050b66dd",
+  "inputs": {
+    "item": "rfc6455/R4.1-25",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 965,
+      "start": 963
+    },
+    "text": "The value of this header field MUST be a nonce consisting of a randomly selected 16-byte value that has been base64-encoded (see Section 4 of [RFC4648])."
+  },
+  "item": "rfc6455/R4.1-25",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4b86a8c5ad4ee8efabc3b3cc6457a718fa4b0e793b1f105ba81e16e820e0210b",
+  "response": {
+    "id": "R4.1-25",
+    "level": "MUST",
+    "quote": "The value of this header field MUST be a nonce consisting of a randomly selected 16-byte value that has been base64-encoded (see Section 4 of [RFC4648]).",
+    "source": "capitals-text",
+    "span": {
+      "end": 965,
+      "start": 963
+    },
+    "status": {
+      "not-applicable": "The model does not use the Sec-WebSocket-Key header field."
+    }
+  },
+  "task": "status"
+}

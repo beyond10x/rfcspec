@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 818,
+      "start": 814
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "0002f2773e2ad5c190d5c1893af591652d25549802bb37f46d84f42abe45f771",
+  "inputs": {
+    "item": "rfc6455/R4.1-5",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 818,
+      "start": 814
+    },
+    "text": "If the client already has a WebSocket connection to the remote host (IP address) identified by /host/ and port /port/ pair, even if the remote host is known by another name, the client MUST wait until that connection has been established or for that connection to have failed."
+  },
+  "item": "rfc6455/R4.1-5",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "e9a1c38193b24715dc8dca298fa93688b4fc9274faf5183d38bb84dc947a90cb",
+  "response": {
+    "id": "R4.1-5",
+    "level": "MUST",
+    "quote": "If the client already has a WebSocket connection to the remote host (IP address) identified by /host/ and port /port/ pair, even if the remote host is known by another name, the client MUST wait until that connection has been established or for that connection to have failed.",
+    "source": "capitals-text",
+    "span": {
+      "end": 818,
+      "start": 814
+    },
+    "status": {
+      "unsupported": "The model does not implement the requirement to wait for an existing connection to be established or fail."
+    }
+  },
+  "task": "status"
+}

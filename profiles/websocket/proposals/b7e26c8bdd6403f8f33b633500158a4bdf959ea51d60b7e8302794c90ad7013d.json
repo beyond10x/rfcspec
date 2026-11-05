@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1040,
+      "start": 1037
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "064ca434d46e7bb4e81647962196c15f447671a3bd54e2760dea502d9dadbda5",
+  "inputs": {
+    "item": "rfc6455/R4.1-37",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1040,
+      "start": 1037
+    },
+    "text": "If the response lacks an |Upgrade| header field or the |Upgrade| header field contains a value that is not an ASCII case- insensitive match for the value \"websocket\", the client MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R4.1-37",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "b7e26c8bdd6403f8f33b633500158a4bdf959ea51d60b7e8302794c90ad7013d",
+  "response": {
+    "id": "R4.1-37",
+    "level": "MUST",
+    "quote": "If the response lacks an |Upgrade| header field or the |Upgrade| header field contains a value that is not an ASCII case- insensitive match for the value \"websocket\", the client MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1040,
+      "start": 1037
+    },
+    "status": {
+      "unsupported": "The model does not implement the required check for the Upgrade header field."
+    }
+  },
+  "task": "status"
+}

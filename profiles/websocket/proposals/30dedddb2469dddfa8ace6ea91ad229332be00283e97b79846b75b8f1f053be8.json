@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2206,
+      "start": 2203
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "d5e6eeb76988b18f79e34d04a2076667ec8fa261ad7f84cdad89351f7c833903",
+  "inputs": {
+    "item": "rfc6455/R6.1-6",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2206,
+      "start": 2203
+    },
+    "text": "The opcode (frame-opcode) of the first frame containing the data MUST be set to the appropriate value from Section 5.2 for data that is to be interpreted by the recipient as text or binary data."
+  },
+  "item": "rfc6455/R6.1-6",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "30dedddb2469dddfa8ace6ea91ad229332be00283e97b79846b75b8f1f053be8",
+  "response": {
+    "id": "R6.1-6",
+    "level": "MUST",
+    "quote": "The opcode (frame-opcode) of the first frame containing the data MUST be set to the appropriate value from Section 5.2 for data that is to be interpreted by the recipient as text or binary data.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2206,
+      "start": 2203
+    },
+    "status": {
+      "unsupported": "The model does not implement frame opcode validation or enforcement."
+    }
+  },
+  "task": "status"
+}

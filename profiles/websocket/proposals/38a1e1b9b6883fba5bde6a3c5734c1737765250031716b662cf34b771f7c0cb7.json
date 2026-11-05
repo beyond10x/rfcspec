@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2669,
+      "start": 2666
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "8d02a3ea5074143c7b516ffe7af17c5468360101adbcbe0057ac0503741e4727",
+  "inputs": {
+    "item": "rfc6455/R9.1-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "9.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2669,
+      "start": 2666
+    },
+    "text": "If a value is received by either the client or the server during negotiation that does not conform to the ABNF below, the recipient of such malformed data MUST immediately _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R9.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "38a1e1b9b6883fba5bde6a3c5734c1737765250031716b662cf34b771f7c0cb7",
+  "response": {
+    "id": "R9.1-1",
+    "level": "MUST",
+    "quote": "If a value is received by either the client or the server during negotiation that does not conform to the ABNF below, the recipient of such malformed data MUST immediately _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2669,
+      "start": 2666
+    },
+    "status": {
+      "unsupported": "The model does not implement immediate connection failure for malformed data."
+    }
+  },
+  "task": "status"
+}

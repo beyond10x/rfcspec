@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 916,
+      "start": 914
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "bb104c2fe291c6c6f3207698a20471c34d968386b8020e21de7fa9adef617c58",
+  "inputs": {
+    "item": "rfc6455/R4.1-14",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 916,
+      "start": 914
+    },
+    "text": "If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection."
+  },
+  "item": "rfc6455/R4.1-14",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "394d542e271ef6540acde904847e9daff5eb59ae17b292f471c0d5e6bdf76879",
+  "response": {
+    "id": "R4.1-14",
+    "level": "MUST",
+    "quote": "If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection.",
+    "source": "capitals-text",
+    "span": {
+      "end": 916,
+      "start": 914
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement failure handling for TLS handshake failures in WebSocket connections."
+    }
+  },
+  "task": "status"
+}

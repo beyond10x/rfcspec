@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2201,
+      "start": 2197
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c6436ab99bc13d22b820221a1b56ef756cc8b60257365588ec67382f97738571",
+  "inputs": {
+    "item": "rfc6455/R6.1-5",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2201,
+      "start": 2197
+    },
+    "text": "If the data to be sent is large or if the data is not available in its entirety at the point the endpoint wishes to begin sending the data, the endpoint MAY alternately encapsulate the data in a series of frames as defined in Section 5.4."
+  },
+  "item": "rfc6455/R6.1-5",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "79210b7820e09af283ae05bdec6d2cfe09fbc7aacd5019c2c50a07606181af02",
+  "response": {
+    "id": "R6.1-5",
+    "level": "MAY",
+    "quote": "If the data to be sent is large or if the data is not available in its entirety at the point the endpoint wishes to begin sending the data, the endpoint MAY alternately encapsulate the data in a series of frames as defined in Section 5.4.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2201,
+      "start": 2197
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not support the optional behavior indicated by 'MAY'."
+    }
+  },
+  "task": "status"
+}

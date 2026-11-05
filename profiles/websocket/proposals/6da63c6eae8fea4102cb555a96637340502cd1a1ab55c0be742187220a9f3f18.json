@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 963,
+      "start": 962
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "1a66e8a2b6c8647aaab1e9578845f8692422ff66f108e47bc8b03177b3dd97ec",
+  "inputs": {
+    "item": "rfc6455/R4.1-24",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 963,
+      "start": 962
+    },
+    "text": "The request MUST include a header field with the name |Sec-WebSocket-Key|."
+  },
+  "item": "rfc6455/R4.1-24",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "6da63c6eae8fea4102cb555a96637340502cd1a1ab55c0be742187220a9f3f18",
+  "response": {
+    "id": "R4.1-24",
+    "level": "MUST",
+    "quote": "The request MUST include a header field with the name |Sec-WebSocket-Key|.",
+    "source": "capitals-text",
+    "span": {
+      "end": 963,
+      "start": 962
+    },
+    "status": {
+      "unsupported": "The model does not include the required |Sec-WebSocket-Key| header field."
+    }
+  },
+  "task": "status"
+}
