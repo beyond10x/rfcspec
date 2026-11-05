@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T17:09:14Z",
+  "actor": "human:timo",
+  "artifact": "story:bulk-xml-summary",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-source -p rfcspec-model -p rfcspec-cli -p rfcspec-docs -p rfcspec-doc (all ok); bulk check on committed summary holds; docs generate --check; fmt; clippy"
+  }
+}
