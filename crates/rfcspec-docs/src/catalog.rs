@@ -383,7 +383,7 @@ pub fn index(entries: &[Entry]) -> String {
         "One row per profile. Kind is the RFC's primary kind ([RFC kinds](/docs/concepts/rfc-kinds)). Stage is the highest pipeline stage whose output is checked into the profile: S0 locked sources, S4 the reviewed overlay, S5 the lowered ESS models, S6 generated code, S7 a recorded conformance run. Requirements counts the reviewed requirements by level, and Satisfied, Unsupported and Not applicable count them by status. Unreviewed counts the requirements the mechanical catalogue of the locked source holds and the overlay gives no status. Conformance is the overall verdict of the newest recorded run.\n\n",
     );
     page.push_str(&format!(
-        "The [RFC index]({}) lists every RFC published as plain text with its requirement counts by level, extracted mechanically and unreviewed, and marks the RFCs these profiles hold.\n\n",
+        "The [RFC index]({}) lists every RFC published as plain text or RFCXML with its requirement counts by level, read from its RFCXML where it exists, extracted mechanically and unreviewed, and marks the RFCs these profiles hold.\n\n",
         crate::bulk::ROUTE
     ));
     if entries.is_empty() {

@@ -97,7 +97,7 @@ tasks:
       - cargo run -q --locked -p rfcspec-cli -- bulk check --summary bulk/rfc-summary.jsonl --profiles profiles
 
   bulk-regenerate:
-    desc: Fetch rfc-index.xml and every RFC text into the cache outside the repository (CACHE, else the default cache), then rewrite bulk/rfc-summary.jsonl from it. Networked; check never runs it.
+    desc: Fetch rfc-index.xml, the RFCXML of every RFC the index lists as XML and the plain text of every other RFC it lists as TXT into the cache outside the repository (CACHE, else the default cache), then rewrite bulk/rfc-summary.jsonl from it. Networked; check never runs it.
     cmds:
       - cargo run -q --locked -p rfcspec-cli -- bulk fetch {{if .CACHE}}--cache {{.CACHE}}{{end}}
       - cargo run -q --locked -p rfcspec-cli -- bulk summarise {{if .CACHE}}--cache {{.CACHE}}{{end}} --out bulk/rfc-summary.jsonl
