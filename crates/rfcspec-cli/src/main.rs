@@ -312,7 +312,11 @@ fn run(cli: Cli) -> Result<ExitCode> {
         }
         Command::Extract { profile, rfc } => {
             let (document, _) = read_document(&profile, rfc)?;
-            print!("{}", to_json(&rfcspec_extract::extract(&document))?);
+            let (catalogue, problems) = rfcspec_extract::extract_reporting(&document);
+            for problem in problems {
+                eprintln!("rfcspec extract: {problem}");
+            }
+            print!("{}", to_json(&catalogue)?);
         }
         Command::Lower {
             profile,

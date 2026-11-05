@@ -140,6 +140,7 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
             anchor: None,
             figure_type: None,
             bcp14: Vec::new(),
+            entries: Vec::new(),
         });
     }
 

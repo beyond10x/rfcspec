@@ -187,6 +187,10 @@ pub struct Block {
     /// The block's `<bcp14>` marks, in source order; the text reader records none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bcp14: Vec<Bcp14Mark>,
+    /// The byte offsets in [`Block::text`] at which the entries of an RFCXML `<dl>` after the
+    /// first start; each is a sentence boundary. The text reader records none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<usize>,
 }
 
 impl Block {
@@ -212,7 +216,7 @@ pub struct Catalogue {
     pub format: String,
     pub rfc: u32,
     pub sha256: String,
-    /// Sentences with a BCP 14 keyword in capitals.
+    /// Sentences with a BCP 14 keyword in capitals, or, read from RFCXML, a `<bcp14>` element.
     pub requirements: Vec<Bcp14Requirement>,
     /// Sentences with a lowercase `must`, `should` or `may`, for review.
     pub prose_candidates: Vec<ProseCandidate>,
@@ -238,7 +242,7 @@ pub struct OctetExample {
 /// The catalogue format.
 pub const CATALOGUE_FORMAT: &str = "rfcspec/1";
 
-/// A sentence with a BCP 14 keyword in capitals.
+/// A sentence with a BCP 14 keyword in capitals, or, read from RFCXML, a `<bcp14>` element.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bcp14Requirement {
     /// `R<section>-<ordinal>`, the ordinal counting the requirements of the section in document
@@ -248,7 +252,8 @@ pub struct Bcp14Requirement {
     pub keyword: String,
     pub text: String,
     pub span: Span,
-    /// `capitals-text` for a sentence of a paragraph, `abnf-comment` for a sentence of an ABNF
+    /// `capitals-text` for a sentence of a plain-text paragraph, `bcp14-xml` for a sentence of an
+    /// RFCXML paragraph holding a `<bcp14>` element, `abnf-comment` for a sentence of an ABNF
     /// comment inside a figure.
     pub source: String,
     /// The numbered section the sentence lies in.
@@ -256,8 +261,10 @@ pub struct Bcp14Requirement {
     pub section: Option<String>,
 }
 
-/// The requirement source of a sentence in a paragraph.
+/// The requirement source of a sentence in a plain-text paragraph.
 pub const CAPITALS_TEXT: &str = "capitals-text";
+/// The requirement source of a sentence containing a `<bcp14>` element in RFCXML.
+pub const BCP14_XML: &str = "bcp14-xml";
 /// The requirement source of a sentence in an ABNF comment.
 pub const ABNF_COMMENT: &str = "abnf-comment";
 
