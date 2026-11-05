@@ -152,7 +152,8 @@ enum Command {
         #[arg(long, value_name = "PATH")]
         report: Option<PathBuf>,
     },
-    /// S2 in bulk: the `rfcspec-bulk/1` summary of every RFC the index publishes as plain text.
+    /// S2 in bulk: the `rfcspec-bulk/1` summary of every RFC the index publishes as RFCXML or
+    /// plain text.
     Bulk {
         #[command(subcommand)]
         command: BulkCommand,
@@ -161,41 +162,47 @@ enum Command {
 
 #[derive(Subcommand)]
 enum BulkCommand {
-    /// Download `rfc-index.xml` to `<cache>/rfc-index.xml` and, one at a time, the plain text of
-    /// every RFC it lists with a TXT format to `<cache>/txt/rfc<N>.txt`, skipping a text already
-    /// cached unless `--refresh`. Refuses a cache inside a Git working tree. Exits 1 at the first
-    /// failed download, naming the RFC and its URL; a rerun resumes.
+    /// Download `rfc-index.xml` to `<cache>/rfc-index.xml` and, one at a time, the RFCXML of
+    /// every RFC it lists with an XML format to `<cache>/xml/rfc<N>.xml` and the plain text of
+    /// every other RFC it lists with a TXT format to `<cache>/txt/rfc<N>.txt`, skipping a source
+    /// already cached unless `--refresh`. Refuses a cache inside a Git working tree. Exits 1 at
+    /// the first failed download, naming the RFC and its URL; a rerun resumes.
     Fetch {
         /// Default `$XDG_CACHE_HOME/rfcspec/bulk`, else `$HOME/.cache/rfcspec/bulk`.
         #[arg(long, value_name = "DIR")]
         cache: Option<PathBuf>,
         #[arg(long, default_value = rfcspec_source::corpus::RFC_INDEX)]
         index_url: String,
-        /// Where `rfc<N>.txt` is downloaded from.
+        /// Where `rfc<N>.xml` and `rfc<N>.txt` are downloaded from.
         #[arg(long, default_value = rfcspec_source::RFC_EDITOR)]
         base_url: String,
-        /// Download every text again, even one already cached.
+        /// Download every source again, even one already cached.
         #[arg(long)]
         refresh: bool,
     },
-    /// Write the summary of a copy of `rfc-index.xml` and a directory of RFC plain texts: per
-    /// index entry with a TXT format, its index metadata, the SHA-256 of `<texts>/rfc<N>.txt` and
-    /// its catalogue requirements counted by BCP 14 level. Reads `<cache>/rfc-index.xml` and
-    /// `<cache>/txt/` (the cache `bulk fetch` writes, by default its default) unless `--index`
-    /// and `--texts` are given. Exits 1, writing nothing, naming each RFC whose text is missing.
-    /// Reads no network.
+    /// Write the summary of a copy of `rfc-index.xml`, a directory of RFC plain texts and a
+    /// directory of RFCXML sources: per index entry with an XML or a TXT format, its index
+    /// metadata, the source read (`<xml>/rfc<N>.xml` where the index lists XML, recorded as
+    /// `"format":"xml"`, else `<texts>/rfc<N>.txt`), its SHA-256 and its catalogue requirements
+    /// counted by BCP 14 level. Reads `<cache>/rfc-index.xml`, `<cache>/txt/` and `<cache>/xml/`
+    /// (the cache `bulk fetch` writes, by default its default) unless `--index`, `--texts` and
+    /// `--xml` are given. Exits 1, writing nothing, naming each RFC whose source is missing or
+    /// whose XML does not read. Reads no network.
     Summarise {
-        #[arg(long, value_name = "DIR", conflicts_with_all = ["index", "texts"])]
+        #[arg(long, value_name = "DIR", conflicts_with_all = ["index", "texts", "xml"])]
         cache: Option<PathBuf>,
-        #[arg(long, value_name = "FILE", requires = "texts")]
+        #[arg(long, value_name = "FILE", requires_all = ["texts", "xml"])]
         index: Option<PathBuf>,
         #[arg(long, value_name = "DIR", requires = "index")]
         texts: Option<PathBuf>,
+        #[arg(long, value_name = "DIR", requires = "index")]
+        xml: Option<PathBuf>,
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
-    /// Check a summary offline: its header, row order, digests and counts, and every RFC locked in
-    /// `<profiles>/*/rfcspec.lock` against its locked source. Exits 1 naming each line that fails.
+    /// Check a summary offline: its header, row order, row formats, digests and counts, and every
+    /// RFC locked in `<profiles>/*/rfcspec.lock` against its locked source, read in the locked
+    /// format, which must be the row's. Exits 1 naming each line that fails.
     Check {
         #[arg(long, value_name = "FILE")]
         summary: PathBuf,
@@ -424,12 +431,13 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 eprintln!("rfcspec bulk: fetched RFC {rfc}");
             })?;
             println!(
-                "rfcspec bulk: {}: index sha256 {}, {} texts, {} downloaded, {} already cached",
+                "rfcspec bulk: {}: index sha256 {}, {} XML, {} texts, {} downloaded, {} already cached",
                 cache.display(),
                 corpus.index_sha256,
+                corpus.xml,
                 corpus.texts,
                 corpus.downloaded,
-                corpus.texts - corpus.downloaded
+                corpus.xml + corpus.texts - corpus.downloaded
             );
         }
         Command::Bulk {
@@ -438,18 +446,23 @@ fn run(cli: Cli) -> Result<ExitCode> {
                     cache,
                     index,
                     texts,
+                    xml,
                     out,
                 },
         } => {
-            use rfcspec_source::corpus::{INDEX_FILE, TEXT_DIR, default_cache};
-            let (index, texts) = match (index, texts) {
-                (Some(index), Some(texts)) => (index, texts),
+            use rfcspec_source::corpus::{INDEX_FILE, TEXT_DIR, XML_DIR, default_cache};
+            let (index, texts, xml) = match (index, texts, xml) {
+                (Some(index), Some(texts), Some(xml)) => (index, texts, xml),
                 _ => {
                     let cache = cache.map_or_else(default_cache, Ok)?;
-                    (cache.join(INDEX_FILE), cache.join(TEXT_DIR))
+                    (
+                        cache.join(INDEX_FILE),
+                        cache.join(TEXT_DIR),
+                        cache.join(XML_DIR),
+                    )
                 }
             };
-            let summary = bulk::summarise(&index, &texts)?;
+            let summary = bulk::summarise(&index, &texts, &xml)?;
             if let Some(parent) = out.parent().filter(|parent| !parent.as_os_str().is_empty()) {
                 std::fs::create_dir_all(parent)
                     .with_context(|| format!("creating {}", parent.display()))?;

@@ -1,6 +1,6 @@
-//! The bulk summary (`rfcspec-bulk/1`): [`summarise`] reads a copy of `rfc-index.xml` and a
-//! directory of RFC plain texts, [`check`] validates a summary offline against itself and against
-//! the RFCs the profiles lock.
+//! The bulk summary (`rfcspec-bulk/1`): [`summarise`] reads a copy of `rfc-index.xml`, a
+//! directory of RFC plain texts and a directory of RFCXML sources, [`check`] validates a summary
+//! offline against itself and against the RFCs the profiles lock.
 
 use std::{
     collections::BTreeMap,
@@ -13,40 +13,91 @@ use rfcspec_extract::{EXTRACTOR_VERSION, LEVELS, extract, level_counts};
 use rfcspec_model::{
     BULK_FORMAT, BulkHeader, BulkRow, LOCK_FILE, SourceFormat, bulk_summary, sha256_hex,
 };
+use rfcspec_source::corpus::bulk_format;
 use serde_json::Value;
 
-/// The counts by level of a text, by the extraction `rfcspec extract` runs.
-fn counts(rfc: u32, sha256: &str, text: &str) -> BTreeMap<String, u64> {
-    level_counts(&extract(&rfcspec_doc::read(rfc, sha256, text)))
+/// The counts by level of a source read by the reader of its format, by the extraction
+/// `rfcspec extract` runs.
+fn counts(
+    rfc: u32,
+    format: SourceFormat,
+    sha256: &str,
+    text: &str,
+) -> Result<BTreeMap<String, u64>> {
+    let document = rfcspec_doc::read_format(rfc, format, sha256, text)?;
+    Ok(level_counts(&extract(&document)))
 }
 
-/// The summary of every index entry with a plain text, read from `<texts>/rfc<N>.txt`; refused,
-/// naming each RFC and its expected path, when a text is missing.
-pub fn summarise(index: &Path, texts: &Path) -> Result<String> {
+/// The name of a format in a check message: the value a row's `format` holds, `text` for plain
+/// text.
+fn format_name(format: SourceFormat) -> &'static str {
+    match format {
+        SourceFormat::Xml => "xml",
+        SourceFormat::Text => "text",
+    }
+}
+
+/// The summary of every index entry with an XML or a TXT format: one with XML read from
+/// `<xml>/rfc<N>.xml`, every other one from `<texts>/rfc<N>.txt`. Refused, naming each RFC and
+/// its expected path, when a source is missing, and naming the RFC and the file when an XML
+/// source does not read.
+pub fn summarise(index: &Path, texts: &Path, xml: &Path) -> Result<String> {
     let bytes = fs::read(index).with_context(|| format!("reading {}", index.display()))?;
-    let xml =
+    let index_xml =
         std::str::from_utf8(&bytes).with_context(|| format!("{} is not UTF-8", index.display()))?;
-    let mut entries: Vec<_> = rfcspec_source::index::parse_index(xml)
+    let mut entries: Vec<_> = rfcspec_source::index::parse_index(index_xml)
         .with_context(|| format!("reading {}", index.display()))?
         .into_iter()
-        .filter(|entry| entry.has_text())
+        .filter_map(|entry| bulk_format(&entry).map(|format| (format, entry)))
         .collect();
-    entries.sort_by_key(|entry| entry.rfc);
-    let mut missing = Vec::new();
+    entries.sort_by_key(|(_, entry)| entry.rfc);
+    let mut problems = Vec::new();
     let mut rows = Vec::new();
-    for entry in entries {
-        let path = texts.join(format!("rfc{}.txt", entry.rfc));
-        let Ok(bytes) = fs::read(&path) else {
-            missing.push(format!("RFC {}: no text at {}", entry.rfc, path.display()));
+    for (format, entry) in entries {
+        let path = match format {
+            SourceFormat::Xml => xml.join(format!("rfc{}.xml", entry.rfc)),
+            SourceFormat::Text => texts.join(format!("rfc{}.txt", entry.rfc)),
+        };
+        let Ok(source) = fs::read(&path) else {
+            let kind = match format {
+                SourceFormat::Xml => "XML",
+                SourceFormat::Text => "text",
+            };
+            problems.push(format!(
+                "RFC {}: no {kind} at {}",
+                entry.rfc,
+                path.display()
+            ));
             continue;
         };
-        let sha256 = sha256_hex(&bytes);
-        let (text, lossy) = match String::from_utf8(bytes) {
-            Ok(text) => (text, false),
-            Err(error) => (String::from_utf8_lossy(error.as_bytes()).into_owned(), true),
+        let sha256 = sha256_hex(&source);
+        let (text, lossy) = match (String::from_utf8(source), format) {
+            (Ok(text), _) => (text, false),
+            (Err(_), SourceFormat::Xml) => {
+                problems.push(format!(
+                    "RFC {}: {} is not UTF-8",
+                    entry.rfc,
+                    path.display()
+                ));
+                continue;
+            }
+            (Err(error), SourceFormat::Text) => {
+                (String::from_utf8_lossy(error.as_bytes()).into_owned(), true)
+            }
+        };
+        let counts = match counts(entry.rfc, format, &sha256, &text) {
+            Ok(counts) => counts,
+            Err(error) => {
+                problems.push(format!(
+                    "RFC {}: reading {}: {error:#}",
+                    entry.rfc,
+                    path.display()
+                ));
+                continue;
+            }
         };
         rows.push(BulkRow {
-            counts: counts(entry.rfc, &sha256, &text),
+            counts,
             rfc: entry.rfc,
             title: entry.title,
             status: entry.status,
@@ -57,12 +108,13 @@ pub fn summarise(index: &Path, texts: &Path) -> Result<String> {
             obsoleted_by: entry.obsoleted_by,
             updates: entry.updates,
             updated_by: entry.updated_by,
+            format,
             sha256,
             lossy,
         });
     }
-    if !missing.is_empty() {
-        bail!("{}", missing.join("; "));
+    if !problems.is_empty() {
+        bail!("{}", problems.join("; "));
     }
     bulk_summary(&sha256_hex(&bytes), EXTRACTOR_VERSION, &rows)
 }
@@ -75,9 +127,10 @@ fn is_digest(value: &str) -> bool {
             .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
-/// A row as the check read it: its line number, digest and counts.
+/// A row as the check read it: its line number, source format, digest and counts.
 struct Read {
     line: usize,
+    format: SourceFormat,
     sha256: String,
     counts: BTreeMap<String, u64>,
 }
@@ -113,6 +166,19 @@ fn row(line: usize, text: &str) -> (Vec<String>, Option<(u32, Read)>) {
         }
         _ => problems.push(format!("line {line}: counts is missing or not an object")),
     }
+    match value.get("format") {
+        None => {}
+        Some(Value::String(format)) if format == "xml" => {
+            if value.get("lossy") == Some(&Value::Bool(true)) {
+                problems.push(format!(
+                    "line {line}: lossy is true on a row read from XML; an XML source that is not UTF-8 is refused, never read lossily"
+                ));
+            }
+        }
+        Some(other) => problems.push(format!(
+            "line {line}: format {other} is not \"xml\", the only format a row records; a row without one was read from plain text"
+        )),
+    }
     if !problems.is_empty() {
         return (problems, None);
     }
@@ -123,6 +189,7 @@ fn row(line: usize, text: &str) -> (Vec<String>, Option<(u32, Read)>) {
                 row.rfc,
                 Read {
                     line,
+                    format: row.format,
                     sha256: row.sha256,
                     counts: row.counts,
                 },
@@ -211,19 +278,20 @@ pub fn check(summary: &Path, profiles: &Path) -> Result<Vec<String>> {
                     lock_path.display()
                 ));
             }
-            if matches!(
-                rfcspec_source::format_of(&entry.file),
-                Ok(SourceFormat::Xml)
-            ) {
+            let locked_format = rfcspec_source::format_of(&entry.file)?;
+            if read.format != locked_format {
                 problems.push(format!(
-                    "{}: RFC {rfc} is locked as RFCXML ({}), and the bulk summary counts plain text only; story:bulk-xml-summary makes it read XML",
-                    lock_path.display(),
-                    entry.file
+                    "line {line}: RFC {rfc} row format {} differs from format {} of {} locked in {}",
+                    format_name(read.format),
+                    format_name(locked_format),
+                    entry.file,
+                    lock_path.display()
                 ));
                 continue;
             }
             let locked = rfcspec_source::read_locked(&profile, rfc)?;
-            let expected = counts(rfc, &locked.entry.sha256, &locked.text);
+            let expected = counts(rfc, locked.format, &locked.entry.sha256, &locked.text)
+                .with_context(|| format!("reading {}", profile.join(&entry.file).display()))?;
             if read.counts != expected {
                 problems.push(format!(
                     "line {line}: RFC {rfc} counts {} differ from {} extracted from the source locked in {}",
