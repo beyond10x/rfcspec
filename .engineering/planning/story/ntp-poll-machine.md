@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-poll-machine
 kind: story
-status: proposed
+status: active
 title: 'Review and lower the RFC 5905 poll process: poll timer, reach, capped backoff, and record the ESS timer gaps'
 relations:
 - decomposes: epic:ntp-profile
@@ -29,9 +29,10 @@ scope:
   path: website/docs
 - confidence: cited
   path: website/static/downloads/ntp
-revision: 4
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:23Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-05T14:42:02Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 ## Story
 
