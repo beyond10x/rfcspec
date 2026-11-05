@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: story:explorer-profile-layer
 kind: story
-status: proposed
+status: active
 title: 'Show a profiled RFC''s reviewed layer in the explorer: each requirement''s status, review decision and recorded proposal, the machines, layouts and their witnesses'
 relations:
 - decomposes: epic:rfc-explorer
 - depends_on: story:explorer-rfc-view
 - depends_on: story:explorer-search
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-05T19:00:27Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Story
 
