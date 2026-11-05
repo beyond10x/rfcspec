@@ -283,6 +283,7 @@ pub fn extract_reporting(document: &Document) -> (Catalogue, Vec<String>) {
         dialogue_steps: dialogue_steps.into_iter().flatten().collect(),
         examples,
         octet_examples: octet_examples(document),
+        grammars: rfcspec_wire::grammars::collect(document),
     };
     (catalogue, problems)
 }

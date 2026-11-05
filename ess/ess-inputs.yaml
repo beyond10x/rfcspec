@@ -8,6 +8,7 @@ specification:
   - domains/review.yaml
 scenarios:
   - scenarios/confirm-decision-already-exists.yaml
+  - scenarios/extract-grammar-already-exists.yaml
   - scenarios/propose-requirement-already-exists.yaml
   - scenarios/record-decision-reject-reason.yaml
   - scenarios/record-proposal-already-exists.yaml

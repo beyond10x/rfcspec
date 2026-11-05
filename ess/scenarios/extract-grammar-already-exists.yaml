@@ -1,0 +1,41 @@
+type: ess-scenario/1
+domain: rfcspec.catalogue
+scenario: extract-grammar-already-exists
+summary: A second extraction of one grammar id is refused, and the first grammar stays.
+
+timeline:
+  - at: 2026-11-06T09:00:00Z
+    command: rfcspec.catalogue.ExtractGrammar
+    actor: rfcspec.catalogue.Reader
+    input:
+      grammar_id: rfc6455/grammar/5.2
+      rfc: 6455
+      name: "5.2"
+      rules: "ws-frame = frame-fin"
+      uses: []
+      span: {rfc: 6455, section: "5.2", start: 1687, end: 1783, digest: "0f"}
+    outcome: extracted
+
+  - at: 2026-11-06T09:00:01Z
+    command: rfcspec.catalogue.ExtractGrammar
+    actor: rfcspec.catalogue.Reader
+    input:
+      grammar_id: rfc6455/grammar/5.2
+      rfc: 6455
+      name: "5.2"
+      rules: "ws-frame = frame-fin"
+      uses: []
+      span: {rfc: 6455, section: "5.2", start: 1687, end: 1783, digest: "0f"}
+    outcome: already-exists
+    error:
+      name: rfcspec.catalogue.AlreadyExists
+
+assert:
+  - view: rfcspec.catalogue.Grammars
+    counts: {at_least: 1, at_most: 1}
+  - view: rfcspec.catalogue.Grammars
+    contains:
+      grammar_id: rfc6455/grammar/5.2
+      rfc: 6455
+      name: "5.2"
+      state: Read

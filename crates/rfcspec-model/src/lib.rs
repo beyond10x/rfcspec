@@ -274,6 +274,9 @@ pub struct Catalogue {
     /// Bulleted lines that list octets (`0x81 0x05 ...`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub octet_examples: Vec<OctetExample>,
+    /// The ABNF figures of each section, one grammar per section (design sections 4, 5 and 12.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub grammars: Vec<wire::Grammar>,
 }
 
 /// An example given as octets, such as RFC 6455's `*  0x82 0x7E 0x0100 [256 bytes of binary
