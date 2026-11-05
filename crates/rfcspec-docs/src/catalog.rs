@@ -487,6 +487,7 @@ pub fn page(entry: &Entry) -> String {
     semantics(&mut page, entry);
     matrix(&mut page, entry);
     gaps(&mut page, entry);
+    property_notes(&mut page, entry);
     rejected(&mut page, entry);
     conformance(&mut page, entry);
     downloads(&mut page, entry);
@@ -640,6 +641,34 @@ fn gaps(page: &mut String, entry: &Entry) {
         }
         page.push('\n');
     }
+}
+
+/// The descriptions the overlay records on its machines' properties, in overlay order; no section
+/// when there is none.
+fn property_notes(page: &mut String, entry: &Entry) {
+    let notes: Vec<(&str, &str, &str)> = entry
+        .overlay
+        .iter()
+        .flat_map(|o| &o.machines)
+        .flat_map(|m| {
+            m.properties
+                .iter()
+                .filter_map(|p| Some((m.name.as_str(), p.name(), p.description()?)))
+        })
+        .collect();
+    if notes.is_empty() {
+        return;
+    }
+    page.push_str("## Property notes\n\nWhat exploration of a model's property checks, where it checks less than its name says.\n\n| Machine | Property | Note |\n|---|---|---|\n");
+    for (machine, property, note) in notes {
+        page.push_str(&format!(
+            "| `{}` | `{}` | {} |\n",
+            cell(machine),
+            cell(property),
+            cell(note)
+        ));
+    }
+    page.push('\n');
 }
 
 /// The overlay's reject decisions with their reasons, in the order they were recorded; no section

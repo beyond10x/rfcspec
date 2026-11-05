@@ -21,6 +21,9 @@ const PROFILE: &str = "profiles/ntp";
 
 const SHA256: &str = "8b7abd903c60202e2953ee012fefa6916666c3b0c71825c748cdd262024fb268";
 
+/// What the 48 s horizon leaves of `backoff-doubles-interval`, as the overlay describes it.
+const BACKOFF_NOTE: &str = "Within the 48 s model horizon exploration checks only that the first backoff interval is not 16 s: it fails a client whose first two backoff intervals sum to 32 s or less. The doubling (factor 2) and the 2^MAXPOLL s ceiling lie beyond the horizon; the arm pins of the lowering test check them.";
+
 fn repository() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -247,9 +250,10 @@ fn the_profile_declares_one_udp_layer_on_port_123_and_the_page_shows_it() {
 /// `rfcspec check` requires a status for every catalogue requirement in a scoped section, so
 /// the three BCP 14 requirements of section 9.2 are settled; the prose requirement `R-VN-1`
 /// (the version range of section 9.2) is satisfied by the `header` layout, and the five prose
-/// requirements of the on-wire exchange (sections 8 and 9.2) by the `exchange` machine.
+/// requirements of the on-wire exchange (sections 8 and 9.2) by the `exchange` machine; the
+/// seven prose requirements of the poll process (sections 9.2 and 13) are the `poll` machine's.
 #[test]
-fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_and_nine_reviewed_requirements()
+fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_two_machines_and_sixteen_reviewed_requirements()
  {
     let overlay: serde_json::Value = rfcspec_model::from_yaml(
         &fs::read_to_string(repository().join(PROFILE).join("overlay.yaml")).unwrap(),
@@ -259,12 +263,14 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
     assert_eq!(overlay["rfc"], 5905);
     assert_eq!(overlay["kind"], "K1");
     assert_eq!(overlay["layouts"][0]["name"], "header");
-    assert!(
-        overlay
-            .get("findings")
-            .is_none_or(|s| s.as_array().is_some_and(Vec::is_empty)),
-        "{overlay:?}"
-    );
+    let findings = overlay["findings"].as_array().unwrap();
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    let finding = &findings[0];
+    assert_eq!(finding["item"], "R13-UNREACH-1");
+    let text = finding["finding"].as_str().unwrap();
+    for needle in ["Figure 29", "24", "line 2871", "12", "line 5820"] {
+        assert!(text.contains(needle), "{needle} not in {text}");
+    }
     let machines: Vec<(&str, &str)> = overlay["machines"]
         .as_array()
         .unwrap()
@@ -276,7 +282,7 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
             )
         })
         .collect();
-    assert_eq!(machines, [("exchange", "udp")]);
+    assert_eq!(machines, [("exchange", "udp"), ("poll", "udp")]);
     let settled: Vec<(&str, &str, &str, u64, u64)> = overlay["requirements"]
         .as_array()
         .unwrap()
@@ -303,6 +309,13 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
             ("R8-DUP-1", "prose", "MUST", 1588, 1590),
             ("R8-LOSS-1", "prose", "MUST", 1434, 1435),
             ("R9.2-FXMIT-1", "prose", "MUST", 1862, 1863),
+            ("R13-BACKOFF-1", "prose", "MUST", 2948, 2950),
+            ("R13-RESET-1", "prose", "MUST", 2951, 2952),
+            ("R9.2-REACH-1", "prose", "MUST", 2012, 2014),
+            ("R9.2-REACH-2", "prose", "MUST", 2010, 2011),
+            ("R13-UNREACH-1", "prose", "MUST", 2947, 2948),
+            ("R13-RUN-1", "prose", "MUST", 2833, 2834),
+            ("R13-UPDATE-1", "prose", "MUST", 2999, 3002),
         ]
     );
     let satisfied: Vec<(&str, &str)> = overlay["requirements"]
@@ -325,6 +338,29 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
             ),
             ("R8-LOSS-1", "exchange.server.R8-LOSS-1-replay"),
             ("R9.2-FXMIT-1", "exchange.server.R9.2-FXMIT-1-answer"),
+            ("R13-BACKOFF-1", "poll.client.R13-BACKOFF-1-poll-backoff"),
+            ("R9.2-REACH-1", "poll.client.R9.2-REACH-1-poll-emptied"),
+        ]
+    );
+    let gaps: Vec<(&str, &str)> = overlay["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|r| {
+            let reason = r["status"]["unsupported"].as_str()?;
+            let gap = reason.strip_prefix("ess-gap ")?.split(':').next()?;
+            Some((r["id"].as_str()?, gap))
+        })
+        .collect();
+    assert_eq!(
+        gaps,
+        [
+            ("R8-DUP-1", "G1"),
+            ("R13-RESET-1", "G7"),
+            ("R9.2-REACH-2", "G2"),
+            ("R13-UNREACH-1", "G2"),
+            ("R13-RUN-1", "G11"),
+            ("R13-UPDATE-1", "G7"),
         ]
     );
     let quotes: Vec<(&str, &str)> = overlay["requirements"]
@@ -357,6 +393,34 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
                 "R9.2-FXMIT-1",
                 "the server constructs a server (mode 4) packet and returns it to the client without retaining state."
             ),
+            (
+                "R13-BACKOFF-1",
+                "Thereafter for each poll hpoll is increased by one, which doubles the poll interval up to the maximum MAXPOLL"
+            ),
+            (
+                "R13-RESET-1",
+                "When the server again becomes reachable, unreach is set to zero, hpoll is reset to the tc system variable"
+            ),
+            (
+                "R9.2-REACH-1",
+                "If the register contains any nonzero bits, the server is considered reachable; otherwise, it is unreachable."
+            ),
+            (
+                "R9.2-REACH-2",
+                "The register is shifted left by one bit when a packet is sent and the rightmost bit is set to zero."
+            ),
+            (
+                "R13-UNREACH-1",
+                "otherwise, unreach is incremented by one for each poll to the maximum UNREACH."
+            ),
+            (
+                "R13-RUN-1",
+                "It runs continuously, whether or not servers are reachable"
+            ),
+            (
+                "R13-UPDATE-1",
+                "otherwise, the host poll exponent hpoll is set to the minimum of ppoll from the last packet received and hpoll from the poll routine, but not less than MINPOLL or greater than MAXPOLL."
+            ),
         ]
     );
     let dup = &overlay["requirements"][6];
@@ -382,32 +446,185 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_an
             }
         }
     }
+    for participant in overlay["machines"][1]["participants"].as_array().unwrap() {
+        for transition in participant["transitions"].as_array().unwrap() {
+            let implements = transition["implements"].as_array().unwrap();
+            let label = transition["label"].as_str().unwrap();
+            assert_eq!(
+                implements.is_empty(),
+                label.starts_with("model-horizon"),
+                "{transition}"
+            );
+            for id in implements {
+                assert!(ids.contains(id.as_str().unwrap()), "{transition}");
+            }
+        }
+    }
 }
 
 #[test]
-fn lower_writes_the_exchange_model_and_its_check_fails_without_it() {
+fn lower_writes_the_exchange_and_poll_models_and_its_check_fails_without_either() {
     succeeded(&rfcspec(&["lower", "--profile", PROFILE, "--check"]));
-    let (_temp, profile) = scratch("lower");
-    let from = repository().join(PROFILE);
-    for file in catalog::files(&from).unwrap() {
-        fs::create_dir_all(profile.join(&file).parent().unwrap()).unwrap();
-        fs::copy(from.join(&file), profile.join(&file)).unwrap();
+    for name in ["exchange", "poll"] {
+        let (_temp, profile) = scratch("lower");
+        let from = repository().join(PROFILE);
+        for file in catalog::files(&from).unwrap() {
+            fs::create_dir_all(profile.join(&file).parent().unwrap()).unwrap();
+            fs::copy(from.join(&file), profile.join(&file)).unwrap();
+        }
+        let file = format!("generated/{name}.protospec.yaml");
+        let model = profile.join(&file);
+        fs::remove_file(&model).unwrap();
+        let output = rfcspec(&["lower", "--profile", profile.to_str().unwrap(), "--check"]);
+        assert_eq!(output.status.code(), Some(1));
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains(&format!("{name}.protospec.yaml is missing")),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        succeeded(&rfcspec(&["lower", "--profile", profile.to_str().unwrap()]));
+        assert_eq!(
+            fs::read(&model).unwrap(),
+            fs::read(from.join(&file)).unwrap()
+        );
+        fs::remove_dir_all(profile).unwrap();
     }
-    let model = profile.join("generated/exchange.protospec.yaml");
-    fs::remove_file(&model).unwrap();
-    let output = rfcspec(&["lower", "--profile", profile.to_str().unwrap(), "--check"]);
-    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn the_ntp_page_lists_the_poll_model_its_requirements_and_their_ess_gaps() {
+    let outputs = catalog::outputs(&repository()).unwrap();
+    let page = &outputs["website/docs/catalog/ntp.md"];
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("exchange.protospec.yaml is missing"),
+        page.contains(
+            "| [`poll.protospec.yaml`](pathname:///rfcspec/downloads/ntp/poll.protospec.yaml) | `ess-protospec/1` model of machine `poll` |"
+        ),
+        "{page}"
+    );
+    assert!(outputs.contains_key("website/static/downloads/ntp/poll.protospec.yaml"));
+    assert!(
+        page.contains(&format!(
+            "## Property notes\n\nWhat exploration of a model's property checks, where it checks less than its name says.\n\n| Machine | Property | Note |\n|---|---|---|\n| `poll` | `backoff-doubles-interval` | {BACKOFF_NOTE} |\n"
+        )),
+        "{page}"
+    );
+    assert!(!outputs["website/docs/catalog/time.md"].contains("## Property notes"));
+    for row in [
+        "| R13-BACKOFF-1 | MUST | all | Thereafter for each poll hpoll is increased by one, which doubles the poll interval up to the maximum MAXPOLL | lines 2948-2950 | satisfied | poll.client.R13-BACKOFF-1-poll-backoff |",
+        "| R9.2-REACH-1 | MUST | all | If the register contains any nonzero bits, the server is considered reachable; otherwise, it is unreachable. | lines 2012-2014 | satisfied | poll.client.R9.2-REACH-1-poll-emptied |",
+        "| R13-RESET-1 | MUST | all | When the server again becomes reachable, unreach is set to zero, hpoll is reset to the tc system variable | lines 2951-2952 | unsupported |",
+        "| R9.2-REACH-2 | MUST | all | The register is shifted left by one bit when a packet is sent and the rightmost bit is set to zero. | lines 2010-2011 | unsupported |",
+        "| R13-UNREACH-1 | MUST | all | otherwise, unreach is incremented by one for each poll to the maximum UNREACH. | lines 2947-2948 | unsupported |",
+        "| R13-RUN-1 | MUST | all | It runs continuously, whether or not servers are reachable | lines 2833-2834 | unsupported |",
+        "| R13-UPDATE-1 | MUST | all | otherwise, the host poll exponent hpoll is set to the minimum of ppoll from the last packet received and hpoll from the poll routine, but not less than MINPOLL or greater than MAXPOLL. | lines 2999-3002 | unsupported |",
+        "| [G1](/docs/design#7-lowering-to-ess-and-the-gaps) | R8-DUP-1 |",
+        "| [G2](/docs/design#7-lowering-to-ess-and-the-gaps) | R9.2-REACH-2, R13-UNREACH-1 |",
+        "| [G7](/docs/design#7-lowering-to-ess-and-the-gaps) | R13-RESET-1, R13-UPDATE-1 |",
+        "| [G11](/docs/design#7-lowering-to-ess-and-the-gaps) | R13-RUN-1 |",
+    ] {
+        assert!(page.contains(row), "{row} not in\n{page}");
+    }
+}
+
+/// Design section 7: the gaps the NTP slice hit, the three new ones each citing ess 0.86.0 and
+/// the probe of 2026-11-05.
+#[test]
+fn the_design_gap_table_names_the_ntp_gaps_g1_g2_g7_and_rows_g11_to_g14() {
+    let design = fs::read_to_string(repository().join("docs/design/rfcspec.md")).unwrap();
+    let row = |gap: &str| -> &str {
+        design
+            .lines()
+            .find(|line| line.starts_with(&format!("| {gap} |")))
+            .unwrap_or_else(|| panic!("no row {gap}"))
+    };
+    assert!(
+        row("G1").contains("NTP origin and duplicate check (RFC 5905 section 8, R8-DUP-1)"),
         "{}",
-        String::from_utf8_lossy(&output.stderr)
+        row("G1")
     );
-    succeeded(&rfcspec(&["lower", "--profile", profile.to_str().unwrap()]));
-    assert_eq!(
-        fs::read(&model).unwrap(),
-        fs::read(from.join("generated/exchange.protospec.yaml")).unwrap()
+    for gap in ["G2", "G7"] {
+        assert!(
+            row(gap).contains(
+                "NTP reach register, unreach counter, poll exponent (RFC 5905 sections 9.2, 13)"
+            ),
+            "{}",
+            row(gap)
+        );
+    }
+    for (gap, needles) in [
+        (
+            "G11",
+            &[
+                "ess-conformance/src/protocol/engine.rs",
+                "successors",
+                "monitor.rs",
+                "max_time_ms",
+                "horizon verdict",
+            ][..],
+        ),
+        (
+            "G12",
+            &[
+                "duplication: true",
+                "state bound exhausted",
+                "duplication budget",
+            ][..],
+        ),
+        ("G13", &["full channel", "loss: true", "on_full: drop"][..]),
+        (
+            "G14",
+            &[
+                "R9.2-REACH-1",
+                "ess-domain/src/protocol.rs",
+                "event_count",
+                "max",
+                "min",
+                "transition pins",
+            ][..],
+        ),
+    ] {
+        let line = row(gap);
+        for needle in needles.iter().chain(&["ess 0.86.0", "2026-11-05"]) {
+            assert!(line.contains(needle), "{needle} not in {line}");
+        }
+    }
+}
+
+/// AGENTS.md State, What exists and Gate name the four profiles and the `ntp` task; README.md
+/// names four profiles.
+#[test]
+fn agents_md_names_four_profiles_and_the_ntp_task() {
+    let readme = fs::read_to_string(repository().join("README.md")).unwrap();
+    assert!(
+        readme.contains("for four profiles (RFC 868, RFC 6455, RFC 1035, RFC 5905)"),
+        "{readme}"
     );
-    fs::remove_dir_all(profile).unwrap();
+    let agents = fs::read_to_string(repository().join("AGENTS.md")).unwrap();
+    let section = |head: &str, next: &str| -> String {
+        let start = agents.find(head).unwrap_or_else(|| panic!("no {head}"));
+        let end = agents[start..]
+            .find(next)
+            .map_or(agents.len(), |e| start + e);
+        agents[start..end].to_owned()
+    };
+    let state = section("## State", "| path | what |");
+    assert!(state.contains("four profiles"), "{state}");
+    assert!(state.contains("`profiles/ntp`"), "{state}");
+    let exists = section("| path | what |", "## Gate");
+    assert!(exists.contains("| `profiles/ntp/` |"), "{exists}");
+    assert!(exists.contains("`poll`"), "{exists}");
+    assert!(
+        exists.contains("the first backoff interval is not 16 s"),
+        "{exists}"
+    );
+    assert!(exists.contains("arm pins"), "{exists}");
+    let gate = section("## Gate", "## Release");
+    assert!(gate.contains("the `ntp` task"), "{gate}");
+    assert!(
+        gate.contains("poll.protospec.yaml") || gate.contains("`poll` model"),
+        "{gate}"
+    );
 }
 
 #[test]
@@ -488,7 +705,8 @@ fn fetch_of_rfc_5905_twice_from_a_local_server_writes_the_committed_lock_and_cha
 }
 
 #[test]
-fn the_catalogue_lists_ntp_at_stage_s6_with_its_nine_reviewed_requirements_and_writes_its_page() {
+fn the_catalogue_lists_ntp_at_stage_s6_with_its_sixteen_reviewed_requirements_and_writes_its_page()
+{
     let outputs = catalog::outputs(&repository()).unwrap();
     let index = &outputs["website/docs/catalog/index.md"];
     let row = index
@@ -497,7 +715,7 @@ fn the_catalogue_lists_ntp_at_stage_s6_with_its_nine_reviewed_requirements_and_w
         .unwrap_or_else(|| panic!("{index}"));
     assert_eq!(
         row,
-        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 6 MUST, 1 SHOULD, 2 MAY | 5 | 4 | 0 | 10 | no recorded run |"
+        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 13 MUST, 1 SHOULD, 2 MAY | 7 | 9 | 0 | 10 | no recorded run |"
     );
     assert!(outputs.contains_key("website/docs/catalog/ntp.md"));
     for (path, text) in [
@@ -516,15 +734,24 @@ fn the_catalogue_lists_ntp_at_stage_s6_with_its_nine_reviewed_requirements_and_w
 }
 
 #[test]
-fn check_reports_the_ntp_overlay_with_nine_requirements_the_header_layout_and_the_exchange_machine()
-{
+fn check_reports_the_ntp_overlay_with_sixteen_requirements_the_header_layout_and_two_machines() {
     let stdout = succeeded(&rfcspec(&["check", "--profile", PROFILE]));
     assert!(
         stdout.contains(
-            "profiles/ntp: overlay holds (9 requirements, 1 layouts, 1 machines, 0 findings, 1 layers, 0 recorded runs)"
+            "profiles/ntp: overlay holds (16 requirements, 1 layouts, 2 machines, 1 findings, 1 layers, 0 recorded runs)"
         ),
         "{stdout}"
     );
+    assert!(
+        stdout.contains(
+            "0 recorded runs); 4 model constructs implement no requirement: poll.client.model-horizon-unreachable, poll.client.model-horizon-reachable, poll.client.model-horizon-backoff, poll.client.model-horizon-discard\n"
+        ),
+        "{stdout}"
+    );
+    for profile in ["profiles/dns", "profiles/time", "profiles/websocket"] {
+        let stdout = succeeded(&rfcspec(&["check", "--profile", profile]));
+        assert!(!stdout.contains("model constructs"), "{stdout}");
+    }
 }
 
 #[test]
@@ -585,6 +812,7 @@ fn the_ntp_codec_is_a_workspace_member_and_task_check_runs_the_ntp_task() {
         [
             "cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/ntp --check",
             "ess protocol explore --path profiles/ntp/generated/exchange.protospec.yaml --inputs profiles/ntp/witnesses/exchange.inputs.json | grep -q '\"verdict\": \"passed\"'",
+            "ess protocol explore --path profiles/ntp/generated/poll.protospec.yaml --inputs profiles/ntp/witnesses/poll.inputs.json | grep -q '\"verdict\": \"passed\"'",
             "cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/ntp --check",
             "cargo test -q --locked -p rfc5905-ntp",
         ]

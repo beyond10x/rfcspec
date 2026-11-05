@@ -1,0 +1,275 @@
+format: ess-protospec/1
+name: rfc5905-ntp-poll
+bounds:
+  max_steps: 128
+  max_states: 8192
+  max_time_ms: 131072000
+participants:
+- name: client
+  initial: idle
+  states:
+  - idle
+  - unreachable
+  - reachable
+  - backoff
+  - ended
+  inputs:
+  - name: mobilize
+    fields: []
+  timers:
+  - poll
+  - horizon
+  transitions:
+  - name: R9.2-REACH-1-mobilize
+    from: idle
+    to: unreachable
+    trigger:
+      kind: input
+      name: mobilize
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-REACH-1-mobilize
+      payload: {}
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+    - kind: arm
+      timer: horizon
+      after:
+        kind: fixed
+        millis: 48000
+  - name: R9.2-REACH-1-poll-reachable
+    from: reachable
+    to: reachable
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-REACH-1-poll-reachable
+      payload: {}
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: R9.2-REACH-1-poll-emptied
+    from: reachable
+    to: unreachable
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-REACH-1-poll-emptied
+      payload: {}
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: R9.2-REACH-1-poll-unreachable
+    from: unreachable
+    to: unreachable
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-REACH-1-poll-unreachable
+      payload: {}
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: R13-BACKOFF-1-poll-backoff-start
+    from: unreachable
+    to: backoff
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R13-BACKOFF-1-poll-backoff-start
+      payload: {}
+    - kind: arm
+      timer: poll
+      after:
+        kind: backoff
+        timer: poll
+        factor: 2
+        ceiling_ms: 131072000
+  - name: R13-BACKOFF-1-poll-backoff
+    from: backoff
+    to: backoff
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R13-BACKOFF-1-poll-backoff
+      payload: {}
+    - kind: emit
+      name: backoff-poll
+    - kind: arm
+      timer: poll
+      after:
+        kind: backoff
+        timer: poll
+        factor: 2
+        ceiling_ms: 131072000
+  - name: R9.2-REACH-1-response-unreachable
+    from: unreachable
+    to: reachable
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+  - name: R9.2-REACH-1-response-reachable
+    from: reachable
+    to: reachable
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+  - name: R9.2-REACH-1-response-backoff
+    from: backoff
+    to: reachable
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+    effects:
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: model-horizon-unreachable
+    from: unreachable
+    to: ended
+    trigger:
+      kind: timer
+      name: horizon
+    effects:
+    - kind: cancel
+      timer: poll
+  - name: model-horizon-reachable
+    from: reachable
+    to: ended
+    trigger:
+      kind: timer
+      name: horizon
+    effects:
+    - kind: cancel
+      timer: poll
+  - name: model-horizon-backoff
+    from: backoff
+    to: ended
+    trigger:
+      kind: timer
+      name: horizon
+    effects:
+    - kind: cancel
+      timer: poll
+  - name: model-horizon-discard
+    from: ended
+    to: ended
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+- name: server
+  initial: listening
+  states:
+  - listening
+  transitions:
+  - name: R9.2-FXMIT-1-answer
+    from: listening
+    to: listening
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: request
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-FXMIT-1-answer
+      payload: {}
+messages:
+- name: request
+  fields: []
+- name: response
+  fields: []
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: true
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: true
+  duplication: false
+properties:
+- kind: event_count
+  name: backoff-doubles-interval
+  participant: client
+  event: backoff-poll
+  max: 1

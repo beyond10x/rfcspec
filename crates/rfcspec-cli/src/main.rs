@@ -495,8 +495,18 @@ fn check(profile: &Path) -> bool {
                 Err(error) => problems.push(format!("{}: {error:#}", profile.display())),
             }
             if problems.is_empty() {
+                let constructs = rfcspec_ess::model_constructs(&loaded.overlay);
+                let named = if constructs.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "; {} model constructs implement no requirement: {}",
+                        constructs.len(),
+                        constructs.join(", ")
+                    )
+                };
                 println!(
-                    "{}: overlay holds ({} requirements, {} layouts, {} machines, {} findings, {} layers, {} recorded runs)",
+                    "{}: overlay holds ({} requirements, {} layouts, {} machines, {} findings, {} layers, {} recorded runs){named}",
                     profile.display(),
                     loaded.overlay.requirements.len(),
                     loaded.overlay.layouts.len(),

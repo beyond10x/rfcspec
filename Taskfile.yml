@@ -79,12 +79,15 @@ tasks:
       - cargo test -q --locked -p rfc1035-dns
 
   ntp:
-    desc: Check the ntp profile's lowered exchange model and its exploration, and its generated header codec and tests.
+    desc: Check the ntp profile's lowered exchange and poll models and their exploration, and its generated header codec and tests.
     cmds:
       - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/ntp --check
       - cmd: >-
           ess protocol explore --path profiles/ntp/generated/exchange.protospec.yaml
           --inputs profiles/ntp/witnesses/exchange.inputs.json | grep -q '"verdict": "passed"'
+      - cmd: >-
+          ess protocol explore --path profiles/ntp/generated/poll.protospec.yaml
+          --inputs profiles/ntp/witnesses/poll.inputs.json | grep -q '"verdict": "passed"'
       - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/ntp --check
       - cargo test -q --locked -p rfc5905-ntp
 
