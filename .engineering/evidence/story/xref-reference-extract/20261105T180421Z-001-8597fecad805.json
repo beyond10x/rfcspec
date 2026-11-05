@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T18:04:21Z",
+  "actor": "human:timo",
+  "artifact": "story:xref-reference-extract",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-model -p rfcspec-doc -p rfcspec-cli -p rfcspec-propose -p rfcspec-docs -p rfcspec-extract (378 ok, 4 ignored); bulk check; docs generate --check; fmt; clippy"
+  }
+}

@@ -2,14 +2,15 @@
 format: aep.planning-md/3
 id: story:explorer-rfc-view
 kind: story
-status: proposed
+status: active
 title: 'Open any RFC of the index in the RFC explorer: metadata, requirements by section and level, update graph and references as links'
 relations:
 - decomposes: epic:rfc-explorer
 - depends_on: story:xref-reference-extract
-revision: 4
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-05T18:04:21Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Story
 
