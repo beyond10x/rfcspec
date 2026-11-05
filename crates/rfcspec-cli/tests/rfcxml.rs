@@ -12,9 +12,12 @@ use std::{
 
 const XML_SHA256: &str = "8a60d0b566bfb252ff18a3dc3df9fe94e90b201b807002a47d45386616b09aae";
 
-/// The SHA-256 of `rfcspec read --profile profiles/websocket --rfc 6455` before the XML reader.
+/// The SHA-256 of `rfcspec read --profile profiles/websocket --rfc 6455` since the text reader
+/// reads its table of contents as a figure and its one-line list items as paragraphs
+/// (story:text-reader-structure); its catalogue is pinned by `rfcspec-extract`'s
+/// `locked_profiles` test.
 const WEBSOCKET_READ_SHA256: &str =
-    "2b7033351dba1343ddc8092b8370d4d10cd91569f16d67c4d08a907aa792aa10";
+    "921eb605cc44f769d50a12b812149852a25b894205b45976a6b471efeaaefc4e";
 
 fn repository() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")

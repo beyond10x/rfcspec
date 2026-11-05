@@ -20,12 +20,12 @@ The [RFC explorer](pathname:///rfcspec/explorer/) lists every RFC of this index 
 ## Summary
 
 - Index SHA-256: `891d504b74051f8091ec6ccfba30170357899f07ee1f81d7824ba1657416ffc1`
-- Extractor version: 1
+- Extractor version: 2
 - RFCs: 9847
-- RFCs with at least one requirement: 6084
+- RFCs with at least one requirement: 6083
 - Rows read from RFCXML: 1390
 - Rows read from plain text: 8457
-- Requirements by level: 116772 MUST, 19468 MUST NOT, 3215 REQUIRED, 6511 SHALL, 589 SHALL NOT, 41707 SHOULD, 6273 SHOULD NOT, 5676 RECOMMENDED, 761 NOT RECOMMENDED, 34352 MAY, 5220 OPTIONAL
+- Requirements by level: 116902 MUST, 19517 MUST NOT, 3203 REQUIRED, 6520 SHALL, 589 SHALL NOT, 41753 SHOULD, 6279 SHOULD NOT, 5670 RECOMMENDED, 762 NOT RECOMMENDED, 34395 MAY, 5229 OPTIONAL
 
 ## Reviewed profiles
 

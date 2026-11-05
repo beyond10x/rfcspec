@@ -238,6 +238,100 @@ pub fn summarise(index: &Path, texts: &Path, xml: &Path) -> Result<(String, Stri
     ))
 }
 
+/// The (id, level) list of the catalogue of one cached source, read by the reader of `format`.
+fn requirement_levels(
+    rfc: u32,
+    format: SourceFormat,
+    path: &Path,
+) -> Result<Vec<(String, String)>> {
+    let bytes = fs::read(path).with_context(|| format!("RFC {rfc}: reading {}", path.display()))?;
+    let sha256 = sha256_hex(&bytes);
+    let text = match format {
+        SourceFormat::Xml => String::from_utf8(bytes)
+            .with_context(|| format!("RFC {rfc}: {} is not UTF-8", path.display()))?,
+        SourceFormat::Text => String::from_utf8_lossy(&bytes).into_owned(),
+    };
+    let document = rfcspec_doc::read_format(rfc, format, &sha256, &text)
+        .with_context(|| format!("RFC {rfc}: reading {}", path.display()))?;
+    Ok(extract(&document)
+        .requirements
+        .into_iter()
+        .map(|requirement| (requirement.id, requirement.keyword))
+        .collect())
+}
+
+/// The RFCs a cache holds as both `<texts>/rfc<N>.txt` and `<xml>/rfc<N>.xml`, ascending.
+fn held_in_both(texts: &Path, xml: &Path) -> Result<Vec<u32>> {
+    let mut found = Vec::new();
+    for entry in fs::read_dir(xml).with_context(|| format!("reading {}", xml.display()))? {
+        let name = entry?.file_name();
+        let Some(rfc) = name
+            .to_str()
+            .and_then(|name| name.strip_prefix("rfc")?.strip_suffix(".xml")?.parse().ok())
+        else {
+            continue;
+        };
+        if texts.join(format!("rfc{rfc}.txt")).is_file() {
+            found.push(rfc);
+        }
+    }
+    found.sort_unstable();
+    Ok(found)
+}
+
+/// Compare the text path with the RFCXML path over a cache: for every RFC held in both formats
+/// (or only those of `only`, each refused, naming the missing file, when it is not), the number
+/// of requirement ids whose level differs between the two catalogues or that only one of them
+/// gives. Returns the RFCs with a difference, ascending, and how many RFCs were compared.
+pub fn compare(texts: &Path, xml: &Path, only: &[u32]) -> Result<(Vec<(u32, usize)>, usize)> {
+    let rfcs = if only.is_empty() {
+        held_in_both(texts, xml)?
+    } else {
+        let mut rfcs = only.to_vec();
+        rfcs.sort_unstable();
+        rfcs.dedup();
+        let missing: Vec<String> = rfcs
+            .iter()
+            .flat_map(|rfc| {
+                [
+                    texts.join(format!("rfc{rfc}.txt")),
+                    xml.join(format!("rfc{rfc}.xml")),
+                ]
+                .into_iter()
+                .filter(|path| !path.is_file())
+                .map(move |path| format!("RFC {rfc}: no {}", path.display()))
+            })
+            .collect();
+        if !missing.is_empty() {
+            bail!("{}", missing.join("; "));
+        }
+        rfcs
+    };
+    let mut differing = Vec::new();
+    for &rfc in &rfcs {
+        let text: BTreeMap<String, String> = requirement_levels(
+            rfc,
+            SourceFormat::Text,
+            &texts.join(format!("rfc{rfc}.txt")),
+        )?
+        .into_iter()
+        .collect();
+        let xml: BTreeMap<String, String> =
+            requirement_levels(rfc, SourceFormat::Xml, &xml.join(format!("rfc{rfc}.xml")))?
+                .into_iter()
+                .collect();
+        let ids: std::collections::BTreeSet<&String> = text.keys().chain(xml.keys()).collect();
+        let differ = ids
+            .into_iter()
+            .filter(|id| text.get(*id) != xml.get(*id))
+            .count();
+        if differ > 0 {
+            differing.push((rfc, differ));
+        }
+    }
+    Ok((differing, rfcs.len()))
+}
+
 /// Whether a value is 64 lower-case hexadecimal digits.
 fn is_digest(value: &str) -> bool {
     value.len() == 64
