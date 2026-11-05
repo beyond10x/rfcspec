@@ -21,8 +21,10 @@ fn repository() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// A fresh copy of every file of `profiles/websocket`, in a temporary directory under the
-/// workspace's build directory that is removed when the returned guard drops.
+/// A fresh copy of `profiles/websocket` as it stood before its section 5.1 and 5.3 proposals
+/// were reviewed (without `proposals/`, the decisions, or the requirement entries of those two
+/// sections), in a temporary directory under the workspace's build directory that is removed
+/// when the returned guard drops.
 fn websocket(name: &str) -> (TempDir, PathBuf) {
     let scratch = repository().join("target/rfcspec-cli");
     fs::create_dir_all(&scratch).unwrap();
@@ -33,9 +35,15 @@ fn websocket(name: &str) -> (TempDir, PathBuf) {
     let dir = temp.path().join("websocket");
     let from = repository().join("profiles/websocket");
     for file in catalog::files(&from).unwrap() {
+        if file.starts_with("proposals/") {
+            continue;
+        }
         fs::create_dir_all(dir.join(&file).parent().unwrap()).unwrap();
         fs::copy(from.join(&file), dir.join(&file)).unwrap();
     }
+    let path = dir.join(OVERLAY_FILE);
+    let text = fs::read_to_string(&path).unwrap();
+    fs::write(&path, before_the_slice(&text)).unwrap();
     (temp, dir)
 }
 
@@ -137,6 +145,7 @@ fn position(overlay: &Overlay, id: &str) -> Option<usize> {
 #[test]
 fn accept_edit_and_reject_each_write_their_decision_and_the_profile_still_checks() {
     let (_temp, profile) = websocket("verdicts");
+    let original = overlay_bytes(&profile);
     let ids = record(&profile, "double-model", &answers());
     let before = overlay(&profile);
 
@@ -227,11 +236,19 @@ fn accept_edit_and_reject_each_write_their_decision_and_the_profile_still_checks
         Some(&edited)
     );
     assert_eq!(after.decisions[2].edit, None);
+    let reasons: Vec<Option<&str>> = after
+        .decisions
+        .iter()
+        .map(|d| d.reason.as_deref())
+        .collect();
+    assert_eq!(
+        reasons,
+        [None, None, Some("the level is wrong")],
+        "a reject holds its reason, accept and edit none"
+    );
 
     let written = overlay_bytes(&profile);
-    let committed =
-        fs::read_to_string(repository().join("profiles/websocket/overlay.yaml")).unwrap();
-    for line in committed.lines() {
+    for line in original.lines() {
         assert!(written.contains(line), "kept as written: {line}");
     }
 
@@ -313,6 +330,53 @@ fn an_edit_without_an_entry_file_is_refused_as_incomplete() {
 }
 
 #[test]
+fn a_reject_with_an_empty_reason_is_refused_as_incomplete() {
+    let (_temp, profile) = websocket("empty-reason");
+    let ids = record(&profile, "double-model", &answers()[..1]);
+    for reason in ["", "  "] {
+        let stderr = refused(
+            &profile,
+            &ids[0],
+            &["reject", "--reason", reason],
+            "DecisionIncomplete",
+        );
+        assert!(stderr.contains("reason"), "{stderr}");
+    }
+}
+
+#[test]
+fn check_refuses_a_reject_decision_with_an_empty_reason() {
+    let (_temp, profile) = websocket("check-reason");
+    let ids = record(&profile, "double-model", &answers()[..1]);
+    let output = review(
+        &profile,
+        &ids[0],
+        &["reject", "--reason", "the level is wrong"],
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let output = check(&profile);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = overlay_bytes(&profile);
+    assert_eq!(
+        text.matches("reason: the level is wrong").count(),
+        1,
+        "{text}"
+    );
+    fs::write(
+        profile.join(OVERLAY_FILE),
+        text.replace("reason: the level is wrong", "reason: ''"),
+    )
+    .unwrap();
+    let output = check(&profile);
+    let stderr = stderr(&output);
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(
+        stderr.contains("decision rfc6455/R5.1-1: reject decision carries an empty reason"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn an_edited_entry_whose_quote_is_not_at_its_span_is_refused() {
     let (_temp, profile) = websocket("bad-edit");
     let ids = record(&profile, "double-model", &answers()[..1]);
@@ -368,4 +432,22 @@ fn check_names_the_item_of_a_decision_without_its_proposal_or_with_another_text_
     assert_eq!(output.status.code(), Some(1), "{stderr}");
     assert!(stderr.contains("decision rfc6455/R5.1-5"), "{stderr}");
     assert!(!stderr.contains("decision rfc6455/R5.1-2"), "{stderr}");
+}
+
+/// The text of the websocket overlay without its decisions and without the requirement entries
+/// of sections 5.1 and 5.3, every other line as written.
+fn before_the_slice(overlay: &str) -> String {
+    let overlay = overlay.split("\ndecisions:\n").next().unwrap();
+    let mut out = String::new();
+    let mut skipping = false;
+    for line in overlay.lines() {
+        if line.starts_with("  - ") || !line.starts_with("    ") {
+            skipping = line.starts_with("  - id: R5.1-") || line.starts_with("  - id: R5.3-");
+        }
+        if !skipping {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
 }

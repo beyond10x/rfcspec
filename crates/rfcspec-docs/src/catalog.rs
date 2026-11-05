@@ -11,8 +11,9 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use rfcspec_model::{
-    Bcp14Requirement, Catalogue, LOCK_FILE, Lock, OVERLAY_FILE, Overlay, PROFILE_FILE, Profile,
-    RUNS_DIR, RunReport, Status, newest, read_runs, read_yaml, sha256_hex, wire,
+    Bcp14Requirement, Catalogue, Decision, DecisionKind, LOCK_FILE, Lock, OVERLAY_FILE, Overlay,
+    PROFILE_FILE, Profile, RUNS_DIR, RunReport, Status, newest, read_runs, read_yaml, sha256_hex,
+    wire,
 };
 
 use crate::page::{Meta, SOURCE, cell, front_matter};
@@ -311,6 +312,25 @@ fn by_level<'a>(levels: impl Iterator<Item = &'a str>) -> String {
         .join(", ")
 }
 
+/// Counts by level from a count per level, `4 MUST, 2 SHOULD` in the order of [`by_level`];
+/// `none` when every count is zero.
+pub fn counted(counts: &BTreeMap<String, u64>) -> String {
+    let mut ranked: Vec<(usize, &str, u64)> = counts
+        .iter()
+        .filter(|(_, n)| **n > 0)
+        .map(|(level, n)| (rank(level), level.as_str(), *n))
+        .collect();
+    if ranked.is_empty() {
+        return "none".into();
+    }
+    ranked.sort_unstable();
+    ranked
+        .iter()
+        .map(|(_, level, n)| format!("{n} {level}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Requirement counts by status: satisfied, unsupported, not applicable.
 pub fn status_counts(overlay: Option<&Overlay>) -> [usize; 3] {
     let mut counts = [0; 3];
@@ -364,6 +384,10 @@ pub fn index(entries: &[Entry]) -> String {
     page.push_str(
         "One row per profile. Kind is the RFC's primary kind ([RFC kinds](/docs/concepts/rfc-kinds)). Stage is the highest pipeline stage whose output is checked into the profile: S0 locked sources, S4 the reviewed overlay, S5 the lowered ESS models, S6 generated code, S7 a recorded conformance run. Requirements counts the reviewed requirements by level, and Satisfied, Unsupported and Not applicable count them by status. Unreviewed counts the requirements the mechanical catalogue of the locked source holds and the overlay gives no status. Conformance is the overall verdict of the newest recorded run.\n\n",
     );
+    page.push_str(&format!(
+        "The [RFC index]({}) lists every RFC published as plain text with its requirement counts by level, extracted mechanically and unreviewed, and marks the RFCs these profiles hold.\n\n",
+        crate::bulk::ROUTE
+    ));
     if entries.is_empty() {
         page.push_str("No profile yet.\n");
         return page;
@@ -463,6 +487,7 @@ pub fn page(entry: &Entry) -> String {
     semantics(&mut page, entry);
     matrix(&mut page, entry);
     gaps(&mut page, entry);
+    rejected(&mut page, entry);
     conformance(&mut page, entry);
     downloads(&mut page, entry);
     page
@@ -614,6 +639,36 @@ fn gaps(page: &mut String, entry: &Entry) {
     }
 }
 
+/// The overlay's reject decisions with their reasons, in the order they were recorded; no section
+/// when there is none.
+fn rejected(page: &mut String, entry: &Entry) {
+    let rejects: Vec<&Decision> = entry
+        .overlay
+        .iter()
+        .flat_map(|o| &o.decisions)
+        .filter(|d| d.kind == DecisionKind::Reject)
+        .collect();
+    if rejects.is_empty() {
+        return;
+    }
+    page.push_str(&format!(
+        "## Rejected proposals\n\nProposals a reviewer rejected, from the decisions in [`{path}/{OVERLAY_FILE}`]({SOURCE}/{path}/{OVERLAY_FILE}); each item stays unreviewed and is not proposed again.\n\n| Item | Proposal | Reason |\n|---|---|---|\n",
+        path = entry.path
+    ));
+    for decision in rejects {
+        page.push_str(&format!(
+            "| {} | {} | {} |\n",
+            cell(&decision.item),
+            decision
+                .proposal_id
+                .as_deref()
+                .map_or_else(|| "none".to_owned(), |id| format!("`{id}`")),
+            cell(decision.reason.as_deref().unwrap_or_default()),
+        ));
+    }
+    page.push('\n');
+}
+
 fn conformance(page: &mut String, entry: &Entry) {
     page.push_str("## Conformance\n\n");
     match newest(&entry.runs) {
@@ -748,6 +803,13 @@ mod tests {
             "| [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |"
         );
         assert!(crate::page::passive_problems(&page).is_empty(), "{page}");
+        assert_eq!(
+            page.lines()
+                .filter(|l| l.contains("](/docs/catalog/rfcs)"))
+                .count(),
+            1,
+            "the index links the RFC index once: {page}"
+        );
     }
 
     #[test]
@@ -965,7 +1027,17 @@ mod tests {
                 .all(|r| !in_websocket_scope(r.section.as_deref())),
             "0 unreviewed requirements inside the scope"
         );
-        assert_eq!(unreviewed_cell(&entry), outside.len().to_string());
+        let outside_with_status = outside
+            .iter()
+            .filter(|r| reviewed.contains(&r.id.as_str()))
+            .count();
+        assert_eq!(
+            outside_with_status, 7,
+            "the accepted and edited proposals of sections 5.1 and 5.3"
+        );
+        let expected = outside.len() - outside_with_status;
+        assert_eq!(expected, 119);
+        assert_eq!(unreviewed_cell(&entry), expected.to_string());
         let page = index(&[time(), entry]);
         let rows = rows(&page, "newest recorded run.");
         assert_eq!(
@@ -973,8 +1045,7 @@ mod tests {
             [
                 "| [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |".to_string(),
                 format!(
-                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY | 29 | 33 | 8 | {} | no recorded run |",
-                    outside.len()
+                    "| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY | 29 | 40 | 8 | {expected} | no recorded run |"
                 ),
             ]
         );
@@ -1016,14 +1087,22 @@ mod tests {
                 "| tcp | bytes | ordered, reliable, no duplicates | full-duplex | single | session | none | connection | not declared | client, server |"
             ]
         );
-        assert!(page.contains("Reviewed: 70 requirements, by level 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY; by status 29 satisfied, 33 unsupported, 8 not applicable.\n"), "{page}");
+        assert!(page.contains("Reviewed: 77 requirements, by level 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY; by status 29 satisfied, 40 unsupported, 8 not applicable.\n"), "{page}");
         let unreviewed = entry.unreviewed().unwrap();
         assert!(page.contains(&format!(
             "Unreviewed: {} requirements of the mechanical catalogue of RFC 6455 have no status, by level {}.",
             unreviewed.len(),
             by_level(unreviewed.iter().map(|r| r.keyword.as_str()))
         )), "{page}");
-        assert!(page.contains("Unreviewed: 126 requirements of the mechanical catalogue of RFC 6455 have no status, by level 82 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 24 MAY, 1 OPTIONAL."), "{page}");
+        assert!(page.contains("Unreviewed: 119 requirements of the mechanical catalogue of RFC 6455 have no status, by level 77 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 22 MAY, 1 OPTIONAL."), "{page}");
+        let rejected: Vec<&str> = rows(&page, "## Rejected proposals")
+            .iter()
+            .map(|row| row.split(" | ").next().unwrap())
+            .collect();
+        assert_eq!(
+            rejected,
+            ["| rfc6455/R5.1-4", "| rfc6455/R5.1-3", "| rfc6455/R5.3-1"]
+        );
         assert_eq!(
             rows(&page, "## Requirement matrix").len(),
             entry.overlay.as_ref().unwrap().requirements.len()
@@ -1095,15 +1174,23 @@ mod tests {
         }
     }
 
-    /// A copy of every file of `profiles/websocket` under a scratch directory.
+    /// A copy of `profiles/websocket` under a scratch directory as it stood before its section
+    /// 5.1 and 5.3 proposals were reviewed: without `proposals/`, the decisions, or the
+    /// requirement entries of those two sections, so a test can record and decide them itself.
     fn websocket_copy(name: &str) -> PathBuf {
         let root = scratch(name);
         let from = repository().join("profiles/websocket");
         let dir = root.join("profiles/websocket");
         for file in files(&from).unwrap() {
+            if file.starts_with("proposals/") {
+                continue;
+            }
             fs::create_dir_all(dir.join(&file).parent().unwrap()).unwrap();
             fs::copy(from.join(&file), dir.join(&file)).unwrap();
         }
+        let path = dir.join(OVERLAY_FILE);
+        let text = fs::read_to_string(&path).unwrap();
+        fs::write(&path, before_the_slice(&text)).unwrap();
         root
     }
 
@@ -1179,10 +1266,11 @@ mod tests {
             .iter()
             .map(|r| r.id.clone())
             .collect();
-        for (id, verdict) in ids
-            .iter()
-            .zip([Verdict::Accept, Verdict::Accept, Verdict::Reject])
-        {
+        for (id, verdict) in ids.iter().zip([
+            Verdict::Accept,
+            Verdict::Accept,
+            Verdict::Reject("the level | is wrong".into()),
+        ]) {
             let reviewed = decide(&dir, id, verdict).unwrap_or_else(|error| panic!("{error}"));
             write(&dir, &reviewed).unwrap();
         }
@@ -1204,5 +1292,35 @@ mod tests {
             unreviewed_cell(&after),
             (unreviewed_before.len() - 2).to_string()
         );
+        let page = page(&after);
+        assert_eq!(
+            rows(&page, "## Rejected proposals"),
+            [format!(
+                "| rfc6455/R5.1-5 | `{}` | the level \\| is wrong |",
+                ids[2]
+            )]
+        );
+        assert!(
+            !self::page(&before).contains("## Rejected proposals"),
+            "a profile without a reject decision has no such section"
+        );
+    }
+
+    /// The text of the websocket overlay without its decisions and without the requirement entries
+    /// of sections 5.1 and 5.3, every other line as written.
+    fn before_the_slice(overlay: &str) -> String {
+        let overlay = overlay.split("\ndecisions:\n").next().unwrap();
+        let mut out = String::new();
+        let mut skipping = false;
+        for line in overlay.lines() {
+            if line.starts_with("  - ") || !line.starts_with("    ") {
+                skipping = line.starts_with("  - id: R5.1-") || line.starts_with("  - id: R5.3-");
+            }
+            if !skipping {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+        out
     }
 }

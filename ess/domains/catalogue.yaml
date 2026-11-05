@@ -130,6 +130,18 @@ types:
       - name: Optional
         wire: OPTIONAL
 
+  - name: rfcspec.catalogue.LevelCount
+    kind: struct
+    naming:
+      summary: >-
+        How many of an RFC's mechanically extracted requirements have one BCP 14 level, under the
+        extractor version the bulk summary records; a level with none is not listed.
+    fields:
+      - name: level
+        type: rfcspec.catalogue.Bcp14Level
+      - name: count
+        type: Integer
+
   - name: rfcspec.catalogue.RequirementSource
     kind: enum
     naming:
@@ -318,7 +330,14 @@ entities:
         type: rfcspec.catalogue.SourceFormat
       - name: digest
         type: rfcspec.catalogue.Digest
-        summary: SHA-256 of the locked source file.
+        summary: >-
+          SHA-256 of the locked source file, or of the plain text read in bulk for the bulk
+          summary (rfcspec-bulk/1).
+      - name: requirement_counts
+        type: List<rfcspec.catalogue.LevelCount>
+        summary: >-
+          The RFC's mechanically extracted requirements counted by BCP 14 level, as the bulk
+          summary records them; each counts the requirements whose rfc is this one.
       - name: kind
         type: Optional<rfcspec.catalogue.RfcKind>
         summary: The RFC's primary kind, absent until classified.
@@ -2169,6 +2188,16 @@ views:
         type: String
       - name: date
         type: rfcspec.catalogue.YearMonth
+      - name: status
+        type: String
+      - name: stream
+        type: String
+      - name: area
+        type: Optional<String>
+      - name: digest
+        type: rfcspec.catalogue.Digest
+      - name: requirement_counts
+        type: List<rfcspec.catalogue.LevelCount>
 
   - name: rfcspec.catalogue.Requirements
     source: rfcspec.catalogue.Requirement

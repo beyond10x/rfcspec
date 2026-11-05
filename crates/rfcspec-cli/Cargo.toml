@@ -22,11 +22,11 @@ rfcspec-gen = { path = "../rfcspec-gen" }
 rfcspec-model = { path = "../rfcspec-model" }
 rfcspec-propose = { path = "../rfcspec-propose" }
 rfcspec-source = { path = "../rfcspec-source" }
+serde_json = "1"
 
 [dev-dependencies]
 rfcspec-docs = { path = "../rfcspec-docs" }
 rfcspec-propose = { path = "../rfcspec-propose", features = ["double"] }
-serde_json = "1"
 tempfile = "3"
 
 [lints]

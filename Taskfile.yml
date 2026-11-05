@@ -13,6 +13,7 @@ tasks:
       - task: time
       - task: websocket
       - task: dns
+      - task: bulk
       - task: docs-check
       - cargo fmt --all --check
       - cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -50,8 +51,9 @@ tasks:
       - cargo test -q --locked -p rfc868-time
 
   websocket:
-    desc: Check the websocket profile's lowered closing, ping and fragments models and their exploration, and its generated frame codec and tests.
+    desc: Replay the websocket profile's recorded proposals offline, check its lowered closing, ping and fragments models and their exploration, and its generated frame codec and tests.
     cmds:
+      - cargo run -q --locked -p rfcspec-cli -- propose --profile profiles/websocket --replay
       - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/websocket --check
       - cmd: >-
           ess protocol explore --path profiles/websocket/generated/close.protospec.yaml
@@ -74,6 +76,17 @@ tasks:
           --inputs profiles/dns/witnesses/query.inputs.json | grep -q '"verdict": "passed"'
       - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/dns --check
       - cargo test -q --locked -p rfc1035-dns
+
+  bulk:
+    desc: Check the committed bulk summary offline against itself and against the RFCs the profiles lock.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- bulk check --summary bulk/rfc-summary.jsonl --profiles profiles
+
+  bulk-regenerate:
+    desc: Fetch rfc-index.xml and every RFC text into the cache outside the repository (CACHE, else the default cache), then rewrite bulk/rfc-summary.jsonl from it. Networked; check never runs it.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- bulk fetch {{if .CACHE}}--cache {{.CACHE}}{{end}}
+      - cargo run -q --locked -p rfcspec-cli -- bulk summarise {{if .CACHE}}--cache {{.CACHE}}{{end}} --out bulk/rfc-summary.jsonl
 
   docs-generate:
     desc: Rewrite the generated pages under website/docs/.

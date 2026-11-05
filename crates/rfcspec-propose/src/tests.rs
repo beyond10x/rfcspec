@@ -37,9 +37,15 @@ fn copy_profile(profile: &str, rfc: u32, name: &str) -> (TempDir, PathBuf) {
     (temp, dir)
 }
 
-/// A fresh copy of `profiles/websocket`; see [`copy_profile`].
+/// A fresh copy of `profiles/websocket` as it stood before its section 5.1 and 5.3 proposals
+/// were reviewed: without the decisions or the requirement entries of those two sections, so a
+/// test can record and decide them itself; see [`copy_profile`].
 fn websocket(name: &str) -> (TempDir, PathBuf) {
-    copy_profile("websocket", 6455, name)
+    let (temp, dir) = copy_profile("websocket", 6455, name);
+    let path = dir.join("overlay.yaml");
+    let text = fs::read_to_string(&path).unwrap();
+    fs::write(&path, before_the_slice(&text)).unwrap();
+    (temp, dir)
 }
 
 /// A fresh copy of `profiles/dns`; see [`copy_profile`].
@@ -262,6 +268,7 @@ fn decide_by_hand(dir: &Path, id: &str, kind: rfcspec_model::DecisionKind) {
         kind,
         proposal_id: Some("0".repeat(64)),
         edit: None,
+        reason: (kind == rfcspec_model::DecisionKind::Reject).then(|| "by hand".into()),
     });
     fs::write(
         dir.join(rfcspec_model::OVERLAY_FILE),
@@ -382,4 +389,29 @@ fn review_refuses_an_entry_duplicating_an_overlay_requirement() {
         fs::read_to_string(dir.join(rfcspec_model::OVERLAY_FILE)).unwrap(),
         overlay
     );
+}
+
+#[test]
+fn a_proposal_call_waits_long_enough_for_a_local_model_that_answers_without_streaming() {
+    let limits = crate::limits();
+    assert!(limits.response_headers >= std::time::Duration::from_secs(600));
+    assert!(limits.total >= limits.response_headers);
+}
+
+/// The text of the websocket overlay without its decisions and without the requirement entries
+/// of sections 5.1 and 5.3, every other line as written.
+fn before_the_slice(overlay: &str) -> String {
+    let overlay = overlay.split("\ndecisions:\n").next().unwrap();
+    let mut out = String::new();
+    let mut skipping = false;
+    for line in overlay.lines() {
+        if line.starts_with("  - ") || !line.starts_with("    ") {
+            skipping = line.starts_with("  - id: R5.1-") || line.starts_with("  - id: R5.3-");
+        }
+        if !skipping {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
 }

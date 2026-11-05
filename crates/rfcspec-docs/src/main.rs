@@ -7,7 +7,9 @@
 //! - the design page (`website/docs/design.md`) from `docs/design/rfcspec.md` ([`design`]);
 //! - the status page and data (`website/docs/status.md`, `website/data/status.json`) ([`status`]);
 //! - the protocol catalogue (`website/docs/catalog/`) and its downloads
-//!   (`website/static/downloads/`) from `profiles/` ([`catalog`]).
+//!   (`website/static/downloads/`) from `profiles/` ([`catalog`]);
+//! - the RFC index (`website/docs/catalog/rfcs/`), an overview and one page per thousand RFC
+//!   numbers, from the bulk summary `bulk/rfc-summary.jsonl` and the profiles' locks ([`bulk`]).
 //!
 //! The catalogue directories hold nothing else: a file there that `generate` would not write is
 //! reported `unexpected` by `generate --check` and deleted by `generate`.
@@ -26,7 +28,7 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
-use rfcspec_docs::{catalog, page};
+use rfcspec_docs::{bulk, catalog, page};
 
 #[derive(Parser)]
 #[command(about = "Generate and check the derived pages of the RFCspec documentation site")]
@@ -79,6 +81,7 @@ fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
         (status::DATA.to_owned(), status::data()),
     ]);
     out.extend(catalog::outputs(root)?);
+    out.extend(bulk::outputs(root)?);
     Ok(out)
 }
 
@@ -250,6 +253,7 @@ fn scratch(name: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rfcspec_model::{BulkRow, bulk_summary};
 
     #[test]
     fn provenance_names_the_commit_writes_routes_and_refuses_a_bad_commit() {
@@ -404,10 +408,109 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    /// A scratch repository with `profiles/time` and a summary of the committed rows of the RFCs
+    /// given, its header recomputed.
+    fn repository_with_summary(name: &str, rfcs: &[u32], change: impl Fn(&mut BulkRow)) -> PathBuf {
+        let root = repository_with_time(name);
+        write_summary(&root, rfcs, change);
+        root
+    }
+
+    fn write_summary(root: &Path, rfcs: &[u32], change: impl Fn(&mut BulkRow)) {
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let summary =
+            bulk::parse(&fs::read_to_string(repository.join(bulk::SUMMARY)).unwrap()).unwrap();
+        let rows: Vec<BulkRow> = summary
+            .rows
+            .into_iter()
+            .filter(|row| rfcs.contains(&row.rfc))
+            .map(|mut row| {
+                change(&mut row);
+                row
+            })
+            .collect();
+        let text = bulk_summary(
+            &summary.header.index_sha256,
+            summary.header.extractor,
+            &rows,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("bulk")).unwrap();
+        fs::write(root.join(bulk::SUMMARY), text).unwrap();
+    }
+
     #[test]
-    fn the_repository_catalogue_is_current() {
+    fn the_rfc_index_is_generated_from_the_summary_and_its_drift_is_reported_by_name() {
+        let rfcs = [868, 1035, 6455];
+        let root = repository_with_summary("rfc-index", &rfcs, |_| {});
+        let outputs = outputs(&root).unwrap();
+        let pages = [
+            "website/docs/catalog/rfcs/00000.md",
+            "website/docs/catalog/rfcs/01000.md",
+            "website/docs/catalog/rfcs/06000.md",
+            bulk::OVERVIEW,
+        ];
+        let generated: Vec<&String> = outputs
+            .keys()
+            .filter(|p| p.starts_with(bulk::DIR))
+            .collect();
+        assert_eq!(generated, pages, "a range without a row gets no page");
+        let found = check(&root);
+        for path in pages {
+            assert!(found.contains(&format!("missing {path}")), "{path}");
+        }
+        write(&root, &outputs).unwrap();
+        assert_eq!(check(&root), Vec::<String>::new());
+
+        for path in [bulk::OVERVIEW, "website/docs/catalog/rfcs/06000.md"] {
+            let mut bytes = fs::read(root.join(path)).unwrap();
+            bytes.extend_from_slice(b"edited\n");
+            fs::write(root.join(path), &bytes).unwrap();
+            assert_eq!(check(&root), [format!("stale or edited {path}")], "{path}");
+            fs::write(root.join(path), &outputs[path]).unwrap();
+
+            fs::remove_file(root.join(path)).unwrap();
+            assert_eq!(check(&root), [format!("missing {path}")], "{path}");
+            fs::write(root.join(path), &outputs[path]).unwrap();
+        }
+
+        let extra = "website/docs/catalog/rfcs/05000.md";
+        fs::write(root.join(extra), "x\n").unwrap();
+        assert_eq!(check(&root), [format!("unexpected {extra}")]);
+        assert_eq!(write(&root, &outputs).unwrap(), [extra]);
+        assert_eq!(check(&root), Vec::<String>::new());
+
+        write_summary(&root, &rfcs, |row| {
+            if row.rfc == 6455 {
+                row.title.push_str(", revised");
+            }
+        });
+        assert_eq!(
+            check(&root),
+            ["stale or edited website/docs/catalog/rfcs/06000.md"],
+            "a changed row makes its range page stale"
+        );
+
+        write_summary(&root, &[868, 6455], |_| {});
+        assert_eq!(
+            check(&root),
+            [
+                format!("stale or edited {}", bulk::OVERVIEW),
+                "unexpected website/docs/catalog/rfcs/01000.md".to_owned(),
+            ],
+            "a range that lost its last row is unexpected"
+        );
+        write(&root, &super::outputs(&root).unwrap()).unwrap();
+        assert!(!root.join("website/docs/catalog/rfcs/01000.md").exists());
+        assert_eq!(check(&root), Vec::<String>::new());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn the_repository_catalogue_and_rfc_index_are_current() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let outputs = catalog::outputs(&root).unwrap();
+        let mut outputs = catalog::outputs(&root).unwrap();
+        outputs.extend(bulk::outputs(&root).unwrap());
         assert!(drift(&root, &outputs).is_empty());
         assert!(unexpected(&root, &outputs).unwrap().is_empty());
     }

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1493,
+      "start": 1490
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "9e31a0e97934b2a89ce40d8a0842a2b439c71e69eac215f87c1bc31d04f40a6b",
+  "inputs": {
+    "item": "rfc6455/R5.1-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "5.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1493,
+      "start": 1490
+    },
+    "text": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details)."
+  },
+  "item": "rfc6455/R5.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "18f8b93fb01f89343419b7ed32ee1534ca84974c098de4fd7b23fca193432723",
+  "response": {
+    "id": "R5.1-1",
+    "level": "MUST",
+    "quote": "To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).",
+    "source": "capitals-text",
+    "span": {
+      "end": 1493,
+      "start": 1490
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement frame masking as required."
+    }
+  },
+  "task": "status"
+}

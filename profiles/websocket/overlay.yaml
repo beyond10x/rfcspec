@@ -2,6 +2,56 @@ format: rfcspec-overlay/1
 rfc: 6455
 kind: K1
 requirements:
+  - id: R5.1-1
+    source: capitals-text
+    level: MUST
+    transports: []
+    quote: To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details).
+    span:
+      start: 1490
+      end: 1493
+    status:
+      unsupported: The protocol profile's model does not implement frame masking as required.
+  - id: R5.1-2
+    source: capitals-text
+    level: MUST
+    transports: []
+    quote: (Note that masking is done whether or not the WebSocket Protocol is running over TLS.)  The server MUST close the connection upon receiving a frame that is not masked.
+    span:
+      start: 1493
+      end: 1496
+    status:
+      unsupported: The protocol profile's model does not enforce connection closure for unmasked frames received by the server.
+  - id: R5.1-5
+    source: capitals-text
+    level: MUST
+    transports: []
+    quote: A client MUST close a connection if it detects a masked frame.
+    span:
+      start: 1499
+      end: 1500
+    status:
+      unsupported: The model does not enforce closing the connection when a masked frame is detected.
+  - id: R5.1-6
+    source: capitals-text
+    level: MAY
+    transports: []
+    quote: In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.
+    span:
+      start: 1500
+      end: 1501
+    status:
+      unsupported: The model does not implement the optional use of status code 1002 as specified.
+  - id: R5.1-7
+    source: capitals-text
+    level: MAY
+    transports: []
+    quote: A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).
+    span:
+      start: 1519
+      end: 1521
+    status:
+      unsupported: data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake
   - id: R5.2-1
     source: capitals-text
     level: MAY
@@ -62,6 +112,26 @@ requirements:
     quote: "1 bit in length, MUST be 0 unless"
     span: {start: 1714, end: 1714}
     status: {unsupported: "the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.3-2
+    source: capitals-text
+    level: MUST
+    transports: []
+    quote: When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values.
+    span:
+      start: 1805
+      end: 1806
+    status:
+      unsupported: the model does not generate a fresh masking key as required
+  - id: R5.3-3
+    source: capitals-text
+    level: MUST
+    transports: []
+    quote: The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame.
+    span:
+      start: 1806
+      end: 1810
+    status:
+      unsupported: The protocol profile's model does not implement masking key derivation from a strong entropy source.
   - id: R5.4-1
     source: capitals-text
     level: MAY
@@ -744,3 +814,58 @@ machines:
     properties:
       - {name: server-never-fails, participant: server, state: failed}
 findings: []
+decisions:
+- item: rfc6455/R5.1-1
+  text_digest: 407a1f0f075d71234cc20029c02debc1e1a72a0f550d664cafd6b5006129e2a9
+  kind: accept
+  proposal_id: 18f8b93fb01f89343419b7ed32ee1534ca84974c098de4fd7b23fca193432723
+- item: rfc6455/R5.1-6
+  text_digest: c6e3d2a05c49f293c7c6119d817fca27a8e16557d291b700c83f49b39ce740b9
+  kind: accept
+  proposal_id: 4dadfe498f99013830f85b2c94f8165be99660a46a23fd48ae5af7969a36c210
+- item: rfc6455/R5.1-5
+  text_digest: ea177890964446b1a0355a16a258e4926ac17c5f1fce2efb18cb98f0621a051a
+  kind: accept
+  proposal_id: a13322cd0c3faf6e0dab484c866dd210f26d233db6cc9a5b957f28e7b859e456
+- item: rfc6455/R5.1-2
+  text_digest: f9acafcca7c88128113691f2161015b600fe943fcc9a0ab9ee6082e39c6f251f
+  kind: accept
+  proposal_id: b44d1674089630c9426e70009c8062deb02e26b954122029dea852fda8b19cb1
+- item: rfc6455/R5.3-3
+  text_digest: f23d6c735a1c142a2146f0b534eb4fbfb230d4b1451cd855873d7d48ae8cf8be
+  kind: accept
+  proposal_id: ca1e41a945700031fd7303ddb6afb3ddb471743d2c540bb4159930508f357d03
+- item: rfc6455/R5.3-2
+  text_digest: af544ddd79afb8b827940c730106cab0ca9a39f67696fa7c0e8967ee8ec43566
+  kind: accept
+  proposal_id: e8e06863e9008e96dd407d22f0cf1046eae2a909c9789fcb4e5a6f3c78842561
+- item: rfc6455/R5.1-7
+  text_digest: 06471e18bec57e0c1bc544ba798365af54933b557d3768db6501706c09bc48e6
+  kind: edit
+  proposal_id: 79793f28c0cb56a8f2bc0200d8f90b5616e46a751a3ee1c54ce988b59d404864
+  edit:
+    id: R5.1-7
+    source: capitals-text
+    level: MAY
+    transports: []
+    quote: A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).
+    span:
+      start: 1519
+      end: 1521
+    status:
+      unsupported: data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake
+- item: rfc6455/R5.1-4
+  text_digest: a2ddd22cda2028ec12d1a85d708da54806c8d45d4b65f1c5f893fde2e0a07549
+  kind: reject
+  proposal_id: 8710bb6d53914b1171d509e48b6d8bc2bb7c6c787fac0a7771ca2be3a14e9817
+  reason: the profile models both peers, so a server requirement is not outside the model; it stays unreviewed
+- item: rfc6455/R5.1-3
+  text_digest: ab53ca2a7d0c6dadf034fdf7680f9d4c279aa30f38310de6e5a983ab13b64176
+  kind: reject
+  proposal_id: fa96a298641aedf3fb409b5259134cce779c43a2db3097b260a3f9e0ee5f8a3b
+  reason: an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise
+- item: rfc6455/R5.3-1
+  text_digest: 5e6ac1219fa6625167b8de34fb3dfe94aa6c3a23dc86650626d8531f0a0f90a8
+  kind: reject
+  proposal_id: d8b7d4f4d8d737eac015d3ceba6b7a096f913639ca5b747d2c03a24935795a75
+  reason: the frame-header layout carries the mask bit, so this is a layout review for satisfied, not unsupported

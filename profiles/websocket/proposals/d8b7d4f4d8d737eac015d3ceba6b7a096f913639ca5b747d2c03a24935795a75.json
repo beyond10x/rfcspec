@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1788,
+      "start": 1787
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "a5f47f2e80aacc6312c3319957c24db3b62aaf2efd377d35c97c2544472a89aa",
+  "inputs": {
+    "item": "rfc6455/R5.3-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "5.3",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1788,
+      "start": 1787
+    },
+    "text": "A masked frame MUST have the field frame-masked set to 1, as defined in Section 5.2."
+  },
+  "item": "rfc6455/R5.3-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "d8b7d4f4d8d737eac015d3ceba6b7a096f913639ca5b747d2c03a24935795a75",
+  "response": {
+    "id": "R5.3-1",
+    "level": "MUST",
+    "quote": "A masked frame MUST have the field frame-masked set to 1, as defined in Section 5.2.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1788,
+      "start": 1787
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce the frame-masked field validation."
+    }
+  },
+  "task": "status"
+}

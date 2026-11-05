@@ -1,0 +1,165 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rfc-index xmlns="https://www.rfc-editor.org/rfc-index" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://www.rfc-editor.org/rfc-index https://www.rfc-editor.org/rfc-index.xsd">
+  <rfc-entry>
+    <doc-id>RFC8</doc-id>
+    <title>ARPA Network Functional Specifications</title>
+    <author>
+      <name>G. Deloche</name>
+    </author>
+    <date>
+      <month>May</month>
+      <year>1969</year>
+    </date>
+    <format>
+      <file-format>PDF</file-format>
+    </format>
+    <page-count>0</page-count>
+    <current-status>UNKNOWN</current-status>
+    <publication-status>UNKNOWN</publication-status>
+    <stream>Legacy</stream>
+    <doi>10.17487/RFC8</doi>
+  </rfc-entry>
+  <rfc-not-issued-entry>
+    <doc-id>RFC14</doc-id>
+  </rfc-not-issued-entry>
+  <rfc-entry>
+    <doc-id>RFC868</doc-id>
+    <title>Time Protocol</title>
+    <author>
+      <name>J. Postel</name>
+    </author>
+    <author>
+      <name>K. Harrenstien</name>
+    </author>
+    <date>
+      <month>May</month>
+      <year>1983</year>
+    </date>
+    <format>
+      <file-format>TXT</file-format>
+      <file-format>HTML</file-format>
+    </format>
+    <page-count>2</page-count>
+    <keywords>
+      <kw>TIME</kw>
+    </keywords>
+    <abstract>
+      <p>This RFC specifies a standard for the ARPA Internet community.  Hosts on the ARPA Internet that choose to implement a Time Protocol are expected to adopt and implement this standard.  This protocol provides a site-independent, machine readable date and time.  The Time service sends back to the originating source the time in seconds since midnight on January first 1900.</p>
+    </abstract>
+    <is-also>
+      <doc-id>STD26</doc-id>
+    </is-also>
+    <current-status>INTERNET STANDARD</current-status>
+    <publication-status>INTERNET STANDARD</publication-status>
+    <stream>Legacy</stream>
+    <errata-url>https://www.rfc-editor.org/errata/rfc868</errata-url>
+    <doi>10.17487/RFC868</doi>
+  </rfc-entry>
+  <rfc-entry>
+    <doc-id>RFC1035</doc-id>
+    <title>Domain names - implementation and specification</title>
+    <author>
+      <name>P. Mockapetris</name>
+    </author>
+    <date>
+      <month>November</month>
+      <year>1987</year>
+    </date>
+    <format>
+      <file-format>TXT</file-format>
+      <file-format>HTML</file-format>
+    </format>
+    <page-count>55</page-count>
+    <keywords>
+      <kw>DOMAIN</kw>
+      <kw>DNS</kw>
+    </keywords>
+    <abstract>
+      <p>This RFC is the revised specification of the protocol and format used in the implementation of the Domain Name System.  It obsoletes RFC-883.  This memo documents the details of the domain name client - server communication.</p>
+    </abstract>
+    <is-also>
+      <doc-id>STD13</doc-id>
+    </is-also>
+    <obsoletes>
+      <doc-id>RFC882</doc-id>
+      <doc-id>RFC883</doc-id>
+      <doc-id>RFC973</doc-id>
+    </obsoletes>
+    <updated-by>
+      <doc-id>RFC1101</doc-id>
+      <doc-id>RFC1183</doc-id>
+      <doc-id>RFC1348</doc-id>
+      <doc-id>RFC1876</doc-id>
+      <doc-id>RFC1982</doc-id>
+      <doc-id>RFC1995</doc-id>
+      <doc-id>RFC1996</doc-id>
+      <doc-id>RFC2065</doc-id>
+      <doc-id>RFC2136</doc-id>
+      <doc-id>RFC2137</doc-id>
+      <doc-id>RFC2181</doc-id>
+      <doc-id>RFC2308</doc-id>
+      <doc-id>RFC2535</doc-id>
+      <doc-id>RFC2673</doc-id>
+      <doc-id>RFC2845</doc-id>
+      <doc-id>RFC3425</doc-id>
+      <doc-id>RFC3658</doc-id>
+      <doc-id>RFC4033</doc-id>
+      <doc-id>RFC4034</doc-id>
+      <doc-id>RFC4035</doc-id>
+      <doc-id>RFC4343</doc-id>
+      <doc-id>RFC5936</doc-id>
+      <doc-id>RFC5966</doc-id>
+      <doc-id>RFC6604</doc-id>
+      <doc-id>RFC7766</doc-id>
+      <doc-id>RFC8482</doc-id>
+      <doc-id>RFC8490</doc-id>
+      <doc-id>RFC8767</doc-id>
+      <doc-id>RFC9619</doc-id>
+    </updated-by>
+    <current-status>INTERNET STANDARD</current-status>
+    <publication-status>INTERNET STANDARD</publication-status>
+    <stream>Legacy</stream>
+    <errata-url>https://www.rfc-editor.org/errata/rfc1035</errata-url>
+    <doi>10.17487/RFC1035</doi>
+  </rfc-entry>
+  <rfc-entry>
+    <doc-id>RFC6455</doc-id>
+    <title>The WebSocket Protocol</title>
+    <author>
+      <name>I. Fette</name>
+    </author>
+    <author>
+      <name>A. Melnikov</name>
+    </author>
+    <date>
+      <month>December</month>
+      <year>2011</year>
+    </date>
+    <format>
+      <file-format>TXT</file-format>
+      <file-format>HTML</file-format>
+    </format>
+    <page-count>71</page-count>
+    <keywords>
+      <kw>HyBi Working Group</kw>
+      <kw>HYBI</kw>
+      <kw>websocket</kw>
+    </keywords>
+    <abstract>
+      <p>The WebSocket Protocol enables two-way communication between a client running untrusted code in a controlled environment to a remote host that has opted-in to communications from that code.  The security model used for this is the origin-based security model commonly used by web browsers.  The protocol consists of an opening handshake followed by basic message framing, layered over TCP.  The goal of this technology is to provide a mechanism for browser-based applications that need two-way communication with servers that does not rely on opening multiple HTTP connections (e.g., using XMLHttpRequest or &lt;iframe&gt;s and long polling). [STANDARDS-TRACK]</p>
+    </abstract>
+    <draft>draft-ietf-hybi-thewebsocketprotocol-17</draft>
+    <updated-by>
+      <doc-id>RFC7936</doc-id>
+      <doc-id>RFC8307</doc-id>
+      <doc-id>RFC8441</doc-id>
+    </updated-by>
+    <current-status>PROPOSED STANDARD</current-status>
+    <publication-status>PROPOSED STANDARD</publication-status>
+    <stream>IETF</stream>
+    <area>art</area>
+    <wg_acronym>hybi</wg_acronym>
+    <errata-url>https://www.rfc-editor.org/errata/rfc6455</errata-url>
+    <doi>10.17487/RFC6455</doi>
+  </rfc-entry>
+</rfc-index>

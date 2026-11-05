@@ -8,9 +8,11 @@ use std::{collections::BTreeMap, fs, path::Path};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+mod bulk;
 mod run;
 mod semantics;
 
+pub use bulk::{BULK_FORMAT, BulkHeader, BulkRow, bulk_line, bulk_summary, rows_sha256};
 pub use run::{
     RUN_FORMAT, RUNS_DIR, RunReport, RunRow, Verdict, is_must_level, newest, overall, read_runs,
     sha256_hex, target_slug, utc,
@@ -271,6 +273,9 @@ pub struct Decision {
     /// The replacement entry of an `edit`, in the overlay's own shape for the item's kind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edit: Option<Edit>,
+    /// Why the item was rejected: required for a `reject`, absent for every other kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// The replacement an `edit` decision carries (ESS `rfcspec.review.Decision`, `edit`): a
@@ -1189,7 +1194,7 @@ mod tests {
     #[test]
     fn decisions_read_and_write_in_their_field_order() {
         let text = format!(
-            "{OVERLAY_HEAD}decisions:\n- item: rfc1/R-1\n  text_digest: abc\n  kind: accept\n  proposal_id: p1\n- item: rfc1/R-2\n  text_digest: def\n  kind: edit\n  proposal_id: p2\n  edit:\n    id: R-2\n    source: capitals-text\n    level: MUST\n    transports: []\n    quote: q\n    span:\n      start: 1\n      end: 1\n    status:\n      unsupported: r\n- item: rfc1/R-3\n  text_digest: ghi\n  kind: reject\n  proposal_id: p3\n"
+            "{OVERLAY_HEAD}decisions:\n- item: rfc1/R-1\n  text_digest: abc\n  kind: accept\n  proposal_id: p1\n- item: rfc1/R-2\n  text_digest: def\n  kind: edit\n  proposal_id: p2\n  edit:\n    id: R-2\n    source: capitals-text\n    level: MUST\n    transports: []\n    quote: q\n    span:\n      start: 1\n      end: 1\n    status:\n      unsupported: r\n- item: rfc1/R-3\n  text_digest: ghi\n  kind: reject\n  proposal_id: p3\n  reason: the level is wrong\n"
         );
         let overlay: Overlay = from_yaml(&text).unwrap();
         let kinds: Vec<DecisionKind> = overlay.decisions.iter().map(|d| d.kind).collect();
@@ -1203,6 +1208,11 @@ mod tests {
         );
         assert_eq!(overlay.decisions[0].proposal_id.as_deref(), Some("p1"));
         assert!(overlay.decisions[0].edit.is_none());
+        assert_eq!(overlay.decisions[0].reason, None);
+        assert_eq!(
+            overlay.decisions[2].reason.as_deref(),
+            Some("the level is wrong")
+        );
         assert_eq!(
             overlay.decisions[1]
                 .edit

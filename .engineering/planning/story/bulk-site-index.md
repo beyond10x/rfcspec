@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:bulk-site-index
 kind: story
-status: active
+status: implemented
 title: Render the bulk summary as the site's RFC index, one page per thousand RFC numbers, linking reviewed profiles
 relations:
 - decomposes: epic:bulk-catalogue
@@ -16,10 +16,11 @@ scope:
   path: website/docs/catalog/index.md
 - confidence: cited
   path: website/docs/catalog/rfcs
-revision: 9
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T08:01:53Z", actor: "human:timo", revision: 8}
 - {from: "proposed", to: "active", at: "2026-11-05T08:01:53Z", actor: "human:timo", revision: 9}
+- {from: "active", to: "implemented", at: "2026-11-05T11:09:09Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"test_result":1}}}
 ---
 ## Story
 

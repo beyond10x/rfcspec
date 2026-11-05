@@ -5,7 +5,7 @@ every item, ESS documents for its machines and types, a wire-format sidecar for 
 and from those a generated protocol core and a conformance suite. The first worked example is
 WebSocket (RFC 6455).
 
-**Status:** design stage. Nothing of the pipeline is implemented yet.
+**Status:** the pipeline runs end to end for three profiles (RFC 868, RFC 6455, RFC 1035); [`AGENTS.md`](AGENTS.md) records what exists.
 
 - Documentation: https://beyond10x.github.io/rfcspec/
 - Design: [`docs/design/rfcspec.md`](docs/design/rfcspec.md)
@@ -20,6 +20,22 @@ Needs Rust, [go-task](https://taskfile.dev), [`ess`](https://beyond10x.github.io
 ```console
 task check     # plan, ESS specification, example models, generated docs, fmt, clippy, tests
 task website   # build the documentation site
+```
+
+## Propose and review
+
+A model may propose what the pipeline cannot derive mechanically, such as a requirement's
+status. `rfcspec propose` records each answer as a proposal under the profile's `proposals/`,
+with the model id and the spans it cites; `rfcspec propose --replay` reproduces every recording
+offline, and the gate runs it. A proposal changes nothing until `rfcspec review` accepts, edits
+or rejects it into the profile's overlay. `profiles/websocket/proposals/` holds the first set,
+for RFC 6455 sections 5.1 and 5.3. The contract is
+[design section 9](docs/design/rfcspec.md#9-ai-in-the-pipeline).
+
+```console
+rfcspec propose --profile profiles/websocket --task status --section 5.1 --routes <file> --route <name>
+rfcspec review --profile profiles/websocket --proposal <id> accept
+rfcspec propose --profile profiles/websocket --replay
 ```
 
 ## Licence

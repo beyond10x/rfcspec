@@ -1,0 +1,45 @@
+type: ess-scenario/1
+domain: rfcspec.review
+scenario: record-decision-reject-reason
+summary: A reject is recorded only with its reason, and a reason on an accept is refused.
+
+timeline:
+  - at: 2026-11-05T09:00:00Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.1-5, text_digest: "0a"}
+      kind: Reject
+    outcome: incomplete
+    error:
+      name: rfcspec.review.DecisionIncomplete
+
+  - at: 2026-11-05T09:00:01Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.1-1, text_digest: "0b"}
+      kind: Accept
+      reason: the level is wrong
+    outcome: stray-reason
+    error:
+      name: rfcspec.review.DecisionMismatch
+
+  - at: 2026-11-05T09:00:02Z
+    command: rfcspec.review.RecordDecision
+    actor: rfcspec.review.Reviewer
+    input:
+      key: {profile: websocket, item: rfc6455/R5.1-5, text_digest: "0a"}
+      kind: Reject
+      reason: the level is wrong
+    outcome: recorded
+
+assert:
+  - view: rfcspec.review.Decisions
+    counts: {at_least: 1, at_most: 1}
+  - view: rfcspec.review.Decisions
+    contains:
+      key: {profile: websocket, item: rfc6455/R5.1-5, text_digest: "0a"}
+      kind: Reject
+      reason: the level is wrong
+      state: Current

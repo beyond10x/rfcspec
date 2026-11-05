@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1521,
+      "start": 1519
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "1952c50181fe81db5161537925f49899c11787778e61bd651cff1ec23acf7772",
+  "inputs": {
+    "item": "rfc6455/R5.1-7",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "5.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1521,
+      "start": 1519
+    },
+    "text": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1)."
+  },
+  "item": "rfc6455/R5.1-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "79793f28c0cb56a8f2bc0200d8f90b5616e46a751a3ee1c54ce988b59d404864",
+  "response": {
+    "id": "R5.1-7",
+    "level": "MAY",
+    "quote": "A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1).",
+    "source": "capitals-text",
+    "span": {
+      "end": 1521,
+      "start": 1519
+    },
+    "status": {
+      "unsupported": "The model does not allow data frames to be transmitted at any time as specified."
+    }
+  },
+  "task": "status"
+}

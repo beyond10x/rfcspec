@@ -15,8 +15,9 @@ use rfcspec_model::{
     DialogueStep, Document, NumericExample, OctetExample, ProseCandidate, Span,
 };
 
-/// The BCP 14 keywords, longest first so `MUST NOT` wins over `MUST`.
-const BCP14: &[&str] = &[
+/// The eleven BCP 14 keywords, the levels a requirement is extracted at, longest first so `MUST
+/// NOT` wins over `MUST`.
+pub const LEVELS: &[&str] = &[
     "NOT RECOMMENDED",
     "SHALL NOT",
     "SHOULD NOT",
@@ -29,6 +30,20 @@ const BCP14: &[&str] = &[
     "MUST",
     "MAY",
 ];
+
+/// The version of the extraction: raised whenever [`extract`] or `rfcspec_doc::read` changes the
+/// catalogue of some text, so a bulk summary records which extraction its counts came from.
+pub const EXTRACTOR_VERSION: u32 = 1;
+
+/// The number of a catalogue's BCP 14 requirements at each level that has any, keyed by the level
+/// as [`LEVELS`] spells it.
+pub fn level_counts(catalogue: &Catalogue) -> BTreeMap<String, u64> {
+    let mut counts = BTreeMap::new();
+    for requirement in &catalogue.requirements {
+        *counts.entry(requirement.keyword.clone()).or_default() += 1;
+    }
+    counts
+}
 
 /// The lowercase words that make a sentence a prose candidate.
 const PROSE: &[&str] = &["must", "should", "may"];
@@ -45,7 +60,7 @@ pub fn keywords(text: &str) -> Vec<&'static str> {
             index += 1;
             continue;
         }
-        let hit = BCP14.iter().find(|keyword| {
+        let hit = LEVELS.iter().find(|keyword| {
             bytes[index..].starts_with(keyword.as_bytes())
                 && !bytes
                     .get(index + keyword.len())

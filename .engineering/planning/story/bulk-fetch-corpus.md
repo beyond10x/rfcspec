@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:bulk-fetch-corpus
 kind: story
-status: active
+status: implemented
 title: Fetch every RFC text into a cache outside the repository and commit the bulk summary, checked by task check
 relations:
 - decomposes: epic:bulk-catalogue
@@ -23,10 +23,11 @@ scope:
   path: crates/rfcspec-cli/tests/bulk.rs
 - confidence: cited
   path: crates/rfcspec-source
-revision: 12
+revision: 13
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T08:01:52Z", actor: "human:timo", revision: 11, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T08:01:53Z", actor: "human:timo", revision: 12, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T10:40:00Z", actor: "human:timo", revision: 13, decided_on: {"recorded":{"test_result":1,"review_outcome":2}}}
 ---
 ## Story
 

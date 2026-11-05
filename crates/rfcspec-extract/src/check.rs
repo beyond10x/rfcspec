@@ -386,9 +386,10 @@ enum Decided<'a> {
 /// digest of its current catalogue text (a layout's or machine's judges the sections its proposal
 /// was asked about, which `rfcspec check` compares through the proposal); one item holds at most
 /// one decision per digest, one proposal at most one decision; an `edit` carries an entry of its
-/// item's kind; an `accept` or `edit` of a catalogue item has its requirement in `requirements`,
-/// of a layout the layout in `layouts`, and an `edit` the entry it carries (a machine `edit` an
-/// equal machine in `machines`). Each problem names the decision's item.
+/// item's kind; a `reject`, and only a `reject`, carries a non-blank reason; an `accept` or `edit`
+/// of a catalogue item has its requirement in `requirements`, of a layout the layout in
+/// `layouts`, and an `edit` the entry it carries (a machine `edit` an equal machine in
+/// `machines`). Each problem names the decision's item.
 fn decisions(overlay: &Overlay, catalogue: &Catalogue) -> Vec<String> {
     let texts: BTreeMap<&str, &str> = catalogue
         .requirements
@@ -446,6 +447,18 @@ fn decisions(overlay: &Overlay, catalogue: &Catalogue) -> Vec<String> {
             ));
         }
         let kind = decision.kind;
+        match (kind, decision.reason.as_deref()) {
+            (DecisionKind::Reject, None) => {
+                problems.push(format!("{item}: reject decision carries no reason"));
+            }
+            (DecisionKind::Reject, Some(reason)) if reason.trim().is_empty() => {
+                problems.push(format!("{item}: reject decision carries an empty reason"));
+            }
+            (DecisionKind::Reject, Some(_)) | (_, None) => {}
+            (_, Some(_)) => problems.push(format!(
+                "{item}: {kind} decision carries a reason; only a reject does"
+            )),
+        }
         let settles = matches!(kind, DecisionKind::Accept | DecisionKind::Edit);
         match (&decided, &decision.edit) {
             (_, None) if kind == DecisionKind::Edit => {
@@ -647,6 +660,7 @@ mod tests {
             kind,
             proposal_id: Some(proposal.into()),
             edit: None,
+            reason: (kind == DecisionKind::Reject).then(|| "the level is wrong".into()),
         }
     }
 
@@ -681,6 +695,29 @@ mod tests {
         assert_eq!(problems.len(), 1, "{problems:#?}");
         assert!(
             problems[0].starts_with("decision rfc6455/R5.1-5: text_digest"),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn a_reject_without_a_reason_and_a_reason_on_another_kind_are_named() {
+        for (reason, says) in [(None, "no reason"), (Some(" \n"), "an empty reason")] {
+            let mut overlay = decided();
+            overlay.decisions[2].reason = reason.map(str::to_owned);
+            let problems = check(&overlay, &catalogue_6455(), &source_6455());
+            assert_eq!(problems.len(), 1, "{problems:#?}");
+            assert!(
+                problems[0].starts_with("decision rfc6455/R5.1-5: reject decision carries")
+                    && problems[0].contains(says),
+                "{problems:#?}"
+            );
+        }
+        let mut overlay = decided();
+        overlay.decisions[0].reason = Some("fine".into());
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert!(
+            problems[0].starts_with("decision rfc6455/R5.1-1: accept decision carries a reason"),
             "{problems:#?}"
         );
     }
@@ -765,6 +802,7 @@ mod tests {
                 kind: layout_kind,
                 proposal_id: Some("p1".into()),
                 edit: (layout_kind == DecisionKind::Edit).then_some(Edit::Layout(layout)),
+                reason: (layout_kind == DecisionKind::Reject).then(|| "a duplicate".into()),
             },
             Decision {
                 item: "websocket".into(),
@@ -772,6 +810,8 @@ mod tests {
                 kind: machine_kind,
                 proposal_id: Some("p2".into()),
                 edit: (machine_kind == DecisionKind::Edit).then_some(Edit::Machine(ping)),
+                reason: (machine_kind == DecisionKind::Reject)
+                    .then(|| "one machine is enough".into()),
             },
         ];
         overlay

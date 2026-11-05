@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T11:09:08Z",
+  "actor": "human:timo",
+  "artifact": "story:bulk-site-index",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-docs (24+14) -p rfcspec-cli exit 0; task bulk/time/websocket/dns/docs-check; task website built; provenance route inventory lists 11 range routes; clippy --workspace"
+  }
+}

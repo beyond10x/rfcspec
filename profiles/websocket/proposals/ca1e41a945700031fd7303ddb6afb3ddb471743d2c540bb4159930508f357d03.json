@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1810,
+      "start": 1806
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "93aede20ee0c3773f6d402f3eeca9888d89d14a8ee310da7ea8264dee75f021e",
+  "inputs": {
+    "item": "rfc6455/R5.3-3",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "5.3",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1810,
+      "start": 1806
+    },
+    "text": "The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame."
+  },
+  "item": "rfc6455/R5.3-3",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "ca1e41a945700031fd7303ddb6afb3ddb471743d2c540bb4159930508f357d03",
+  "response": {
+    "id": "R5.3-3",
+    "level": "MUST",
+    "quote": "The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1810,
+      "start": 1806
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement masking key derivation from a strong entropy source."
+    }
+  },
+  "task": "status"
+}

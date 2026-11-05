@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1496,
+      "start": 1493
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "6ed1d2e36957e1373d153c06b6ab338f938376770bf224b15e0aead8f823b52b",
+  "inputs": {
+    "item": "rfc6455/R5.1-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "5.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1496,
+      "start": 1493
+    },
+    "text": "(Note that masking is done whether or not the WebSocket Protocol is running over TLS.)  The server MUST close the connection upon receiving a frame that is not masked."
+  },
+  "item": "rfc6455/R5.1-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "b44d1674089630c9426e70009c8062deb02e26b954122029dea852fda8b19cb1",
+  "response": {
+    "id": "R5.1-2",
+    "level": "MUST",
+    "quote": "(Note that masking is done whether or not the WebSocket Protocol is running over TLS.)  The server MUST close the connection upon receiving a frame that is not masked.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1496,
+      "start": 1493
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce connection closure for unmasked frames received by the server."
+    }
+  },
+  "task": "status"
+}
