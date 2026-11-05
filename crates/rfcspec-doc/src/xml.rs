@@ -26,11 +26,19 @@
 //!   its target; a `<contact>` is its full name; a `<br/>` is a space, as a line break in a
 //!   paragraph's text is;
 //! - a block has one line per source line of its span, each trimmed (a figure's only at the end);
-//!   a source line without text of the block is an empty line.
+//!   a source line without text of the block is an empty line;
+//! - every `<xref>` to another RFC, resolved through the `<reference>` it targets and that
+//!   reference's `seriesInfo name="RFC"`, is a reference holding the citing section's anchor, the
+//!   cited RFC, the xref's `section` and the kind of the `<references>` group; the other xrefs
+//!   are counted as self-references, non-RFC references or unresolved; an xref to a
+//!   `<referencegroup>` cites each member, the target section kept only for a group of one.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use rfcspec_model::{Bcp14Mark, Block, BlockKind, Document, SourceFormat, Span};
+use rfcspec_model::{
+    Bcp14Mark, Block, BlockKind, Document, Reference, ReferenceCounts, ReferenceKind, SourceFormat,
+    Span,
+};
 use roxmltree::{Node, ParsingOptions};
 
 /// Why a source is not a readable RFCXML v3 document.
@@ -106,13 +114,146 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Result<Document, XmlError> {
             _ => {}
         }
     }
+    let (references, counts) = references(rfc, root);
     Ok(Document {
         rfc,
         sha256: sha256.to_string(),
         format: SourceFormat::Xml,
         furniture: Vec::new(),
         blocks,
+        references,
+        reference_counts: Some(counts),
     })
+}
+
+/// What a `<reference>` or `<referencegroup>` anchor cites: the RFC number of each cited
+/// document (`None` for one that is not an RFC), one for a `<reference>`, one per member
+/// `<reference>` for a group, and the kind of the `<references>` group it is listed in.
+struct Cited {
+    members: Vec<Option<u32>>,
+    kind: ReferenceKind,
+}
+
+/// Every `<xref>` of the document, the table of contents included, resolved through the
+/// `<reference>` or `<referencegroup>` its target names, each cited document on its own: another
+/// RFC is a [`Reference`], the citing RFC a self-reference, a document that is not an RFC a
+/// non-RFC reference. An xref to another anchor of the document is a self-reference; one to no
+/// anchor at all is unresolved. The target section is kept only where the xref cites one
+/// document.
+fn references(rfc: u32, root: Node) -> (Vec<Reference>, ReferenceCounts) {
+    let mut anchors = BTreeSet::new();
+    let mut cited = BTreeMap::new();
+    for node in root.descendants() {
+        anchors.extend(
+            ["anchor", "pn", "slugifiedName"]
+                .iter()
+                .filter_map(|attribute| node.attribute(*attribute)),
+        );
+        let Some(anchor) = node.attribute("anchor") else {
+            continue;
+        };
+        let members = match name(node) {
+            "reference" => vec![rfc_number(node)],
+            "referencegroup" => elements(node)
+                .filter(|member| name(*member) == "reference")
+                .map(rfc_number)
+                .collect(),
+            _ => continue,
+        };
+        let kind = kind(node);
+        cited.insert(anchor, Cited { members, kind });
+    }
+    let mut references = Vec::new();
+    let mut counts = ReferenceCounts::default();
+    for xref in root.descendants().filter(|node| name(*node) == "xref") {
+        let target = xref.attribute("target").unwrap_or_default();
+        let Some(Cited { members, kind }) = cited.get(target) else {
+            if anchors.contains(target) {
+                counts.self_references += 1;
+            } else {
+                counts.unresolved += 1;
+            }
+            continue;
+        };
+        if members.is_empty() {
+            counts.non_rfc += 1;
+        }
+        let section = xref
+            .ancestors()
+            .find(|node| matches!(name(*node), "section" | "references" | "abstract" | "note"))
+            .and_then(|node| node.attribute("anchor").or(node.attribute("pn")));
+        let target_section = xref.attribute("section").filter(|_| members.len() == 1);
+        for member in members {
+            match member {
+                None => counts.non_rfc += 1,
+                Some(number) if *number == rfc => counts.self_references += 1,
+                Some(number) => references.push(Reference {
+                    section: section.map(String::from),
+                    target_rfc: *number,
+                    target_section: target_section.map(String::from),
+                    kind: *kind,
+                }),
+            }
+        }
+    }
+    (references, counts)
+}
+
+/// The RFC a `<reference>` cites: the number in its `seriesInfo name="RFC"`, an `RFC` prefix in
+/// any case and spaces allowed (`9785`, `RFC9785`, `RFC 9785`), else the number in an RFC DOI
+/// (`10.17487/RFC9785`); `None` for a document that is not an RFC.
+fn rfc_number(reference: Node) -> Option<u32> {
+    let series = |series: &'static str| {
+        reference
+            .descendants()
+            .filter(move |node| {
+                name(*node) == "seriesInfo" && node.attribute("name") == Some(series)
+            })
+            .filter_map(|node| node.attribute("value"))
+    };
+    series("RFC").find_map(prefixed_number).or_else(|| {
+        series("DOI").find_map(|doi| {
+            doi.trim()
+                .strip_prefix("10.17487/")
+                .and_then(prefixed_number)
+        })
+    })
+}
+
+/// The number in `9785`, `RFC9785`, `rfc 9785`: digits after an optional `RFC` prefix in any case
+/// and spaces.
+fn prefixed_number(value: &str) -> Option<u32> {
+    let value = value.trim();
+    let rest = match value.get(..3) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("rfc") => value[3..].trim_start(),
+        _ => value,
+    };
+    if rest.is_empty() || !rest.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    rest.parse().ok()
+}
+
+/// The kind of the innermost `<references>` group around a `<reference>` whose `<name>` says
+/// one: `informative` (or `non-normative`) before `normative`; informative when none does.
+fn kind(reference: Node) -> ReferenceKind {
+    reference
+        .ancestors()
+        .filter(|node| name(*node) == "references")
+        .find_map(|group| {
+            let title = elements(group)
+                .find(|child| name(*child) == "name")
+                .map(collapsed_text)?
+                .to_lowercase();
+            if title.contains("informative") || title.contains("non-normative") {
+                Some(ReferenceKind::Informative)
+            } else if title.contains("normative") {
+                Some(ReferenceKind::Normative)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(ReferenceKind::Informative)
 }
 
 /// Elements that make their parent a container of blocks rather than a paragraph.
