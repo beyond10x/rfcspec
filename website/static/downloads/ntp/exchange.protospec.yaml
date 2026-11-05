@@ -1,0 +1,270 @@
+format: ess-protospec/1
+name: rfc5905-ntp-exchange
+bounds:
+  max_steps: 64
+  max_states: 2048
+  max_time_ms: 60000
+participants:
+- name: client
+  initial: idle
+  states:
+  - idle
+  - first
+  - second
+  - ended
+  fields:
+  - name: xmt
+    type: Integer
+    initial: 0
+  inputs:
+  - name: mobilize
+    fields: []
+  timers:
+  - poll
+  transitions:
+  - name: R8-BOGUS-1-mobilize
+    from: idle
+    to: first
+    trigger:
+      kind: input
+      name: mobilize
+    effects:
+    - kind: set
+      field: xmt
+      value:
+        kind: literal
+        value: 1
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R8-BOGUS-1-mobilize
+      payload:
+        xmt:
+          kind: literal
+          value: 1
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: R8-BOGUS-1-R8-LOSS-1-poll
+    from: first
+    to: second
+    trigger:
+      kind: timer
+      name: poll
+    effects:
+    - kind: set
+      field: xmt
+      value:
+        kind: literal
+        value: 2
+    - kind: send
+      channel: client-to-server
+      message: request
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R8-BOGUS-1-R8-LOSS-1-poll
+      payload:
+        xmt:
+          kind: literal
+          value: 2
+    - kind: arm
+      timer: poll
+      after:
+        kind: fixed
+        millis: 16000
+  - name: R8-LOSS-1-end
+    from: second
+    to: ended
+    trigger:
+      kind: timer
+      name: poll
+  - name: R8-BOGUS-1-R8-REPLAY-1-accept-first
+    from: first
+    to: first
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+    guards:
+    - left:
+        kind: input
+        field: org
+      right:
+        kind: local
+        field: xmt
+    - left:
+        kind: local
+        field: xmt
+      right:
+        kind: literal
+        value: 1
+    effects:
+    - kind: set
+      field: xmt
+      value:
+        kind: literal
+        value: 0
+    - kind: emit
+      name: valid-packet
+  - name: R8-BOGUS-1-R8-REPLAY-1-accept-second
+    from: second
+    to: second
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+    guards:
+    - left:
+        kind: input
+        field: org
+      right:
+        kind: local
+        field: xmt
+    - left:
+        kind: local
+        field: xmt
+      right:
+        kind: literal
+        value: 2
+    effects:
+    - kind: set
+      field: xmt
+      value:
+        kind: literal
+        value: 0
+    - kind: emit
+      name: valid-packet
+  - name: R8-BOGUS-1-R8-LOSS-1-discard-first
+    from: first
+    to: first
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+  - name: R8-BOGUS-1-R8-LOSS-1-discard-second
+    from: second
+    to: second
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+  - name: R8-BOGUS-1-R8-LOSS-1-discard-ended
+    from: ended
+    to: ended
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+- name: server
+  initial: listening
+  states:
+  - listening
+  - replayed
+  inputs:
+  - name: replay
+    fields:
+    - name: org
+      type: Integer
+  transitions:
+  - name: R9.2-FXMIT-1-answer
+    from: listening
+    to: listening
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: request
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-FXMIT-1-answer
+      payload:
+        org:
+          kind: input
+          field: xmt
+  - name: R9.2-FXMIT-1-answer-after-replay
+    from: replayed
+    to: replayed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: request
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R9.2-FXMIT-1-answer-after-replay
+      payload:
+        org:
+          kind: input
+          field: xmt
+  - name: R8-LOSS-1-replay
+    from: listening
+    to: replayed
+    trigger:
+      kind: input
+      name: replay
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R8-LOSS-1-replay
+      payload:
+        org:
+          kind: input
+          field: org
+messages:
+- name: request
+  fields:
+  - name: xmt
+    type: Integer
+- name: response
+  fields:
+  - name: org
+    type: Integer
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 3
+  loss: true
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 3
+  loss: true
+  duplication: false
+properties:
+- kind: event_count
+  name: one-valid-packet-per-poll
+  participant: client
+  event: valid-packet
+  max: 2

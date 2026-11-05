@@ -1,0 +1,4 @@
+[
+  {"kind":"input","participant":"server","name":"replay","payload":{"org":1}},
+  {"kind":"input","participant":"server","name":"replay","payload":{"org":2}}
+]

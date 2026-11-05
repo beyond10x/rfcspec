@@ -26,6 +26,36 @@ requirements:
     quote: Format checks require correct field length and alignment, acceptable version number (1-4)
     span: {start: 1812, end: 1814}
     status: {satisfied: layout.header}
+  - id: R8-BOGUS-1
+    source: prose
+    level: MUST
+    quote: A packet is bogus if the origin timestamp t1 in the packet does not match the xmt state variable T1.
+    span: {start: 1590, end: 1591}
+    status: {satisfied: exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first}
+  - id: R8-REPLAY-1
+    source: prose
+    level: MUST
+    quote: To protect against replay of the last transmitted packet, the xmt state variable is set to zero immediately after a successful bogus check.
+    span: {start: 1593, end: 1595}
+    status: {satisfied: exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first}
+  - id: R8-DUP-1
+    source: prose
+    level: MUST
+    quote: a packet is duplicate or replay if the transmit timestamp t3 in the packet matches the org state variable T3.
+    span: {start: 1588, end: 1590}
+    status: {unsupported: "ess-gap G1: accepting requires the transmit timestamp t3 to differ from org, an inequality, and the server's xmt and rec are not modelled"}
+  - id: R8-LOSS-1
+    source: prose
+    level: MUST
+    quote: It is inherently resistant to lost or duplicate packets.
+    span: {start: 1434, end: 1435}
+    status: {satisfied: exchange.server.R8-LOSS-1-replay}
+  - id: R9.2-FXMIT-1
+    source: prose
+    level: MUST
+    quote: the server constructs a server (mode 4) packet and returns it to the client without retaining state.
+    span: {start: 1862, end: 1863}
+    status: {satisfied: exchange.server.R9.2-FXMIT-1-answer}
 layouts:
   - name: header
     quote: The basic header extends from the beginning of the packet to the end of the Transmit Timestamp field.
@@ -49,5 +79,111 @@ layouts:
       - {name: org, bits: 64, signed: false, order: big-endian}
       - {name: rec, bits: 64, signed: false, order: big-endian}
       - {name: xmt, bits: 64, signed: false, order: big-endian}
-machines: []
+machines:
+  - name: exchange
+    transport: udp
+    capacity: 3
+    loss: true
+    bounds: {max_steps: 64, max_states: 2048, max_time_ms: 60000}
+    messages:
+      - {name: request, fields: {xmt: Integer}}
+      - {name: response, fields: {org: Integer}}
+    participants:
+      - name: client
+        initial: idle
+        states: [idle, first, second, ended]
+        fields:
+          - {name: xmt, type: Integer, initial: 0}
+        inputs: [mobilize]
+        timers: [poll]
+        transitions:
+          - implements: [R8-BOGUS-1]
+            label: mobilize
+            from: idle
+            to: first
+            on: {input: mobilize}
+            effects:
+              - {set: {field: xmt, value: 1}}
+              - {send: {message: request, payload: {xmt: 1}}}
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: [R8-BOGUS-1, R8-LOSS-1]
+            label: poll
+            from: first
+            to: second
+            on: {timer: poll}
+            effects:
+              - {set: {field: xmt, value: 2}}
+              - {send: {message: request, payload: {xmt: 2}}}
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: [R8-LOSS-1]
+            label: end
+            from: second
+            to: ended
+            on: {timer: poll}
+          - implements: [R8-BOGUS-1, R8-REPLAY-1]
+            label: accept-first
+            from: first
+            to: first
+            on: {receive: response}
+            guards:
+              - {left: {input: org}, right: {local: xmt}}
+              - {left: {local: xmt}, right: 1}
+            effects:
+              - {set: {field: xmt, value: 0}}
+              - {emit: valid-packet}
+          - implements: [R8-BOGUS-1, R8-REPLAY-1]
+            label: accept-second
+            from: second
+            to: second
+            on: {receive: response}
+            guards:
+              - {left: {input: org}, right: {local: xmt}}
+              - {left: {local: xmt}, right: 2}
+            effects:
+              - {set: {field: xmt, value: 0}}
+              - {emit: valid-packet}
+          - implements: [R8-BOGUS-1, R8-LOSS-1]
+            label: discard-first
+            from: first
+            to: first
+            on: {receive: response}
+          - implements: [R8-BOGUS-1, R8-LOSS-1]
+            label: discard-second
+            from: second
+            to: second
+            on: {receive: response}
+          - implements: [R8-BOGUS-1, R8-LOSS-1]
+            label: discard-ended
+            from: ended
+            to: ended
+            on: {receive: response}
+      - name: server
+        initial: listening
+        states: [listening, replayed]
+        inputs:
+          - {name: replay, fields: {org: Integer}}
+        transitions:
+          - implements: [R9.2-FXMIT-1]
+            label: answer
+            from: listening
+            to: listening
+            on: {receive: request}
+            effects:
+              - {send: {message: response, payload: {org: {input: xmt}}}}
+          - implements: [R9.2-FXMIT-1]
+            label: answer-after-replay
+            from: replayed
+            to: replayed
+            on: {receive: request}
+            effects:
+              - {send: {message: response, payload: {org: {input: xmt}}}}
+          - implements: [R8-LOSS-1]
+            label: replay
+            from: listening
+            to: replayed
+            on: {input: replay}
+            effects:
+              - {send: {message: response, payload: {org: {input: org}}}}
+    properties:
+      - {name: one-valid-packet-per-poll, participant: client, event: valid-packet, max: 2}
 findings: []

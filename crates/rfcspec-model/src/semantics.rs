@@ -20,6 +20,10 @@ pub struct LayerSemantics {
     /// The lower layer that supplies the channel.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub over: Option<Layering>,
+    /// The well-known port of the layer, 1 to 65535; addressing only, not multiplexing (design
+    /// section 6.2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<std::num::NonZeroU16>,
     pub roles: Vec<String>,
 }
 
@@ -166,6 +170,45 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    #[test]
+    fn a_port_reads_absent_stays_absent_and_0_or_above_65535_is_refused() {
+        let read = |layer: &str| {
+            from_yaml::<Profile>(&format!("name: x\nrfcs: []\nsemantics:\n  - {layer}\n"))
+                .map(|profile| profile.semantics[0].port)
+        };
+        assert_eq!(read(LAYER).unwrap(), None);
+        let with = |port: &str| LAYER.replace("roles:", &format!("port: {port}, roles:"));
+        assert_eq!(read(&with("123")).unwrap().map(u16::from), Some(123));
+        assert_eq!(read(&with("65535")).unwrap().map(u16::from), Some(65535));
+        for bad in ["0", "65536", "-1", "\"123\""] {
+            assert!(read(&with(bad)).is_err(), "{bad}");
+        }
+        let profile: Profile =
+            from_yaml(&format!("name: x\nrfcs: []\nsemantics:\n  - {LAYER}\n")).unwrap();
+        assert!(
+            !crate::to_yaml(&profile.semantics[0])
+                .unwrap()
+                .contains("port")
+        );
+    }
+
+    #[test]
+    fn the_ess_profile_domain_declares_the_optional_integer_port_of_layer_semantics() {
+        let domain = include_str!("../../../ess/domains/profile.yaml");
+        let layer = domain
+            .split("  - name: rfcspec.profile.LayerSemantics\n")
+            .nth(1)
+            .unwrap()
+            .split("\n  - name: ")
+            .next()
+            .unwrap();
+        assert!(
+            layer
+                .contains("      - name: port\n        type: Optional<Integer>\n        summary: "),
+            "{layer}"
+        );
     }
 
     #[test]

@@ -165,6 +165,9 @@ types:
         type: rfcspec.profile.Lifetime
       - name: over
         type: Optional<rfcspec.profile.Layering>
+      - name: port
+        type: Optional<Integer>
+        summary: The well-known port of the layer, addressing only (design section 6.2).
       - name: roles
         type: List<rfcspec.catalogue.PartyName>
 
