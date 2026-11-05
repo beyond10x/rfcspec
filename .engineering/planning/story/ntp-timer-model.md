@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-timer-model
 kind: story
-status: proposed
+status: active
 title: Carry the ESS capped backoff timer and lossy channels through the overlay machine model and its lowering
 relations:
 - decomposes: epic:ntp-profile
@@ -13,9 +13,10 @@ scope:
   path: crates/rfcspec-extract/src/check.rs
 - confidence: cited
   path: crates/rfcspec-model/src/lib.rs
-revision: 3
+revision: 4
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-05T13:50:49Z", actor: "human:timo", revision: 4}
 ---
 ## Story
 

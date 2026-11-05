@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-source-catalogue
 kind: story
-status: proposed
+status: active
 title: 'Lock, read and extract RFC 5905 into profiles/ntp: 110 pages, 37 numbered sections, 13 BCP 14 requirements'
 relations:
 - decomposes: epic:ntp-profile
@@ -25,9 +25,10 @@ scope:
   path: website/docs/catalog/index.md
 - confidence: cited
   path: website/docs/catalog/ntp.md
-revision: 3
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-05T13:50:49Z", actor: "human:timo", revision: 4}
 ---
 ## Story
 
@@ -40,7 +41,7 @@ catalogue with an overlay that reviews nothing yet.
 ## Outcome
 
 `profiles/ntp` exists with a locked RFC 5905, a profile scoped to sections 7.2, 7.3, 8, 9.2 and
-13, an empty reviewed overlay, and a catalogue page; reader and extractor values for RFC 5905 are
+13, an overlay holding a status for each of the three in-scope requirements (R9.2-1 to R9.2-3, all unsupported: authentication and broadcast mode are not modelled; `rfcspec check` requires a status for every in-scope requirement), and a catalogue page; reader and extractor values for RFC 5905 are
 pinned by tests.
 
 ## Acceptance
@@ -82,7 +83,7 @@ is accepted.
   unreviewed, as for `websocket`.
 - `rfcspec check --all profiles` exits 0. On `time`, `websocket` and `dns`, `check`, `lower
   --check` and `generate --check` pass with no change under their directories.
-- `rfcspec-docs generate` lists `ntp` (RFC 5905, K1, stage S4, no reviewed requirements) in
+- `rfcspec-docs generate` lists `ntp` (RFC 5905, K1, stage S4, three reviewed requirements, all unsupported) in
   `website/docs/catalog/index.md` and writes `website/docs/catalog/ntp.md`;
   `rfcspec-docs generate --check` exits 0.
 - The RFC 5905 catalogue is byte-identical across two runs, and `task check` exits 0.
