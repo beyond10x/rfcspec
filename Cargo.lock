@@ -1212,6 +1212,7 @@ name = "rfcspec-source"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "rfcspec-doc",
  "rfcspec-model",
  "roxmltree",
  "sha2 0.10.9",

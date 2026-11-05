@@ -1,6 +1,7 @@
-//! The bulk corpus: `rfc-index.xml` and the plain text of every RFC it lists with a TXT format,
-//! downloaded one at a time into a cache directory outside every Git working tree, so that no RFC
-//! text can land in a repository.
+//! The bulk corpus: `rfc-index.xml` and one source of every RFC it lists with an XML or a TXT
+//! format, the RFCXML where the index lists it and the plain text otherwise, downloaded one at a
+//! time into a cache directory outside every Git working tree, so that no RFC source can land in
+//! a repository.
 
 use std::{
     fs,
@@ -8,8 +9,9 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use rfcspec_model::SourceFormat;
 
-use crate::{MAX_SOURCE, agent, get, index::parse_index, sha256_hex};
+use crate::{MAX_SOURCE, agent, get, index::IndexEntry, index::parse_index, sha256_hex};
 
 /// Where `rfc-index.xml` is fetched from by default.
 pub const RFC_INDEX: &str = "https://www.rfc-editor.org/rfc-index.xml";
@@ -19,6 +21,9 @@ pub const INDEX_FILE: &str = "rfc-index.xml";
 
 /// The directory of RFC texts inside a cache.
 pub const TEXT_DIR: &str = "txt";
+
+/// The directory of RFCXML sources inside a cache.
+pub const XML_DIR: &str = "xml";
 
 /// The largest index accepted, in bytes.
 const MAX_INDEX: u64 = 64 * 1024 * 1024;
@@ -39,6 +44,23 @@ pub fn default_cache() -> Result<PathBuf> {
 /// The text of RFC `rfc` inside a cache.
 pub fn text_path(cache: &Path, rfc: u32) -> PathBuf {
     cache.join(TEXT_DIR).join(format!("rfc{rfc}.txt"))
+}
+
+/// The RFCXML source of RFC `rfc` inside a cache.
+pub fn xml_path(cache: &Path, rfc: u32) -> PathBuf {
+    cache.join(XML_DIR).join(format!("rfc{rfc}.xml"))
+}
+
+/// The format an index entry is read from in bulk: RFCXML where the index lists it, else plain
+/// text where it lists that; none for an entry with neither.
+pub fn bulk_format(entry: &IndexEntry) -> Option<SourceFormat> {
+    if entry.has_xml() {
+        Some(SourceFormat::Xml)
+    } else if entry.has_text() {
+        Some(SourceFormat::Text)
+    } else {
+        None
+    }
 }
 
 /// The Git working tree a path lies in, if any: the nearest directory, from the path's nearest
@@ -64,17 +86,22 @@ pub fn git_working_tree(path: &Path) -> Result<Option<PathBuf>> {
 pub struct Corpus {
     /// SHA-256 of the index fetched.
     pub index_sha256: String,
-    /// Index entries with a TXT format.
+    /// Index entries read from plain text: a TXT format and no XML format.
     pub texts: usize,
-    /// Texts downloaded in this run; the others were already in the cache.
+    /// Index entries read from RFCXML: an XML format.
+    pub xml: usize,
+    /// Sources downloaded in this run; the others were already in the cache.
     pub downloaded: usize,
 }
 
-/// Download `index_url` to `<cache>/rfc-index.xml`, then, one at a time, `<base>rfc<N>.txt` to
-/// `<cache>/txt/rfc<N>.txt` for every entry with a TXT format, skipping a text already cached
-/// unless `refresh`. Refuses a cache inside a Git working tree before any request. Stops at the
-/// first failed download, naming the RFC and its URL; every text written before it stays, so a
-/// rerun resumes. `downloaded` is called with each RFC number after its text is written.
+/// Download `index_url` to `<cache>/rfc-index.xml`, then, one at a time, `<base>rfc<N>.xml` to
+/// `<cache>/xml/rfc<N>.xml` for every entry with an XML format and `<base>rfc<N>.txt` to
+/// `<cache>/txt/rfc<N>.txt` for every other entry with a TXT format, skipping a source already
+/// cached unless `refresh`. Refuses a cache inside a Git working tree before any request. Stops
+/// at the first failed download, and at the first XML body that is not RFCXML v3 (writing nothing
+/// for it), naming the RFC and its URL; every source written before it
+/// stays, so a rerun resumes. `downloaded` is called with each RFC number after its source is
+/// written.
 pub fn fetch_corpus(
     cache: &Path,
     index_url: &str,
@@ -93,27 +120,52 @@ pub fn fetch_corpus(
     let index = get(&agent, index_url, MAX_INDEX)?;
     let xml = std::str::from_utf8(&index).with_context(|| format!("{index_url} is not UTF-8"))?;
     let entries = parse_index(xml).with_context(|| format!("reading {index_url}"))?;
-    fs::create_dir_all(cache.join(TEXT_DIR))
-        .with_context(|| format!("creating {}", cache.join(TEXT_DIR).display()))?;
+    for dir in [TEXT_DIR, XML_DIR] {
+        fs::create_dir_all(cache.join(dir))
+            .with_context(|| format!("creating {}", cache.join(dir).display()))?;
+    }
     write(&cache.join(INDEX_FILE), &index)?;
     let mut corpus = Corpus {
         index_sha256: sha256_hex(&index),
         texts: 0,
+        xml: 0,
         downloaded: 0,
     };
-    for entry in entries.iter().filter(|entry| entry.has_text()) {
-        corpus.texts += 1;
-        let path = text_path(cache, entry.rfc);
+    for entry in &entries {
+        let Some(format) = bulk_format(entry) else {
+            continue;
+        };
+        let path = match format {
+            SourceFormat::Xml => {
+                corpus.xml += 1;
+                xml_path(cache, entry.rfc)
+            }
+            SourceFormat::Text => {
+                corpus.texts += 1;
+                text_path(cache, entry.rfc)
+            }
+        };
         if !refresh && path.is_file() {
             continue;
         }
-        let url = format!("{base}rfc{}.txt", entry.rfc);
+        let url = format!("{base}rfc{}.{}", entry.rfc, format.extension());
         let bytes = get(&agent, &url, MAX_SOURCE).with_context(|| format!("RFC {}", entry.rfc))?;
+        if format == SourceFormat::Xml {
+            check_xml(&bytes)
+                .with_context(|| format!("RFC {}: {url} is not RFCXML v3", entry.rfc))?;
+        }
         write(&path, &bytes)?;
         corpus.downloaded += 1;
         downloaded(entry.rfc);
     }
     Ok(corpus)
+}
+
+/// Refuse a downloaded body that is not RFCXML v3 as the reader first checks it (UTF-8,
+/// well-formed, root `<rfc version="3">`), so a page served in its place is never cached.
+fn check_xml(bytes: &[u8]) -> Result<()> {
+    let text = std::str::from_utf8(bytes).context("not UTF-8")?;
+    Ok(rfcspec_doc::xml::check(text)?)
 }
 
 /// Write a file through a sibling `.part` file and a rename, so an interrupted run never leaves a

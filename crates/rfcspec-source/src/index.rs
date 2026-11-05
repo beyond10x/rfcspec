@@ -16,7 +16,7 @@ pub struct IndexEntry {
     pub area: Option<String>,
     /// `YYYY-MM`.
     pub date: String,
-    /// The `file-format`s the RFC is published in, such as `TXT`, `HTML` or `PDF`.
+    /// The `file-format`s the RFC is published in, such as `TXT`, `HTML`, `PDF` or `XML`.
     pub formats: Vec<String>,
     pub obsoletes: Vec<u32>,
     pub obsoleted_by: Vec<u32>,
@@ -28,6 +28,11 @@ impl IndexEntry {
     /// Whether the RFC is published as plain text.
     pub fn has_text(&self) -> bool {
         self.formats.iter().any(|format| format == "TXT")
+    }
+
+    /// Whether the RFC is published as RFCXML.
+    pub fn has_xml(&self) -> bool {
+        self.formats.iter().any(|format| format == "XML")
     }
 }
 
@@ -181,6 +186,19 @@ mod tests {
         assert_eq!(websocket.date, "2011-12");
         assert_eq!(websocket.updated_by, vec![7936, 8307]);
         assert!(websocket.obsoletes.is_empty());
+    }
+
+    #[test]
+    fn an_entry_has_xml_when_its_formats_include_xml() {
+        let entries = parse_index(&INDEX.replace(
+            "<file-format>HTML</file-format>",
+            "<file-format>HTML</file-format><file-format>XML</file-format>",
+        ))
+        .unwrap();
+        assert!(!entries[0].has_xml());
+        assert!(entries[1].has_xml());
+        assert!(entries[1].has_text());
+        assert!(!parse_index(INDEX).unwrap()[1].has_xml());
     }
 
     #[test]

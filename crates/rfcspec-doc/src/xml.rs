@@ -45,8 +45,8 @@ impl std::fmt::Display for XmlError {
 
 impl std::error::Error for XmlError {}
 
-/// Read an RFC's RFCXML v3 source into a normalized document.
-pub fn read(rfc: u32, sha256: &str, text: &str) -> Result<Document, XmlError> {
+/// A source parsed as XML whose root is `<rfc version="3">`; refused otherwise, naming why.
+fn parse(text: &str) -> Result<roxmltree::Document<'_>, XmlError> {
     let options = ParsingOptions {
         allow_dtd: true,
         ..ParsingOptions::default()
@@ -66,6 +66,19 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Result<Document, XmlError> {
             root.attribute("version").unwrap_or("")
         )));
     }
+    Ok(xml)
+}
+
+/// Whether a source is RFCXML v3 as [`read`] first checks it: well-formed XML whose root is
+/// `<rfc version="3">`; refused otherwise, naming why.
+pub fn check(text: &str) -> Result<(), XmlError> {
+    parse(text).map(|_| ())
+}
+
+/// Read an RFC's RFCXML v3 source into a normalized document.
+pub fn read(rfc: u32, sha256: &str, text: &str) -> Result<Document, XmlError> {
+    let xml = parse(text)?;
+    let root = xml.root_element();
     let reader = Reader {
         line_starts: std::iter::once(0)
             .chain(text.match_indices('\n').map(|(index, _)| index + 1))

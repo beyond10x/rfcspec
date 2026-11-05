@@ -400,7 +400,7 @@ fn extract_names_the_line_of_a_bcp14_element_holding_no_level_and_still_exits_0(
 }
 
 #[test]
-fn bulk_check_refuses_an_xml_lock_naming_the_file_and_the_story_that_reads_it() {
+fn bulk_check_refuses_an_xml_lock_whose_committed_row_was_read_from_text_naming_both_formats() {
     let profiles = tempfile::tempdir().unwrap();
     let profile = profiles.path().join("time");
     fs::create_dir_all(&profile).unwrap();
@@ -423,5 +423,7 @@ fn bulk_check_refuses_an_xml_lock_naming_the_file_and_the_story_that_reads_it() 
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("sources/rfc868.xml"), "{stderr}");
-    assert!(stderr.contains("story:bulk-xml-summary"), "{stderr}");
+    assert!(stderr.contains("format text"), "{stderr}");
+    assert!(stderr.contains("format xml"), "{stderr}");
+    assert!(!stderr.contains("story:bulk-xml-summary"), "{stderr}");
 }

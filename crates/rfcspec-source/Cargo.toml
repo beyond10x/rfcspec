@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow = "1"
+rfcspec-doc = { path = "../rfcspec-doc" }
 rfcspec-model = { path = "../rfcspec-model" }
 roxmltree = "0.21"
 sha2 = "0.10"

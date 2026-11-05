@@ -331,8 +331,8 @@ entities:
       - name: digest
         type: rfcspec.catalogue.Digest
         summary: >-
-          SHA-256 of the locked source file, or of the plain text read in bulk for the bulk
-          summary (rfcspec-bulk/1).
+          SHA-256 of the locked source file, or of the source read in bulk for the bulk summary
+          (rfcspec-bulk/1): the RFCXML file where the index lists one, the plain text otherwise.
       - name: requirement_counts
         type: List<rfcspec.catalogue.LevelCount>
         summary: >-
@@ -2194,6 +2194,8 @@ views:
         type: String
       - name: area
         type: Optional<String>
+      - name: format_read
+        type: rfcspec.catalogue.SourceFormat
       - name: digest
         type: rfcspec.catalogue.Digest
       - name: requirement_counts

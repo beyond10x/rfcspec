@@ -1,14 +1,14 @@
-//! The bulk summary (`rfcspec-bulk/1`): one JSON line per `rfc-index.xml` entry with a plain
-//! text, after a header line. A row is the index metadata of one RFC, the SHA-256 of the text
-//! read and the counts of its mechanical catalogue requirements by BCP 14 level. The same rows
-//! always serialize to the same bytes.
+//! The bulk summary (`rfcspec-bulk/1`): one JSON line per `rfc-index.xml` entry with an XML or a
+//! plain-text format, after a header line. A row is the index metadata of one RFC, the format and
+//! SHA-256 of the source read and the counts of its mechanical catalogue requirements by BCP 14
+//! level. The same rows always serialize to the same bytes.
 
 use std::collections::BTreeMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::sha256_hex;
+use crate::{SourceFormat, sha256_hex};
 
 /// The summary format.
 pub const BULK_FORMAT: &str = "rfcspec-bulk/1";
@@ -28,7 +28,7 @@ pub struct BulkHeader {
     pub rows_sha256: String,
 }
 
-/// One RFC of the index with a plain text, read in bulk.
+/// One RFC of the index with an XML or a plain-text format, read in bulk.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BulkRow {
@@ -49,7 +49,11 @@ pub struct BulkRow {
     pub updates: Vec<u32>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub updated_by: Vec<u32>,
-    /// SHA-256 of the text bytes.
+    /// The format of the source read, written only as `"format":"xml"`; a row without it was read
+    /// from plain text.
+    #[serde(default, skip_serializing_if = "SourceFormat::is_text")]
+    pub format: SourceFormat,
+    /// SHA-256 of the source file's bytes, the RFCXML file for a row read from XML.
     pub sha256: String,
     /// Requirements by BCP 14 level, the level as the extractor spells it; no zeros.
     pub counts: BTreeMap<String, u64>,
@@ -110,6 +114,7 @@ mod tests {
             updated_by: vec![7936],
             sha256: "0".repeat(64),
             counts: BTreeMap::from([("MUST NOT".into(), 2), ("MUST".into(), 3)]),
+            format: SourceFormat::Text,
             lossy: false,
         }
     }
@@ -123,6 +128,25 @@ mod tests {
                 "0".repeat(64)
             )
         );
+    }
+
+    #[test]
+    fn a_row_read_from_xml_writes_its_format_and_a_text_row_reads_back_as_text() {
+        let xml = BulkRow {
+            format: crate::SourceFormat::Xml,
+            ..row()
+        };
+        let line = bulk_line(&xml).unwrap();
+        assert!(
+            line.contains(&format!(
+                "\"updated_by\":[7936],\"format\":\"xml\",\"sha256\":\"{}\"",
+                "0".repeat(64)
+            )),
+            "{line}"
+        );
+        assert_eq!(serde_json::from_str::<BulkRow>(&line).unwrap(), xml);
+        let text: BulkRow = serde_json::from_str(&bulk_line(&row()).unwrap()).unwrap();
+        assert_eq!(text.format, crate::SourceFormat::Text);
     }
 
     #[test]
