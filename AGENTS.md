@@ -66,6 +66,15 @@ the `bulk` task (`rfcspec bulk check --summary bulk/rfc-summary.jsonl --profiles
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
 `task website` (`npm ci --allow-git=root` locally; CI's Node 22 needs no flag).
 
+## Release
+
+A release `vX.Y.Z` is the `[workspace.package]` version in `Cargo.toml` set to `X.Y.Z`, merged to
+`main` with `task check` green, then the tag `vX.Y.Z` on that merge commit and a GitHub Release
+of the tag, both written through the bot (`POST /repos/beyond10x/rfcspec/git/refs`, then
+`POST /repos/beyond10x/rfcspec/releases`). The release body lists what changed since the previous
+tag. Nothing is published to a registry. The site deploys on every merge to `main`, independent
+of releases.
+
 ## Rules
 
 - Running code is Rust, clap derive for the command line. No Python, no shell helpers.
