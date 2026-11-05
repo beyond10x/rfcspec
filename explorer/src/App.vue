@@ -7,6 +7,8 @@ import { type ProfileNote, profileUrl } from './lib/profile.ts';
 import { type Filter, indexUrl, readFilter, writeFilter } from './lib/search.ts';
 import ListView from './components/ListView.vue';
 import RfcView from './components/RfcView.vue';
+import SiteFooter from './components/SiteFooter.vue';
+import SiteHeader from './components/SiteHeader.vue';
 
 type State =
   | { kind: 'listing' }
@@ -25,6 +27,24 @@ type Layer = { profiles: Profile[]; notes: ProfileNote[]; error: string | null }
 
 const state = ref<State>({ kind: 'listing' });
 const typed = ref('');
+
+/**
+ * The colour mode of the documentation site: the choice its colour-mode switch stored for this
+ * site, else the system preference, as the site's own head script reads them.
+ */
+function colourMode(): 'light' | 'dark' {
+  try {
+    const stored = window.localStorage.getItem('theme-cdd');
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+  } catch {
+    // Storage may be unavailable; the system preference decides.
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+document.documentElement.setAttribute('data-theme', colourMode());
 
 /** The front page: the index, filtered by the query string. */
 async function list(): Promise<void> {
@@ -129,14 +149,15 @@ function open(): void {
 </script>
 
 <template>
+  <SiteHeader />
   <main>
-    <nav>
-      <span><a href="../">RFCspec</a> · <a href="./">RFC explorer</a> · <a href="../docs/catalog/rfcs">RFC index</a></span>
+    <div class="toolbar">
+      <a href="../docs/catalog/rfcs">RFC index</a>
       <form @submit.prevent="open">
         <label>RFC <input v-model="typed" inputmode="numeric" size="6" /></label>
         <button type="submit">Open</button>
       </form>
-    </nav>
+    </div>
     <p v-if="state.kind === 'listing'">Loading the RFC index…</p>
     <p v-else-if="state.kind === 'unlisted'" class="missing">The RFC index could not be loaded: {{ state.reason }}</p>
     <ListView v-else-if="state.kind === 'listed'" :index="state.index" :initial="state.filter" @change="filtered" />
@@ -152,4 +173,5 @@ function open(): void {
       :layer-error="state.layer.error"
     />
   </main>
+  <SiteFooter />
 </template>
