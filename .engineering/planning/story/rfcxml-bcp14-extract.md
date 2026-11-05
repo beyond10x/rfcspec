@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:rfcxml-bcp14-extract
 kind: story
-status: draft
+status: proposed
 title: 'Extract requirements from bcp14 markup: RFC 9220 gives R3-1 SHOULD and R3-2 MAY as bcp14-xml'
 relations:
 - decomposes: epic:rfcxml-reader
@@ -14,7 +14,9 @@ scope:
   path: crates/rfcspec-extract/src/lib.rs
 - confidence: inferred
   path: crates/rfcspec-model/src/lib.rs
-revision: 6
+revision: 7
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-05T15:46:56Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 ## Story
 

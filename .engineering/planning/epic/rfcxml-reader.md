@@ -2,9 +2,12 @@
 format: aep.planning-md/3
 id: epic:rfcxml-reader
 kind: epic
-status: draft
+status: active
 title: 'Read RFCXML v3: exact requirements, ABNF grammars and diagrams for RFC 8650 onward'
-revision: 3
+revision: 5
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-05T15:46:56Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "proposed", to: "active", at: "2026-11-05T15:46:56Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Outcome
 
