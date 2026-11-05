@@ -2,10 +2,15 @@
 //! S5: lower the overlay's machines to `ess-protospec/1`, one model per machine (one per
 //! transport). Each machine has two participants joined by one FIFO channel in each direction; a
 //! transition's lowered name is the requirement and dialogue-step ids it implements, then its label.
-//! A machine carries inputs with typed fields, timers armed for a fixed delay, payload values that
-//! are literals or fields of the triggering input or received message, `flush`, and the
-//! `event_count`, `flush_before_close`, `never_state` and `state_implication` properties; its
-//! bounds default to [`BOUNDS`] and its channel capacity to 4. A participant may declare local
+//! A machine carries inputs with typed fields, timers armed for a fixed delay (`{arm: {timer,
+//! millis}}`, lowered to `after: {kind: fixed, millis}`) or a capped backoff (`{arm: {timer,
+//! backoff: {factor, ceiling_ms}}}`, lowered to `after: {kind: backoff, timer, factor,
+//! ceiling_ms}`, the armed timer's last interval times `factor`, at most `ceiling_ms`), payload
+//! values that are literals or fields of the triggering input or received message, `flush`, and
+//! the `event_count`, `flush_before_close`, `never_state` and `state_implication` properties; its
+//! bounds default to [`BOUNDS`] and its channel capacity to 4. Every channel is FIFO and never
+//! duplicates; a machine declaring `loss: true` lowers `loss: true` on both channels, so a message
+//! may be lost, and any other machine `loss: false`. A participant may declare local
 //! fields (`Integer` or `Boolean`, with an initial literal), which the `set` effect assigns from a literal or a trigger field; a
 //! transition may carry `guards`, a conjunction of equalities whose operands are literals, local
 //! fields or trigger fields. Absent local fields, guards and properties are not written.
@@ -15,18 +20,12 @@
 use std::{collections::BTreeMap, path::Path, process::Command};
 
 use anyhow::{Context, Result, bail, ensure};
+pub use rfcspec_model::BOUNDS;
 use rfcspec_model::{
-    Bounds, Effect, Generated, Literal, Machine, Operand, Overlay, Property as OverlayProperty,
-    Trigger, Value as OverlayValue, to_yaml,
+    Bounds, Effect, Generated, Interval, Literal, Machine, Operand, Overlay,
+    Property as OverlayProperty, Trigger, Value as OverlayValue, to_yaml,
 };
 use serde::Serialize;
-
-/// The exploration bounds of a lowered model whose machine names none.
-pub const BOUNDS: Bounds = Bounds {
-    max_steps: 32,
-    max_states: 256,
-    max_time_ms: 1000,
-};
 
 /// The capacity of each lowered channel of a machine that declares none.
 const CAPACITY: u32 = 4;
@@ -186,10 +185,19 @@ struct Source {
     field: Option<String>,
 }
 
-#[derive(Serialize)]
+/// An `ess-protospec/1` duration: `fixed` with `millis`, or `backoff` with the timer whose last
+/// interval it multiplies, the `factor` and the `ceiling_ms`.
+#[derive(Default, Serialize)]
 struct Delay {
     kind: &'static str,
-    millis: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    millis: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    factor: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ceiling_ms: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -357,9 +365,19 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                     Effect::Arm(arm) => effects.push(EffectOut {
                         kind: "arm",
                         timer: Some(arm.timer.clone()),
-                        after: Some(Delay {
-                            kind: "fixed",
-                            millis: arm.millis,
+                        after: Some(match arm.interval {
+                            Interval::Fixed { millis } => Delay {
+                                kind: "fixed",
+                                millis: Some(millis),
+                                ..Delay::default()
+                            },
+                            Interval::Backoff(backoff) => Delay {
+                                kind: "backoff",
+                                timer: Some(arm.timer.clone()),
+                                factor: Some(backoff.factor),
+                                ceiling_ms: Some(backoff.ceiling_ms),
+                                ..Delay::default()
+                            },
                         }),
                         ..EffectOut::default()
                     }),
@@ -464,7 +482,7 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
     Ok(Model {
         format: "ess-protospec/1",
         name: format!("rfc{rfc}-{profile}-{}", machine.name),
-        bounds: machine.bounds.unwrap_or(BOUNDS),
+        bounds: machine.bounds(),
         participants,
         messages: machine
             .messages
@@ -482,7 +500,7 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 to: to.into(),
                 ordering: "fifo",
                 capacity: machine.capacity.unwrap_or(CAPACITY),
-                loss: false,
+                loss: machine.loss,
                 duplication: false,
             })
             .collect(),
@@ -1150,6 +1168,7 @@ mod tests {
                 name: "echo".into(),
                 transport: "tcp".into(),
                 capacity: None,
+                loss: false,
                 bounds: None,
                 messages: ["ping", "pong"]
                     .map(|name| Message {
@@ -1423,5 +1442,119 @@ mod tests {
             reason.contains("property violated") && reason.contains("answer-matches-query"),
             "{reason}"
         );
+    }
+
+    /// An overlay of one synthetic two-participant machine, read from YAML.
+    fn synthetic(machine: &str) -> Overlay {
+        Overlay {
+            format: rfcspec_model::OVERLAY_FORMAT.into(),
+            rfc: 1,
+            kind: None,
+            requirements: vec![],
+            layouts: vec![],
+            machines: vec![rfcspec_model::from_yaml(machine).unwrap()],
+            findings: vec![],
+            decisions: vec![],
+        }
+    }
+
+    /// A client that arms `t` for a fixed 1000 ms on `start`, re-arms it on expiry with a backoff
+    /// doubling up to 4000 ms, and ends by cancelling it on `stop`; the server does nothing.
+    const BACKOFF_MACHINE: &str = "name: retry
+transport: udp
+bounds: {max_steps: 32, max_states: 256, max_time_ms: 8000}
+messages: []
+participants:
+  - name: client
+    initial: idle
+    states: [idle, waiting, backing, done]
+    inputs: [start, stop]
+    timers: [t]
+    transitions:
+      - implements: [T-1]
+        label: start
+        from: idle
+        to: waiting
+        on: {input: start}
+        effects: [{arm: {timer: t, millis: 1000}}]
+      - implements: [T-2]
+        label: back-off
+        from: waiting
+        to: backing
+        on: {timer: t}
+        effects: [{arm: {timer: t, backoff: {factor: 2, ceiling_ms: 4000}}}]
+      - implements: [T-3]
+        label: stop
+        from: backing
+        to: done
+        on: {input: stop}
+        effects: [{cancel: t}]
+  - name: server
+    initial: idle
+    states: [idle]
+    transitions: []
+properties: []
+";
+
+    #[test]
+    fn a_backoff_arm_lowers_to_the_protospec_backoff_of_the_armed_timer() {
+        let machine = BACKOFF_MACHINE.replace(
+            "{arm: {timer: t, backoff: {factor: 2, ceiling_ms: 4000}}}",
+            "{arm: {timer: poll, backoff: {factor: 2, ceiling_ms: 131072000}}}",
+        );
+        let model = parsed(&lower(&synthetic(&machine), "test").unwrap()[0]);
+        let back_off = &transitions(&model, "client")[1];
+        assert_eq!(
+            back_off["effects"][0],
+            serde_json::json!({"kind": "arm", "timer": "poll", "after": {"kind": "backoff", "timer": "poll", "factor": 2, "ceiling_ms": 131072000}})
+        );
+        let start = &transitions(&model, "client")[0];
+        assert_eq!(
+            start["effects"][0],
+            serde_json::json!({"kind": "arm", "timer": "t", "after": {"kind": "fixed", "millis": 1000}})
+        );
+    }
+
+    #[test]
+    fn a_machine_declaring_loss_lowers_loss_on_both_channels_and_otherwise_none() {
+        let losses = |machine: &str| -> Vec<serde_json::Value> {
+            parsed(&lower(&synthetic(machine), "test").unwrap()[0])["channels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["loss"].clone())
+                .collect()
+        };
+        assert_eq!(losses(BACKOFF_MACHINE), [false, false]);
+        let declared = |loss: &str| {
+            BACKOFF_MACHINE.replace(
+                "transport: udp\n",
+                &format!("transport: udp\nloss: {loss}\n"),
+            )
+        };
+        assert_eq!(losses(&declared("false")), [false, false]);
+        assert_eq!(losses(&declared("true")), [true, true]);
+    }
+
+    /// Lower one synthetic machine named `retry` and explore it with the inputs `start`, `stop`.
+    fn explore_retry(machine: &str) -> serde_json::Value {
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&synthetic(machine), "test").unwrap()).unwrap();
+        let inputs = out.path().join("retry.inputs.json");
+        fs::write(
+            &inputs,
+            "[{\"kind\":\"input\",\"participant\":\"client\",\"name\":\"start\",\"payload\":{}},{\"kind\":\"input\",\"participant\":\"client\",\"name\":\"stop\",\"payload\":{}}]\n",
+        )
+        .unwrap();
+        explore(&out.path().join("retry.protospec.yaml"), &inputs).unwrap()
+    }
+
+    #[test]
+    fn a_timer_armed_fixed_then_with_backoff_and_cancelled_passes_exploration() {
+        let report = explore_retry(BACKOFF_MACHINE);
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+        assert!(report["counterexample"].is_null(), "{report:#}");
+        let uncancelled = explore_retry(&BACKOFF_MACHINE.replace("effects: [{cancel: t}]", ""));
+        assert_ne!(uncancelled["verdict"], "passed", "{uncancelled:#}");
     }
 }
