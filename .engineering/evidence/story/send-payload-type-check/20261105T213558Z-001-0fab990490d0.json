@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T21:35:58Z",
+  "actor": "human:timo",
+  "artifact": "story:send-payload-type-check",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-extract -p rfcspec-cli --locked (271 passed, 6 ignored); rfcspec check --all profiles; cargo fmt --all --check; cargo clippy -p rfcspec-extract --all-targets -D warnings"
+  }
+}

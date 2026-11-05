@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:text-reader-structure
 kind: story
-status: active
+status: implemented
 title: The text reader recognises appendix headings, lists and asides
 relations:
 - informed_by: epic:rfcxml-reader
@@ -27,10 +27,11 @@ scope:
   path: website/static/data/rfc-index.json
 - confidence: inferred
   path: website/static/data/rfcs
-revision: 10
+revision: 12
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 9, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T21:24:57Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T22:33:41Z", actor: "human:timo", revision: 12, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Story
 
@@ -56,8 +57,8 @@ Values read on 2026-11-05: text ids from the `rfcspec` binary over the corpus ca
 - Appendix (RFC 9644): before, the text path gives `R7.2-1` (MUST NOT) for the requirement that XML places in Appendix A (section `A`, one MUST NOT). After, the text path gives `RA-1` for it, and no `R7.2-` id.
 - Bullet list (RFC 9700 section 4.9.3, three `*` items with SHOULD, SHOULD and MUST): before, the text path gives `R4.9.3-1` and `R4.9.3-2`, both SHOULD; XML gives three (MUST 1, SHOULD 2). After, the text path gives `R4.9.3-1` to `R4.9.3-3` with those three levels.
 - Aside (RFC 8860 section 5.1, quoted text in `|` asides): before, the text path gives eight ids `R5.1-1` to `R5.1-8` (SHOULD 2, SHOULD NOT 1, SHALL NOT 4, MAY 1); XML gives ten (SHOULD 2, SHOULD NOT 2, SHALL NOT 4, MAY 2). After, the text path gives `R5.1-1` to `R5.1-10` with the XML levels.
-- Table of contents (RFC 8881): before, the text path gives `R-1` to `R-4` (REQUIRED, RECOMMENDED, REQUIRED, RECOMMENDED) from table-of-contents lines 101-108, such as "REQUIRED Attributes 5.2."; XML has one requirement outside numbered sections. After, no text requirement spans lines 101-108, and the text path gives one id under `R-`.
-- Comparison: `rfcspec bulk compare --cache <corpus cache> --rfcs 9588,9609,9644,8944,9231,8860,8951,9077,9399,9441,9504,9651,9700,8881,8839,9028,9140,9175,9210,9329,9350,9483,9560,9595,9665 --max-differing 11` exits 0. None of the 14 classified RFCs is listed, and each RFC still listed gets a cause line in this body before the story closes. The same command without `--rfcs` over the whole cache (1390 RFCs held in both formats on 2026-11-05) records its `differing:` line in the implementation report, with no threshold.
+- Table of contents (RFC 8881): before, the text path gives `R-1` to `R-4` (REQUIRED, RECOMMENDED, REQUIRED, RECOMMENDED) from table-of-contents lines 101-108, such as "REQUIRED Attributes 5.2."; XML has one requirement outside numbered sections. After, no text requirement spans lines 101-108, and the text path gives no id under `R-` (revised 2026-11-05 from the implementation: the old `R-5` at line 215 was also a table-of-contents line, and the one sectionless XML requirement is the MUST NOT of Appendix B.2.1, which the RFCXML reader leaves unnumbered because `number_from_pn` reads no number from `section-b.2.1`; the text path gives it `RB.2.1-1`. That reader fault is backlog story:xml-appendix-numbering).
+- Comparison: `rfcspec bulk compare --cache <corpus cache> --rfcs 9588,9609,9644,8944,9231,8860,8951,9077,9399,9441,9504,9651,9700,8881,8839,9028,9140,9175,9210,9329,9350,9483,9560,9595,9665 --max-differing 11` exits 0. None of the 14 classified RFCs is listed for a cause this story names; RFC 9399 and 8881 remain listed for table cells, a cause outside this story (revised 2026-11-05 from the implementation). Each RFC still listed has a cause line below. The same command without `--rfcs` over the whole cache (1390 RFCs held in both formats on 2026-11-05) records its `differing:` line in the implementation report, with no threshold.
 - Version and bulk:
   - `grep -n "EXTRACTOR_VERSION: u32 = 2" crates/rfcspec-extract/src/lib.rs` matches;
   - `bulk summarise --cache <corpus cache> --out bulk/rfc-summary.jsonl --sections bulk/rfc-sections.jsonl` is run without a new fetch, from the cache whose `rfc-index.xml` has the committed `index_sha256` `891d504b…`;
@@ -84,3 +85,13 @@ This story runs in wave 5 (coordinator plan, 2026-11-05). No ordering edge to st
 - Running code is Rust with clap derive; no Python. The corpus cache lies outside every Git working tree, and no RFC text, RFCXML or cache file is committed.
 - No `/home/<name>/` path in any file, artifact or commit message; the cache is named by its option, not its path.
 - Run only the targeted tests and commands above; the full gate runs at the wave close.
+
+## Remaining differences after implementation (2026-11-05)
+
+`bulk compare` over the 25 RFCs: `differing: 7 of 25`; over the whole cache: `differing: 149 of 1390` (174 before the last fixes).
+
+- 8881 (98 ids), 9140 (18), 9399 (12): table cells, which the RFCXML reader extracts and the text reader reads as a figure. 9399 also has `OPTIONAL` comments in its ASN.1 appendix. Backlog story:text-reader-tables.
+- 9560 (8): definition-list terms such as `"iss": (REQUIRED)`.
+- 9350 (10): field descriptions in section 9 read as figures.
+- 8839 (1): a text-only requirement in a grammar block, section 5.1.
+- 9483 (78): not checked.
