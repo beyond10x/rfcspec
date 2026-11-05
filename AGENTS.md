@@ -13,9 +13,13 @@ The contract for changing this repository. Humans start at [`README.md`](README.
 
 ## State
 
-The pipeline runs every stage except S3 (AI proposals) end to end for two profiles,
-`profiles/time` (RFC 868) and `profiles/websocket` (RFC 6455 sections 5.2, 5.5 and 7); everything
-else is design. What exists:
+The pipeline runs every stage except S3 (AI proposals) end to end for three profiles,
+`profiles/time` (RFC 868), `profiles/websocket` (RFC 6455 sections 5.2, 5.4, 5.5, 5.6 and 7) and
+`profiles/dns` (RFC 1035 sections 4.1.1, 4.2.1 and 7.3); S3 records and replays proposals for five
+tasks, `status`, `requirement-from-prose`, `machine`, `bit-widths` and `requirement-link`, and
+`rfcspec review` settles one with accept, edit or reject into the overlay, adding a requirement
+entry, layout or machine; no profile holds one yet; everything else is
+design. What exists:
 
 | path | what |
 |---|---|
@@ -23,9 +27,11 @@ else is design. What exists:
 | `ess/` | RFCspec's own ESS specification: the catalogue, profile (semantics, statuses, recorded runs) and review nouns |
 | `examples/websocket/` | the WebSocket closing-handshake model (`ess-protospec/1`) and its exploration witness |
 | `crates/rfcspec-{model,source,doc,extract,ess,gen,conformance}/` | the pipeline stages S0–S2 and S4–S7 (design §13) for plain-text RFCs |
-| `crates/rfcspec-cli/` | the `rfcspec` binary: `fetch`, `read`, `extract`, `check`, `lower`, `generate`, `verify` |
+| `crates/rfcspec-propose/` | S3: prompts for `status`, `requirement-from-prose`, `machine`, `bit-widths` and `requirement-link`, the `rfcspec-proposal/1` document (`<profile>/proposals/<proposal_id>.json`), mechanical checks, record through the `llm` crates (tag 0.20.0) and offline replay, skipping items the overlay has a decision on; and S4 over a recorded proposal (`review`): a decision (`decisions` in `rfcspec-overlay/1`, keyed by item and the SHA-256 of its whitespace-collapsed catalogue text) and, for accept and edit, the requirement entry, inserted into the overlay without rewriting its other lines; its tests use an in-process model double |
+| `crates/rfcspec-cli/` | the `rfcspec` binary: `fetch`, `read`, `extract`, `propose` (`--replay` offline), `review` (`--proposal <id>` then `accept`, `edit --entry <file>` or `reject --reason <text>`; writes the overlay only when its checks hold on the result), `check`, `lower`, `generate`, `verify` |
 | `profiles/time/` | RFC 868: locked source, `profile.yaml` with the semantics of the `tcp` and `udp` layers, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate); a profile may hold recorded runs (`runs/*.json`, `rfcspec-run/1`, written by `rfcspec verify --report`) |
-| `profiles/websocket/` | RFC 6455: locked source, `profile.yaml` (one `tcp` layer, sections 5.2, 5.5 and 7 in scope), `overlay.yaml` giving every in-scope requirement a status (the rest of the catalogue counts as unreviewed), the `close` machine and its input witness, the `frame-header` layout, and `generated/` (`close.protospec.yaml` and the `rfc6455-websocket` frame codec crate) |
+| `profiles/websocket/` | RFC 6455: locked source, `profile.yaml` (one `tcp` layer, sections 5.2, 5.4, 5.5, 5.6 and 7 in scope), `overlay.yaml` giving every in-scope requirement a status (the rest of the catalogue counts as unreviewed), the `close`, `ping` and `fragments` machines and their input witnesses, the `frame-header` layout, and `generated/` (`close.protospec.yaml`, `ping.protospec.yaml`, `fragments.protospec.yaml` and the `rfc6455-websocket` frame codec crate) |
+| `profiles/dns/` | RFC 1035: locked source, `profile.yaml` (one `udp` layer correlated `by-id`, sections 4.1.1, 4.2.1 and 7.3 in scope), `overlay.yaml` (prose requirements only: RFC 1035 predates BCP 14), the `header` layout, the `query` machine (a response is accepted only when its ID equals the query's) and its input witness, and `generated/` (`query.protospec.yaml` and the `rfc1035-dns` header codec crate) |
 | `crates/rfcspec-docs/` | generates the site's derived pages (design, status, and the protocol catalogue `website/docs/catalog/` with its downloads `website/static/downloads/`, both from `profiles/`) and binds a built site to its commit |
 | `website/` | the Docusaurus site published at `https://beyond10x.github.io/rfcspec/`; `website/static/pitch/` is a standalone slide deck |
 | `.engineering/` | the AEP planning store (`aep.project/5`) |
@@ -38,12 +44,16 @@ task check
 
 Steps (`Taskfile.yml`): `aep plan artifact validate`, `ess specify validate --path ess`, bounded
 exploration of every model under `examples/` must report `"verdict": "passed"`,
-the `time` task (`rfcspec check --all profiles`, which also fails on a stale recorded run or an
-in-scope requirement without a status, `rfcspec lower --check`, exploration of both
+the `time` task (`rfcspec check --all profiles`, which also fails on a stale recorded run, an
+in-scope requirement without a status, a recorded proposal that does not replay byte for byte, or
+an overlay decision without its recorded proposal or judging another text than its item's current one,
+`rfcspec lower --check`, exploration of both
 Time Protocol models, `rfcspec generate --check`, `cargo test -p rfc868-time`),
 the `websocket` task (`rfcspec lower --profile profiles/websocket --check`, exploration of the
-`close` model with its witness, `rfcspec generate --profile profiles/websocket --check`,
+`close`, `ping` and `fragments` models with their witnesses, `rfcspec generate --profile profiles/websocket --check`,
 `cargo test -p rfc6455-websocket`),
+the `dns` task (`rfcspec lower --profile profiles/dns --check`, exploration of the `query` model
+with its witness, `rfcspec generate --profile profiles/dns --check`, `cargo test -p rfc1035-dns`),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
 `task website` (`npm ci --allow-git=root` locally; CI's Node 22 needs no flag).
@@ -51,8 +61,11 @@ CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site 
 ## Rules
 
 - Running code is Rust, clap derive for the command line. No Python, no shell helpers.
-- Only the source crate (design §13, `rfcspec-source`) will reach the network. Every later stage
-  reads locked sources and runs offline; no gate calls a model or a website.
+- Only the source crate (design §13, `rfcspec-source`) and `rfcspec propose` recording through
+  the `llm` crates reach the network. Every other stage, and `rfcspec propose --replay`, reads
+  locked sources and recordings and runs offline; no test or gate calls a model, reads a
+  credential or reaches a website. Model credentials are `llm.routes/1` references (`env:`,
+  `file:`) the operator injects, never values in the repository.
 - AI output is a recorded proposal with cited spans. It changes nothing until a review decision is
   written to a profile's overlay.
 - ESS is read and written through its crates at a released tag; never re-implement ESS parsing or

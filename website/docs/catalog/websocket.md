@@ -19,7 +19,7 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 | RFC | Title | Sections in scope | Kind |
 |---|---|---|---|
-| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.5; 7 | K1 wire protocol |
+| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol |
 
 ## Communication semantics
 
@@ -31,9 +31,9 @@ One row per layer, as `profile.yaml` declares them ([communication semantics](/d
 
 ## Requirement matrix
 
-Reviewed: 57 requirements, by level 21 MUST, 6 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 16 MAY; by status 17 satisfied, 36 unsupported, 4 not applicable.
+Reviewed: 70 requirements, by level 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY; by status 29 satisfied, 33 unsupported, 8 not applicable.
 
-Unreviewed: 139 requirements of the mechanical catalogue of RFC 6455 have no status, by level 87 MUST, 17 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 26 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
+Unreviewed: 126 requirements of the mechanical catalogue of RFC 6455 have no status, by level 82 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 24 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
 
 One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec/blob/main/profiles/websocket/overlay.yaml), in its order. The source is the line span in RFC 6455.
 
@@ -41,31 +41,44 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 |---|---|---|---|---|---|---|
 | R5.2-1 | MAY | all | The first fragment MAY also be the final fragment. | lines 1556-1557 | satisfied | layout.frame-header |
 | R5.2-2 | MUST | all | MUST be 0 unless an extension is negotiated that defines meanings for non-zero values. | lines 1561-1562 | unsupported | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
-| R5.2-3 | MUST | all | If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1562-1565 | unsupported | failing the connection on a received frame header is not modelled: the close machine carries no data frames |
-| R5.2-4 | MUST | all | If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1577-1579 | unsupported | the opcode registry and failing the connection on an unknown opcode are not modelled: the close machine carries no data frames |
+| R5.2-3 | MUST | all | If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1562-1565 | unsupported | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
+| R5.2-4 | MUST | all | If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1577-1579 | unsupported | the opcode registry is not modelled: the fragments machine sends only opcodes 0 and 1, and no transition fails on an unknown opcode |
 | R5.2-5 | MUST | all | If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the most significant bit MUST be 0) are the payload length. | lines 1608-1610 | satisfied | layout.frame-header |
 | R5.2-6 | MUST | all | Note that in all cases, the minimal number of bytes MUST be used to encode the length, for example, the length of a 124-byte-long string can't be encoded as the sequence 126, 0, 124. | lines 1611-1614 | satisfied | layout.frame-header |
 | R5.2-7 | MUST | all | Any extension MUST specify the length of the "Extension data", or how that length may be calculated, and how the extension use MUST be negotiated during the opening handshake. | lines 1647-1649 | not applicable | addressed to the authors of extension specifications, not to an endpoint |
 | R5.2-8 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1706-1706 | unsupported | the layout leaves RSV1 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-9 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1710-1710 | unsupported | the layout leaves RSV2 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-10 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1714-1714 | unsupported | the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
-| R5.5-1 | MUST | all | All control frames MUST have a payload length of 125 bytes or less and MUST NOT be fragmented. | lines 1978-1979 | unsupported | ess-gap G1: a payload length class that depends on the opcode needs a guard beyond equality, and fragmentation is not modelled |
+| R5.4-1 | MAY | all | Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message. | lines 1894-1895 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
+| R5.4-2 | MUST NOT | all | Control frames themselves MUST NOT be fragmented. | lines 1895-1896 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
+| R5.4-3 | MUST | all | Message fragments MUST be delivered to the recipient in the order sent by the sender. | lines 1898-1899 | unsupported | delivery order is the tcp layer's ordered delivery, not an element of the fragments machine |
+| R5.4-4 | MUST NOT | all | The fragments of one message MUST NOT be interleaved between the fragments of another message unless an extension has been negotiated that can interpret the interleaving. | lines 1911-1913 | satisfied | fragments.server.R5.4-4-interleaved-message |
+| R5.4-5 | MUST | all | An endpoint MUST be capable of handling control frames in the middle of a fragmented message. | lines 1915-1916 | satisfied | fragments.server.R5.4-1-R5.4-5-pong-in-message |
+| R5.4-6 | MAY | all | A sender MAY create fragments of any size for non-control messages. | lines 1918-1919 | unsupported | ess-gap G3: fragment sizes are payload byte lengths; the data frames of the fragments machine carry only opcode and fin |
+| R5.4-7 | MUST | all | Clients and servers MUST support receiving both fragmented and unfragmented messages. | lines 1921-1922 | unsupported | only the server receives data frames in the fragments machine; the client receives no message |
+| R5.4-8 | MUST NOT | all | As control frames cannot be fragmented, an intermediary MUST NOT attempt to change the fragmentation of a control frame. | lines 1924-1925 | not applicable | addressed to intermediaries, and the profile models two endpoints |
+| R5.4-9 | MUST NOT | all | An intermediary MUST NOT change the fragmentation of a message if any reserved bit values are used and the meaning of these values is not known to the intermediary. | lines 1927-1929 | not applicable | addressed to intermediaries, and the profile models two endpoints |
+| R5.4-10 | MUST NOT | all | An intermediary MUST NOT change the fragmentation of any message in the context of a connection where extensions have been negotiated and the intermediary is not aware of the semantics of the negotiated extensions. | lines 1931-1934 | not applicable | addressed to intermediaries, and the profile models two endpoints |
+| R5.4-11 | MUST NOT | all | Similarly, an intermediary that didn't see the WebSocket handshake (and wasn't notified about its content) that resulted in a WebSocket connection MUST NOT change the fragmentation of any message of such connection. | lines 1934-1937 | not applicable | addressed to intermediaries, and the profile models two endpoints |
+| R5.4-12 | MUST | all | Since control frames cannot be fragmented, the type for all fragments in a message MUST be either text, binary, or one of the reserved opcodes. | lines 1940-1943 | satisfied | fragments.server.R5.4-12-start-message |
+| R5.5-1 | MUST | all | All control frames MUST have a payload length of 125 bytes or less and MUST NOT be fragmented. | lines 1978-1979 | unsupported | ess-gap G1: a payload length class that depends on the opcode needs a guard beyond equality; that control frames are not fragmented is R5.4-2 |
 | R5.5.1-1 | MAY | all | The Close frame MAY contain a body (the "Application data" portion of the frame) that indicates a reason for closing, such as an endpoint shutting down, an endpoint having received a frame too large, or an endpoint having received a frame that does not conform to the format expected by the endpoint. | lines 1985-1989 | unsupported | ess-gap G3: the close reason is a byte string; the close frame carries only its status code |
 | R5.5.1-2 | MUST | all | If there is a body, the first two bytes of the body MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined in Section 7.4. | lines 1989-1991 | unsupported | ess-gap G8: the byte form of the close frame body belongs to the wire layer; the close frame carries its status code as an Integer |
 | R5.5.1-3 | MAY | all | Following the 2-byte integer, the body MAY contain UTF-8-encoded data with value /reason/, the interpretation of which is not defined by this specification. | lines 1992-1994 | unsupported | ess-gap G3: the close reason is a byte string; the close frame carries only its status code |
 | R5.5.1-4 | MUST NOT | all | As the data is not guaranteed to be human readable, clients MUST NOT show it to end users. | lines 1996-1997 | not applicable | about what a client application shows its user, outside the protocol |
-| R5.5.1-5 | MUST NOT | all | The application MUST NOT send any more data frames after sending a Close frame. | lines 2002-2003 | unsupported | data frames are not modelled: the close machine sends nothing after its Close frame, but has no data frame to forbid |
+| R5.5.1-5 | MUST NOT | all | The application MUST NOT send any more data frames after sending a Close frame. | lines 2002-2003 | satisfied | fragments.client.R5.5.1-5-R5.5.1-8-close-after-message |
 | R5.5.1-6 | MUST | all | If an endpoint receives a Close frame and did not previously send a Close frame, the endpoint MUST send a Close frame in response. | lines 2005-2006 | satisfied | close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close |
 | R5.5.1-7 | SHOULD | all | (When sending a Close frame in response, the endpoint typically echos the status code it received.) It SHOULD do so as soon as practical. | lines 2006-2008 | satisfied | close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close |
-| R5.5.1-8 | MAY | all | An endpoint MAY delay sending a Close frame until its current message is sent (for instance, if the majority of a fragmented message is already sent, an endpoint MAY send the remaining fragments before sending a Close frame). | lines 2008-2012 | unsupported | messages and fragmentation are not modelled: the close machine has no current message to finish |
+| R5.5.1-8 | MAY | all | An endpoint MAY delay sending a Close frame until its current message is sent (for instance, if the majority of a fragmented message is already sent, an endpoint MAY send the remaining fragments before sending a Close frame). | lines 2008-2012 | satisfied | fragments.client.R5.5.1-5-R5.5.1-8-close-after-message |
 | R5.5.1-9 | MUST | all | After both sending and receiving a Close message, an endpoint considers the WebSocket connection closed and MUST close the underlying TCP connection. | lines 2023-2025 | satisfied | close.client.R5.5.1-9-R7.1.2-2-close-echoed |
 | R5.5.1-10 | MUST | all | The server MUST close the underlying TCP connection immediately; the client SHOULD wait for the server to close the connection but MAY close the connection at any time after sending and receiving a Close message, e.g., if it has not received a TCP Close from the server in a reasonable time period. | lines 2025-2029 | satisfied | close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close |
-| R5.5.2-1 | MAY | all | A Ping frame MAY include "Application data". | lines 2040-2040 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-2 | MUST | all | Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a Close frame. | lines 2042-2043 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-3 | SHOULD | all | It SHOULD respond with Pong frame as soon as is practical. | lines 2043-2044 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-4 | MAY | all | An endpoint MAY send a Ping frame any time after the connection is established and before the connection is closed. | lines 2047-2048 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.3-1 | MAY | all | If an endpoint receives a Ping frame and has not yet sent Pong frame(s) in response to previous Ping frame(s), the endpoint MAY elect to send a Pong frame for only the most recently processed Ping frame. | lines 2064-2067 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.3-2 | MAY | all | A Pong frame MAY be sent unsolicited. | lines 2079-2079 | unsupported | Ping and Pong frames are not modelled by this profile's machines |
+| R5.5.2-1 | MAY | all | A Ping frame MAY include "Application data". | lines 2040-2040 | satisfied | ping.client.R5.5.2-1-R5.5.2-4-send-ping |
+| R5.5.2-2 | MUST | all | Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a Close frame. | lines 2042-2043 | satisfied | ping.server.R5.5.2-2-R5.5.2-3-pong |
+| R5.5.2-3 | SHOULD | all | It SHOULD respond with Pong frame as soon as is practical. | lines 2043-2044 | satisfied | ping.server.R5.5.2-2-R5.5.2-3-pong |
+| R5.5.2-4 | MAY | all | An endpoint MAY send a Ping frame any time after the connection is established and before the connection is closed. | lines 2047-2048 | satisfied | ping.client.R5.5.2-1-R5.5.2-4-send-ping |
+| R5.5.3-1 | MAY | all | If an endpoint receives a Ping frame and has not yet sent Pong frame(s) in response to previous Ping frame(s), the endpoint MAY elect to send a Pong frame for only the most recently processed Ping frame. | lines 2064-2067 | unsupported | ess-gap G10: sending a Pong for only the most recent Ping needs a guard on whether a later Ping is pending on the incoming channel |
+| R5.5.3-2 | MAY | all | A Pong frame MAY be sent unsolicited. | lines 2079-2079 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
+| R5.6-1 | MUST | all | Note that a particular text frame might include a partial UTF-8 sequence; however, the whole message MUST contain valid UTF-8. | lines 2096-2098 | unsupported | ess-gap G3: UTF-8 validity is a property of the payload bytes; the data frames of the fragments machine carry only opcode and fin |
 | R7.1.1-1 | SHOULD | all | An endpoint SHOULD use a method that cleanly closes the TCP connection, as well as the TLS session, if applicable, discarding any trailing bytes that may have been received. | lines 2267-2270 | unsupported | the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect |
 | R7.1.1-2 | MAY | all | An endpoint MAY close the connection via any means available when necessary, such as when under attack. | lines 2270-2271 | not applicable | an implementation's defence under attack, with no protocol exchange to model |
 | R7.1.1-3 | SHOULD | all | The underlying TCP connection, in most normal cases, SHOULD be closed first by the server, so that it holds the TIME_WAIT state and not the client (as this would prevent it from re-opening the connection for 2 maximum segment lifetimes (2MSL), while there is no corresponding server impact as a TIME_WAIT connection is immediately reopened upon a new SYN with a higher seq number). | lines 2273-2278 | satisfied | close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close |
@@ -74,9 +87,9 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R7.1.2-1 | MUST | all | To _Start the WebSocket Closing Handshake_ with a status code (Section 7.4) /code/ and an optional close reason (Section 7.1.6) /reason/, an endpoint MUST send a Close control frame, as described in Section 5.5.1, whose status code is set to /code/ and whose close reason is set to /reason/. | lines 2305-2309 | satisfied | close.client.R7.1.2-1-start-closing-handshake |
 | R7.1.2-2 | SHOULD | all | Once an endpoint has both sent and received a Close control frame, that endpoint SHOULD _Close the WebSocket Connection_ as defined in Section 7.1.1. | lines 2309-2311 | satisfied | close.client.R5.5.1-9-R7.1.2-2-close-echoed |
 | R7.1.7-1 | MUST | all | To do so, the client MUST _Close the WebSocket Connection_, and MAY report the problem to the user (which would be especially useful for developers) in an appropriate manner. | lines 2386-2388 | unsupported | ess-gap G9: the client close on the closing timeout is left out of the model, because protospec keeps a Close frame in flight to a closed client as an obligation, while TCP discards it with the connection |
-| R7.1.7-2 | MUST | all | Similarly, to do so, the server MUST _Close the WebSocket Connection_, and SHOULD log the problem. | lines 2389-2390 | unsupported | failing the connection is not modelled for the server: no server transition fails |
-| R7.1.7-3 | SHOULD | all | If _The WebSocket Connection is Established_ prior to the point where the endpoint is required to _Fail the WebSocket Connection_, the endpoint SHOULD send a Close frame with an appropriate status code (Section 7.4) before proceeding to _Close the WebSocket Connection_. | lines 2392-2395 | unsupported | failing the connection is modelled only for the closing timeout, after the Close frame was sent |
-| R7.1.7-4 | MAY | all | An endpoint MAY omit sending a Close frame if it believes the other side is unlikely to be able to receive and process the Close frame, due to the nature of the error that led the WebSocket connection to fail in the first place. | lines 2396-2399 | unsupported | failing the connection is modelled only for the closing timeout, after the Close frame was sent |
+| R7.1.7-2 | MUST | all | Similarly, to do so, the server MUST _Close the WebSocket Connection_, and SHOULD log the problem. | lines 2389-2390 | unsupported | the server never closes the connection on failing it: the fragments machine's server enters failed, a state its never_state property forbids, and no transition leaves it |
+| R7.1.7-3 | SHOULD | all | If _The WebSocket Connection is Established_ prior to the point where the endpoint is required to _Fail the WebSocket Connection_, the endpoint SHOULD send a Close frame with an appropriate status code (Section 7.4) before proceeding to _Close the WebSocket Connection_. | lines 2392-2395 | unsupported | no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it |
+| R7.1.7-4 | MAY | all | An endpoint MAY omit sending a Close frame if it believes the other side is unlikely to be able to receive and process the Close frame, due to the nature of the error that led the WebSocket connection to fail in the first place. | lines 2396-2399 | unsupported | no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it |
 | R7.1.7-5 | MUST NOT | all | An endpoint MUST NOT continue to attempt to process data (including a responding Close frame) from the remote endpoint after being instructed to _Fail the WebSocket Connection_. | lines 2399-2401 | satisfied | close.client.R7.1.7-5-ignore-close-after-timeout |
 | R7.1.7-6 | SHOULD NOT | all | Except as indicated above or as specified by the application layer (e.g., a script using the WebSocket API), clients SHOULD NOT close the connection. | lines 2403-2405 | satisfied | close.client.R5.5.1-9-R7.1.2-2-close-echoed |
 | R7.2.1-1 | MUST | all | To do so, the client MUST _Fail the WebSocket Connection_ as defined in Section 7.1.7. | lines 2420-2422 | unsupported | the opening handshake is outside this profile's machines |
@@ -91,7 +104,7 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R7.3-2 | SHOULD NOT | all | Clients SHOULD NOT close the WebSocket connection arbitrarily. | lines 2473-2474 | satisfied | close.client.R7.1.2-1-start-closing-handshake |
 | R7.4-1 | MAY | all | When closing an established connection (e.g., when sending a Close frame, after the opening handshake has completed), an endpoint MAY indicate a reason for closure. | lines 2480-2482 | satisfied | close.client.R7.1.2-1-start-closing-handshake |
 | R7.4.1-1 | MAY | all | Endpoints MAY use the following pre-defined status codes when sending a Close frame. | lines 2492-2493 | satisfied | close.client.R7.1.2-1-start-closing-handshake |
-| R7.4.1-2 | MAY | all | 1003 indicates that an endpoint is terminating the connection because it has received a type of data it cannot accept (e.g., an endpoint that understands only text data MAY send this if it receives a binary message). | lines 2512-2515 | unsupported | data frames are not modelled: no endpoint of the close machine receives a binary message |
+| R7.4.1-2 | MAY | all | 1003 indicates that an endpoint is terminating the connection because it has received a type of data it cannot accept (e.g., an endpoint that understands only text data MAY send this if it receives a binary message). | lines 2512-2515 | unsupported | binary messages are not modelled: the fragments machine carries text messages only, so no endpoint receives a binary message |
 | R7.4.1-3 | MUST NOT | all | 1005 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint. | lines 2533-2534 | unsupported | ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code |
 | R7.4.1-4 | MUST NOT | all | 1006 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint. | lines 2540-2541 | unsupported | ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code |
 | R7.4.1-5 | SHOULD | all | The list of extensions that are needed SHOULD appear in the /reason/ part of the Close frame. | lines 2572-2583 | not applicable | no extension is negotiated in this profile, so status code 1010 is never sent |
@@ -104,32 +117,27 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | Gap | Requirements |
 |---|---|
 | [G1](/docs/design#7-lowering-to-ess-and-the-gaps) | R5.5-1, R7.4.1-3, R7.4.1-4, R7.4.1-6 |
-| [G3](/docs/design#7-lowering-to-ess-and-the-gaps) | R5.5.1-1, R5.5.1-3 |
+| [G3](/docs/design#7-lowering-to-ess-and-the-gaps) | R5.4-6, R5.5.1-1, R5.5.1-3, R5.6-1 |
 | [G8](/docs/design#7-lowering-to-ess-and-the-gaps) | R5.5.1-2 |
 | [G9](/docs/design#7-lowering-to-ess-and-the-gaps) | R7.1.1-4, R7.1.7-1 |
+| [G10](/docs/design#7-lowering-to-ess-and-the-gaps) | R5.5.3-1 |
 
 ### Unsupported, no ESS gap
 
 | Requirement | Reason |
 |---|---|
 | R5.2-2 | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
-| R5.2-3 | failing the connection on a received frame header is not modelled: the close machine carries no data frames |
-| R5.2-4 | the opcode registry and failing the connection on an unknown opcode are not modelled: the close machine carries no data frames |
+| R5.2-3 | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
+| R5.2-4 | the opcode registry is not modelled: the fragments machine sends only opcodes 0 and 1, and no transition fails on an unknown opcode |
 | R5.2-8 | the layout leaves RSV1 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-9 | the layout leaves RSV2 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-10 | the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
-| R5.5.1-5 | data frames are not modelled: the close machine sends nothing after its Close frame, but has no data frame to forbid |
-| R5.5.1-8 | messages and fragmentation are not modelled: the close machine has no current message to finish |
-| R5.5.2-1 | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-2 | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-3 | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.2-4 | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.3-1 | Ping and Pong frames are not modelled by this profile's machines |
-| R5.5.3-2 | Ping and Pong frames are not modelled by this profile's machines |
+| R5.4-3 | delivery order is the tcp layer's ordered delivery, not an element of the fragments machine |
+| R5.4-7 | only the server receives data frames in the fragments machine; the client receives no message |
 | R7.1.1-1 | the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect |
-| R7.1.7-2 | failing the connection is not modelled for the server: no server transition fails |
-| R7.1.7-3 | failing the connection is modelled only for the closing timeout, after the Close frame was sent |
-| R7.1.7-4 | failing the connection is modelled only for the closing timeout, after the Close frame was sent |
+| R7.1.7-2 | the server never closes the connection on failing it: the fragments machine's server enters failed, a state its never_state property forbids, and no transition leaves it |
+| R7.1.7-3 | no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it |
+| R7.1.7-4 | no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it |
 | R7.2.1-1 | the opening handshake is outside this profile's machines |
 | R7.2.1-2 | transport loss is not modelled: the tcp layer is reliable and its channels never fail |
 | R7.2.2-1 | the opening handshake is outside this profile's machines |
@@ -138,7 +146,7 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R7.2.3-3 | reconnecting lies outside the lifetime of one connection, which the close machine models |
 | R7.2.3-4 | reconnecting lies outside the lifetime of one connection, which the close machine models |
 | R7.3-1 | a server-initiated close is not modelled: the close machine starts closing from the client |
-| R7.4.1-2 | data frames are not modelled: no endpoint of the close machine receives a binary message |
+| R7.4.1-2 | binary messages are not modelled: the fragments machine carries text messages only, so no endpoint receives a binary message |
 
 ## Conformance
 
@@ -151,5 +159,7 @@ The files under [`profiles/websocket/generated/`](https://github.com/beyond10x/r
 | File | What | Bytes | SHA-256 |
 |---|---|---|---|
 | [`close.protospec.yaml`](pathname:///rfcspec/downloads/websocket/close.protospec.yaml) | `ess-protospec/1` model of machine `close` | 2838 | `767eb939e5907080beeda19138e1e2ee3e84dcbd0e2f7eb3a670273033e89395` |
+| [`fragments.protospec.yaml`](pathname:///rfcspec/downloads/websocket/fragments.protospec.yaml) | `ess-protospec/1` model of machine `fragments` | 8173 | `72c7e14e006b8727142b623e02a0e5dd1fbfbfcf6da0b92c15d06fb1b9336082` |
+| [`ping.protospec.yaml`](pathname:///rfcspec/downloads/websocket/ping.protospec.yaml) | `ess-protospec/1` model of machine `ping` | 3805 | `94fc4f4edde4d595f7b617056d99af1195362d8c9674da58006f24a3bbc3128c` |
 | [`rust/Cargo.toml`](pathname:///rfcspec/downloads/websocket/rust/Cargo.toml) | generated Rust crate | 301 | `ec96cd763d6ef5396db6daf001fc1f92b12a511921c2badf24e81662b6a7f5bb` |
 | [`rust/src/lib.rs`](pathname:///rfcspec/downloads/websocket/rust/src/lib.rs) | generated Rust crate | 17682 | `8d620033f2cc95da6532dd6c9588090b0a326b897ac619456b1c48126e3dcb71` |

@@ -248,6 +248,91 @@ pub struct Overlay {
     pub layouts: Vec<Layout>,
     pub machines: Vec<Machine>,
     pub findings: Vec<Finding>,
+    /// The review decisions on recorded proposals (ESS `rfcspec.review.Decision`), in the order
+    /// they were recorded; absent when there are none, so an overlay without decisions writes the
+    /// same bytes as before they existed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decisions: Vec<Decision>,
+}
+
+/// A review decision of the overlay (ESS `rfcspec.review.Decision`), keyed by the overlay's
+/// profile, `item` and `text_digest`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Decision {
+    /// The item's stable id, `rfc<N>/<catalogue id>`.
+    pub item: String,
+    /// [`text_digest`] of the item's text in the catalogue when it was judged.
+    pub text_digest: String,
+    pub kind: DecisionKind,
+    /// The proposal decided, absent for a decision made without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proposal_id: Option<String>,
+    /// The replacement entry of an `edit`, in the overlay's own shape for the item's kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edit: Option<Edit>,
+}
+
+/// The replacement an `edit` decision carries (ESS `rfcspec.review.Decision`, `edit`): a
+/// requirement entry, a layout or a machine, each in its `rfcspec-overlay/1` shape.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Edit {
+    Requirement(Requirement),
+    Layout(Layout),
+    Machine(Machine),
+}
+
+impl Edit {
+    /// What the edit replaces: `requirement`, `layout` or `machine`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Requirement(_) => "requirement",
+            Self::Layout(_) => "layout",
+            Self::Machine(_) => "machine",
+        }
+    }
+
+    /// The requirement entry, for an edit of one.
+    pub fn requirement(&self) -> Option<&Requirement> {
+        match self {
+            Self::Requirement(requirement) => Some(requirement),
+            _ => None,
+        }
+    }
+}
+
+/// What a decision does to its item (ESS `rfcspec.review.DecisionKind`); this stage writes
+/// `accept`, `edit` and `reject`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DecisionKind {
+    Accept,
+    Edit,
+    Reject,
+}
+
+impl DecisionKind {
+    /// The wire name.
+    pub fn wire(self) -> &'static str {
+        match self {
+            Self::Accept => "accept",
+            Self::Edit => "edit",
+            Self::Reject => "reject",
+        }
+    }
+}
+
+impl std::fmt::Display for DecisionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.wire())
+    }
+}
+
+/// The digest a decision judges (ESS `rfcspec.review.DecisionKey`, `text_digest`): the SHA-256,
+/// lowercase hex, of the item's catalogue text with whitespace collapsed.
+pub fn text_digest(text: &str) -> String {
+    sha256_hex(collapse_whitespace(text).as_bytes())
 }
 
 /// The overlay format.
@@ -457,6 +542,9 @@ pub struct Participant {
     pub party: Option<String>,
     pub initial: String,
     pub states: Vec<String>,
+    /// The participant's local fields, which its transitions `set` and its guards read.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fields: Vec<LocalField>,
     /// The inputs the environment offers.
     #[serde(default)]
     pub inputs: Vec<Input>,
@@ -470,6 +558,49 @@ impl Participant {
     /// The input of that name.
     pub fn input(&self, name: &str) -> Option<&Input> {
         self.inputs.iter().find(|input| input.name() == name)
+    }
+
+    /// The local field of that name.
+    pub fn field(&self, name: &str) -> Option<&LocalField> {
+        self.fields.iter().find(|field| field.name == name)
+    }
+}
+
+/// A participant-local field: its type, `Integer` or `Boolean`, and its value before the first
+/// transition.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalField {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub initial: Literal,
+}
+
+/// An integer or Boolean literal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Literal {
+    Integer(i64),
+    Boolean(bool),
+}
+
+impl Literal {
+    /// The type the literal has, `Integer` or `Boolean`.
+    pub fn kind(self) -> &'static str {
+        match self {
+            Literal::Integer(_) => "Integer",
+            Literal::Boolean(_) => "Boolean",
+        }
+    }
+}
+
+impl std::fmt::Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::Integer(n) => write!(f, "{n}"),
+            Literal::Boolean(b) => write!(f, "{b}"),
+        }
     }
 }
 
@@ -516,8 +647,38 @@ pub struct Transition {
     pub from: String,
     pub to: String,
     pub on: Trigger,
+    /// Equalities that must all hold for the transition to be enabled.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub guards: Vec<Guard>,
     #[serde(default)]
     pub effects: Vec<Effect>,
+}
+
+/// A guard: two operands that must be equal.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Guard {
+    pub left: Operand,
+    pub right: Operand,
+}
+
+/// A guard operand: an integer or Boolean literal, a local field of the participant
+/// (`{local: <field>}`), or a field of the triggering input or received message
+/// (`{input: <field>}`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Operand {
+    Integer(i64),
+    Boolean(bool),
+    Local(LocalRef),
+    Input(FieldRef),
+}
+
+/// A local field of the participant.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalRef {
+    pub local: String,
 }
 
 impl Transition {
@@ -550,6 +711,16 @@ pub enum Effect {
     Cancel(String),
     /// Wait until everything sent to the peer is delivered.
     Flush(bool),
+    /// Assign a local field.
+    Set(Set),
+}
+
+/// Assign a local field a literal or a field of the triggering input or received message.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Set {
+    pub field: String,
+    pub value: Value,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -597,6 +768,8 @@ pub struct Arm {
 pub enum Property {
     EventCount(EventCount),
     FlushBeforeClose(FlushBeforeClose),
+    NeverState(NeverState),
+    StateImplication(StateImplication),
 }
 
 impl Property {
@@ -604,8 +777,31 @@ impl Property {
         match self {
             Property::EventCount(count) => &count.name,
             Property::FlushBeforeClose(flush) => &flush.name,
+            Property::NeverState(never) => &never.name,
+            Property::StateImplication(implication) => &implication.name,
         }
     }
+}
+
+/// A `state_implication` property: whenever `participant` is in `state`, `other` is in
+/// `other_state`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StateImplication {
+    pub name: String,
+    pub participant: String,
+    pub state: String,
+    pub other: String,
+    pub other_state: String,
+}
+
+/// A `never_state` property: the participant never enters the state.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NeverState {
+    pub name: String,
+    pub participant: String,
+    pub state: String,
 }
 
 /// An `event_count` property: the participant emits the event at most `max` times.
@@ -779,6 +975,131 @@ mod tests {
     }
 
     #[test]
+    fn local_fields_set_guards_and_never_state_read_and_absent_ones_are_not_written() {
+        let participant: Participant = from_yaml(
+            "name: client\ninitial: idle\nstates: [idle, done]\nfields:\n  - {name: token, type: Integer, initial: 0}\n  - {name: seen, type: Boolean, initial: false}\ninputs: [{name: start, fields: {value: Integer}}]\ntransitions:\n  - implements: [T-1]\n    label: go\n    from: idle\n    to: done\n    on: {input: start}\n    guards:\n      - {left: {input: value}, right: {local: token}}\n      - {left: {local: seen}, right: false}\n      - {left: 3, right: {input: value}}\n    effects:\n      - {set: {field: token, value: {input: value}}}\n      - {set: {field: seen, value: true}}\n",
+        )
+        .unwrap();
+        assert_eq!(
+            participant.fields,
+            [
+                LocalField {
+                    name: "token".into(),
+                    kind: "Integer".into(),
+                    initial: Literal::Integer(0)
+                },
+                LocalField {
+                    name: "seen".into(),
+                    kind: "Boolean".into(),
+                    initial: Literal::Boolean(false)
+                }
+            ]
+        );
+        let transition = &participant.transitions[0];
+        assert_eq!(
+            transition.guards,
+            [
+                Guard {
+                    left: Operand::Input(FieldRef {
+                        input: "value".into()
+                    }),
+                    right: Operand::Local(LocalRef {
+                        local: "token".into()
+                    })
+                },
+                Guard {
+                    left: Operand::Local(LocalRef {
+                        local: "seen".into()
+                    }),
+                    right: Operand::Boolean(false)
+                },
+                Guard {
+                    left: Operand::Integer(3),
+                    right: Operand::Input(FieldRef {
+                        input: "value".into()
+                    })
+                }
+            ]
+        );
+        assert_eq!(
+            transition.effects,
+            [
+                Effect::Set(Set {
+                    field: "token".into(),
+                    value: Value::Field(FieldRef {
+                        input: "value".into()
+                    })
+                }),
+                Effect::Set(Set {
+                    field: "seen".into(),
+                    value: Value::Boolean(true)
+                })
+            ]
+        );
+        assert_eq!(
+            from_yaml::<Participant>(&to_yaml(&participant).unwrap()).unwrap(),
+            participant
+        );
+        assert!(from_yaml::<Guard>("{left: 1, right: {remote: x}}").is_err());
+        assert!(from_yaml::<LocalField>("{name: a, type: Integer, initial: 0, max: 1}").is_err());
+        let properties: Vec<Property> =
+            from_yaml("- {name: n, participant: client, state: done}\n").unwrap();
+        assert_eq!(
+            properties,
+            [Property::NeverState(NeverState {
+                name: "n".into(),
+                participant: "client".into(),
+                state: "done".into()
+            })]
+        );
+        assert_eq!(properties[0].name(), "n");
+        assert!(
+            from_yaml::<Vec<Property>>("- {name: n, participant: client, state: done, max: 1}\n")
+                .is_err()
+        );
+        let implication: Vec<Property> = from_yaml(
+            "- {name: m, participant: client, state: answered, other: server, other_state: replied}\n",
+        )
+        .unwrap();
+        assert_eq!(
+            implication,
+            [Property::StateImplication(StateImplication {
+                name: "m".into(),
+                participant: "client".into(),
+                state: "answered".into(),
+                other: "server".into(),
+                other_state: "replied".into()
+            })]
+        );
+        assert_eq!(implication[0].name(), "m");
+        assert_eq!(
+            from_yaml::<Vec<Property>>(&to_yaml(&implication).unwrap()).unwrap(),
+            implication
+        );
+        assert!(
+            from_yaml::<Vec<Property>>(
+                "- {name: m, participant: client, state: a, other: server, other_state: b, max: 1}\n"
+            )
+            .is_err()
+        );
+        assert!(
+            from_yaml::<Vec<Property>>(
+                "- {name: m, participant: client, state: a, other: server}\n"
+            )
+            .is_err()
+        );
+        let bare: Participant = from_yaml(
+            "name: s\ninitial: a\nstates: [a]\ntransitions:\n  - {implements: [T-1], label: l, from: a, to: a, on: {input: x}}\n",
+        )
+        .unwrap();
+        let written = to_yaml(&bare).unwrap();
+        assert!(
+            !written.contains("fields") && !written.contains("guards"),
+            "{written}"
+        );
+    }
+
+    #[test]
     fn a_layout_epoch_is_optional_and_fields_take_presence_and_constraints() {
         let layout: Layout = from_yaml(
             "name: h\nquote: q\nspan: {start: 1, end: 1}\nfields:\n  - {name: a, bits: 7, signed: false, order: big-endian}\n  - {name: b, bits: 16, signed: false, order: big-endian, presence: {field: a, equals: 126}, constraints: [{range: [126, 65535]}, {equals: 200}, {one_of: [1, 2]}]}\n",
@@ -839,6 +1160,69 @@ mod tests {
         assert_eq!(k1.kind.unwrap().to_string(), "K1");
         assert!(from_yaml::<Overlay>(&format!("kind: K9\n{OVERLAY_HEAD}")).is_err());
         assert!(from_yaml::<Overlay>(&format!("kind: k1\n{OVERLAY_HEAD}")).is_err());
+    }
+
+    #[test]
+    fn an_overlay_without_decisions_writes_no_decisions_key() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../profiles/time/overlay.yaml");
+        let time: Overlay = read_yaml(&path).unwrap();
+        assert!(time.decisions.is_empty());
+        let written = to_yaml(&time).unwrap();
+        assert!(!written.contains("decisions"), "{written}");
+        assert_eq!(from_yaml::<Overlay>(&written).unwrap(), time);
+        let head: Overlay = from_yaml(OVERLAY_HEAD).unwrap();
+        assert_eq!(to_yaml(&head).unwrap(), OVERLAY_HEAD);
+    }
+
+    #[test]
+    fn an_edit_reads_as_the_kind_its_fields_spell() {
+        let layout = "name: l\nquote: q\nspan:\n  start: 1\n  end: 1\nfields:\n- name: f\n  bits: 1\n  signed: false\n  order: big-endian\n";
+        let machine = "name: m\ntransport: tcp\nmessages: []\nparticipants:\n- name: a\n  initial: s\n  states:\n  - s\n  inputs: []\n  transitions:\n  - implements:\n    - R-1\n    label: go\n    from: s\n    to: s\n    on:\n      input: go\n    effects: []\nproperties: []\n";
+        for (text, kind) in [(layout, "layout"), (machine, "machine")] {
+            let edit: Edit = from_yaml(text).unwrap();
+            assert_eq!(edit.kind(), kind);
+            assert!(edit.requirement().is_none());
+            assert_eq!(to_yaml(&edit).unwrap(), text);
+        }
+    }
+
+    #[test]
+    fn decisions_read_and_write_in_their_field_order() {
+        let text = format!(
+            "{OVERLAY_HEAD}decisions:\n- item: rfc1/R-1\n  text_digest: abc\n  kind: accept\n  proposal_id: p1\n- item: rfc1/R-2\n  text_digest: def\n  kind: edit\n  proposal_id: p2\n  edit:\n    id: R-2\n    source: capitals-text\n    level: MUST\n    transports: []\n    quote: q\n    span:\n      start: 1\n      end: 1\n    status:\n      unsupported: r\n- item: rfc1/R-3\n  text_digest: ghi\n  kind: reject\n  proposal_id: p3\n"
+        );
+        let overlay: Overlay = from_yaml(&text).unwrap();
+        let kinds: Vec<DecisionKind> = overlay.decisions.iter().map(|d| d.kind).collect();
+        assert_eq!(
+            kinds,
+            [
+                DecisionKind::Accept,
+                DecisionKind::Edit,
+                DecisionKind::Reject
+            ]
+        );
+        assert_eq!(overlay.decisions[0].proposal_id.as_deref(), Some("p1"));
+        assert!(overlay.decisions[0].edit.is_none());
+        assert_eq!(
+            overlay.decisions[1]
+                .edit
+                .as_ref()
+                .and_then(Edit::requirement)
+                .unwrap()
+                .id,
+            "R-2"
+        );
+        assert_eq!(DecisionKind::Edit.wire(), "edit");
+        assert_eq!(to_yaml(&overlay).unwrap(), text);
+        assert!(
+            from_yaml::<Overlay>(&text.replace("kind: reject", "kind: erratum")).is_err(),
+            "this stage writes accept, edit and reject only"
+        );
+    }
+
+    #[test]
+    fn a_text_digest_is_the_sha256_of_the_text_with_whitespace_collapsed() {
+        assert_eq!(text_digest("a  b\n c "), sha256_hex(b"a b c"));
     }
 
     #[test]

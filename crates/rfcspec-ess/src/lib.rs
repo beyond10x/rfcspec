@@ -4,7 +4,11 @@
 //! transition's lowered name is the requirement and dialogue-step ids it implements, then its label.
 //! A machine carries inputs with typed fields, timers armed for a fixed delay, payload values that
 //! are literals or fields of the triggering input or received message, `flush`, and the
-//! `event_count` and `flush_before_close` properties; its bounds default to [`BOUNDS`].
+//! `event_count`, `flush_before_close`, `never_state` and `state_implication` properties; its
+//! bounds default to [`BOUNDS`]. A participant may declare local fields (`Integer` or `Boolean`,
+//! with an initial literal), which the `set` effect assigns from a literal or a trigger field; a
+//! transition may carry `guards`, a conjunction of equalities whose operands are literals, local
+//! fields or trigger fields. Absent local fields, guards and properties are not written.
 //!
 //! The models are validated and explored by the `ess` command, never by this crate.
 
@@ -12,8 +16,8 @@ use std::{collections::BTreeMap, path::Path, process::Command};
 
 use anyhow::{Context, Result, bail, ensure};
 use rfcspec_model::{
-    Bounds, Effect, Generated, Machine, Overlay, Property as OverlayProperty, Trigger,
-    Value as OverlayValue, to_yaml,
+    Bounds, Effect, Generated, Literal, Machine, Operand, Overlay, Property as OverlayProperty,
+    Trigger, Value as OverlayValue, to_yaml,
 };
 use serde::Serialize;
 
@@ -78,6 +82,8 @@ struct Participant {
     initial: String,
     states: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    fields: Vec<LocalField>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     inputs: Vec<Message>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     timers: Vec<String>,
@@ -88,6 +94,14 @@ struct Participant {
 struct Message {
     name: String,
     fields: Vec<FieldType>,
+}
+
+#[derive(Serialize)]
+struct LocalField {
+    name: String,
+    #[serde(rename = "type")]
+    kind: String,
+    initial: Value,
 }
 
 #[derive(Serialize)]
@@ -114,7 +128,15 @@ struct Transition {
     to: String,
     trigger: TriggerOut,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    guards: Vec<Equality>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     effects: Vec<EffectOut>,
+}
+
+#[derive(Serialize)]
+struct Equality {
+    left: Source,
+    right: Source,
 }
 
 #[derive(Serialize)]
@@ -147,9 +169,14 @@ struct EffectOut {
     timer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     after: Option<Delay>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    field: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<Source>,
 }
 
-/// A value source: a literal, or a field of the triggering input or received message.
+/// A value source: a literal, a local field, or a field of the triggering input or received
+/// message.
 #[derive(Serialize)]
 struct Source {
     kind: &'static str,
@@ -185,11 +212,31 @@ fn source(value: &OverlayValue) -> Source {
     match value {
         OverlayValue::Integer(n) => literal(Value::Integer(*n)),
         OverlayValue::Boolean(b) => literal(Value::Boolean(*b)),
-        OverlayValue::Field(field) => Source {
-            kind: "input",
-            value: None,
-            field: Some(field.input.clone()),
-        },
+        OverlayValue::Field(field) => read("input", &field.input),
+    }
+}
+
+fn read(kind: &'static str, field: &str) -> Source {
+    Source {
+        kind,
+        value: None,
+        field: Some(field.to_owned()),
+    }
+}
+
+fn scalar(value: Literal) -> Value {
+    match value {
+        Literal::Integer(n) => Value::Integer(n),
+        Literal::Boolean(b) => Value::Boolean(b),
+    }
+}
+
+fn operand(operand: &Operand) -> Source {
+    match operand {
+        Operand::Integer(n) => literal(Value::Integer(*n)),
+        Operand::Boolean(b) => literal(Value::Boolean(*b)),
+        Operand::Local(local) => read("local", &local.local),
+        Operand::Input(field) => read("input", &field.input),
     }
 }
 
@@ -204,7 +251,7 @@ struct Channel {
     duplication: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 struct Property {
     kind: &'static str,
     name: String,
@@ -215,6 +262,12 @@ struct Property {
     max: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     channel: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    other: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    other_state: Option<String>,
 }
 
 fn channel(from: &str, to: &str) -> String {
@@ -320,6 +373,12 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                         channel: Some(channel(me, peer)),
                         ..EffectOut::default()
                     }),
+                    Effect::Set(set) => effects.push(EffectOut {
+                        kind: "set",
+                        field: Some(set.field.clone()),
+                        value: Some(source(&set.value)),
+                        ..EffectOut::default()
+                    }),
                 }
             }
             transitions.push(Transition {
@@ -327,6 +386,14 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 from: transition.from.clone(),
                 to: transition.to.clone(),
                 trigger,
+                guards: transition
+                    .guards
+                    .iter()
+                    .map(|guard| Equality {
+                        left: operand(&guard.left),
+                        right: operand(&guard.right),
+                    })
+                    .collect(),
                 effects,
             });
         }
@@ -334,6 +401,15 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
             name: participant.name.clone(),
             initial: participant.initial.clone(),
             states: participant.states.clone(),
+            fields: participant
+                .fields
+                .iter()
+                .map(|field| LocalField {
+                    name: field.name.clone(),
+                    kind: field.kind.clone(),
+                    initial: scalar(field.initial),
+                })
+                .collect(),
             inputs: participant
                 .inputs
                 .iter()
@@ -355,18 +431,33 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 participant: count.participant.clone(),
                 event: Some(count.event.clone()),
                 max: Some(count.max),
-                channel: None,
+                ..Property::default()
+            },
+            OverlayProperty::NeverState(never) => Property {
+                kind: "never_state",
+                name: never.name.clone(),
+                participant: never.participant.clone(),
+                state: Some(never.state.clone()),
+                ..Property::default()
+            },
+            OverlayProperty::StateImplication(implication) => Property {
+                kind: "state_implication",
+                name: implication.name.clone(),
+                participant: implication.participant.clone(),
+                state: Some(implication.state.clone()),
+                other: Some(implication.other.clone()),
+                other_state: Some(implication.other_state.clone()),
+                ..Property::default()
             },
             OverlayProperty::FlushBeforeClose(flush) => Property {
                 kind: "flush_before_close",
                 name: flush.name.clone(),
                 participant: flush.flush_before_close.clone(),
-                event: None,
-                max: None,
                 channel: Some(channel(
                     &flush.flush_before_close,
                     peer_of(&flush.flush_before_close)?,
                 )),
+                ..Property::default()
             },
         });
     }
@@ -404,7 +495,9 @@ mod tests {
     use std::{fs, path::PathBuf};
 
     use rfcspec_model::{
-        Send, Transition as OverlayTransition, drift, read_yaml, write_generated as write,
+        FieldRef, Guard, Input, Literal, LocalField, LocalRef, Message, NeverState, Operand,
+        Participant as OverlayParticipant, Send, Set, StateImplication,
+        Transition as OverlayTransition, TypedInput, drift, read_yaml, write_generated as write,
     };
 
     use super::*;
@@ -579,6 +672,7 @@ mod tests {
             from: "sent".into(),
             to: "sent".into(),
             on: Trigger::Receive("fin".into()),
+            guards: vec![],
             effects: vec![
                 Effect::Send(Send {
                     message: "time".into(),
@@ -612,8 +706,15 @@ mod tests {
 
     fn close_model() -> serde_json::Value {
         let lowered = lower(&websocket_overlay(), "websocket").unwrap();
-        assert_eq!(lowered.len(), 1);
-        assert_eq!(lowered[0].file, "close.protospec.yaml");
+        let files: Vec<&str> = lowered.iter().map(|g| g.file.as_str()).collect();
+        assert_eq!(
+            files,
+            [
+                "close.protospec.yaml",
+                "ping.protospec.yaml",
+                "fragments.protospec.yaml"
+            ]
+        );
         parsed(&lowered[0])
     }
 
@@ -760,6 +861,329 @@ mod tests {
     }
 
     #[test]
+    fn the_committed_ping_model_equals_a_fresh_lowering_and_explore_passes_it() {
+        let lowered = lower(&websocket_overlay(), "websocket").unwrap();
+        let ping = lowered
+            .iter()
+            .find(|g| g.file == "ping.protospec.yaml")
+            .expect("the ping machine lowers to ping.protospec.yaml");
+        assert_eq!(
+            fs::read_to_string(websocket().join("generated/ping.protospec.yaml")).unwrap(),
+            ping.text
+        );
+        assert_eq!(
+            fs::read_to_string(websocket().join("witnesses/ping.inputs.json")).unwrap(),
+            "[\n  {\"kind\":\"input\",\"participant\":\"client\",\"name\":\"ping\",\"payload\":{\"data\":7}},\n  {\"kind\":\"input\",\"participant\":\"client\",\"name\":\"close\",\"payload\":{\"code\":1000}}\n]\n"
+        );
+        let report = explore(
+            &websocket().join("generated/ping.protospec.yaml"),
+            &websocket().join("witnesses/ping.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    #[test]
+    fn the_committed_fragments_model_equals_a_fresh_lowering_and_explore_passes_it() {
+        let lowered = lower(&websocket_overlay(), "websocket").unwrap();
+        let fragments = lowered
+            .iter()
+            .find(|g| g.file == "fragments.protospec.yaml")
+            .expect("the fragments machine lowers to fragments.protospec.yaml");
+        assert_eq!(
+            fs::read_to_string(websocket().join("generated/fragments.protospec.yaml")).unwrap(),
+            fragments.text
+        );
+        assert_eq!(
+            fs::read_to_string(websocket().join("witnesses/fragments.inputs.json")).unwrap(),
+            "[\n  {\"kind\":\"input\",\"participant\":\"client\",\"name\":\"close\",\"payload\":{\"code\":1000}}\n]\n"
+        );
+        let model = parsed(fragments);
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([{"kind": "never_state", "name": "server-never-fails", "participant": "server", "state": "failed"}])
+        );
+        let report = explore(
+            &websocket().join("generated/fragments.protospec.yaml"),
+            &websocket().join("witnesses/fragments.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    #[test]
+    fn a_mutant_client_that_fragments_its_pong_inside_a_message_fails_the_never_state() {
+        let mut overlay = websocket_overlay();
+        let machine = overlay
+            .machines
+            .iter_mut()
+            .find(|m| m.name == "fragments")
+            .expect("the websocket overlay declares the fragments machine");
+        let client = machine
+            .participants
+            .iter_mut()
+            .find(|p| p.name == "client")
+            .unwrap();
+        let mut mutated = 0;
+        for transition in &mut client.transitions {
+            for effect in &mut transition.effects {
+                if let Effect::Send(send) = effect
+                    && send.message == "pong"
+                {
+                    send.payload
+                        .insert("fin".into(), OverlayValue::Boolean(false));
+                    mutated += 1;
+                }
+            }
+        }
+        assert_eq!(mutated, 1);
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "websocket").unwrap()).unwrap();
+        let report = explore(
+            &out.path().join("fragments.protospec.yaml"),
+            &websocket().join("witnesses/fragments.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "failed", "{report:#}");
+        let reason = report["reason"].as_str().unwrap();
+        assert!(
+            reason.contains("property violated") && reason.contains("server-never-fails"),
+            "{reason}"
+        );
+    }
+
+    #[test]
+    fn a_mutant_pong_that_does_not_echo_the_ping_data_is_inconclusive() {
+        let mut overlay = websocket_overlay();
+        let machine = overlay
+            .machines
+            .iter_mut()
+            .find(|m| m.name == "ping")
+            .expect("the websocket overlay declares the ping machine");
+        let server = machine
+            .participants
+            .iter_mut()
+            .find(|p| p.name == "server")
+            .unwrap();
+        let mut mutated = 0;
+        for transition in &mut server.transitions {
+            for effect in &mut transition.effects {
+                if let Effect::Send(send) = effect
+                    && send.message == "pong"
+                {
+                    send.payload.insert("data".into(), OverlayValue::Integer(0));
+                    mutated += 1;
+                }
+            }
+        }
+        assert_eq!(mutated, 1);
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "websocket").unwrap()).unwrap();
+        let report = explore(
+            &out.path().join("ping.protospec.yaml"),
+            &websocket().join("witnesses/ping.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "inconclusive", "{report:#}");
+        assert_eq!(
+            report["reason"],
+            "dead end with outstanding queue, timer or flush obligations"
+        );
+    }
+
+    /// A two-participant echo machine: the client sets `token` from its `start` input and sends
+    /// it in a `ping`; the server echoes `echo` as a `pong`; the client accepts the `pong` only
+    /// when its value equals `token`.
+    fn echo_machine(echo: OverlayValue, properties: Vec<OverlayProperty>) -> Overlay {
+        let value = || {
+            OverlayValue::Field(FieldRef {
+                input: "value".into(),
+            })
+        };
+        let transition = |label: &str, from: &str, to: &str, on: Trigger| OverlayTransition {
+            implements: vec!["T-1".into()],
+            label: label.into(),
+            from: from.into(),
+            to: to.into(),
+            on,
+            guards: vec![],
+            effects: vec![],
+        };
+        let integer = || [("value".to_string(), "Integer".to_string())].into();
+        let mut start = transition("start", "idle", "waiting", Trigger::Input("start".into()));
+        start.effects = vec![
+            Effect::Set(Set {
+                field: "token".into(),
+                value: value(),
+            }),
+            Effect::Send(Send {
+                message: "ping".into(),
+                payload: [("value".to_string(), value())].into(),
+            }),
+        ];
+        let mut accept = transition("accept", "waiting", "done", Trigger::Receive("pong".into()));
+        accept.guards = vec![Guard {
+            left: Operand::Input(FieldRef {
+                input: "value".into(),
+            }),
+            right: Operand::Local(LocalRef {
+                local: "token".into(),
+            }),
+        }];
+        accept.effects = vec![Effect::Close(true)];
+        let mut reply = transition(
+            "echo",
+            "listening",
+            "echoed",
+            Trigger::Receive("ping".into()),
+        );
+        reply.effects = vec![
+            Effect::Send(Send {
+                message: "pong".into(),
+                payload: [("value".to_string(), echo)].into(),
+            }),
+            Effect::Close(true),
+        ];
+        Overlay {
+            format: rfcspec_model::OVERLAY_FORMAT.into(),
+            rfc: 1,
+            kind: None,
+            requirements: vec![],
+            layouts: vec![],
+            machines: vec![Machine {
+                name: "echo".into(),
+                transport: "tcp".into(),
+                bounds: None,
+                messages: ["ping", "pong"]
+                    .map(|name| Message {
+                        name: name.into(),
+                        fields: integer(),
+                    })
+                    .into(),
+                participants: vec![
+                    OverlayParticipant {
+                        name: "client".into(),
+                        party: None,
+                        initial: "idle".into(),
+                        states: vec!["idle".into(), "waiting".into(), "done".into()],
+                        fields: vec![LocalField {
+                            name: "token".into(),
+                            kind: "Integer".into(),
+                            initial: Literal::Integer(0),
+                        }],
+                        inputs: vec![Input::Typed(TypedInput {
+                            name: "start".into(),
+                            fields: integer(),
+                        })],
+                        timers: vec![],
+                        transitions: vec![start, accept],
+                    },
+                    OverlayParticipant {
+                        name: "server".into(),
+                        party: None,
+                        initial: "listening".into(),
+                        states: vec!["listening".into(), "echoed".into()],
+                        fields: vec![],
+                        inputs: vec![],
+                        timers: vec![],
+                        transitions: vec![reply],
+                    },
+                ],
+                properties,
+            }],
+            findings: vec![],
+            decisions: vec![],
+        }
+    }
+
+    fn echo_value() -> OverlayValue {
+        OverlayValue::Field(FieldRef {
+            input: "value".into(),
+        })
+    }
+
+    /// Lower an overlay of one machine and explore it with a one-input witness, `start` with 7.
+    fn explore_echo(overlay: &Overlay) -> serde_json::Value {
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(overlay, "test").unwrap()).unwrap();
+        let inputs = out.path().join("echo.inputs.json");
+        fs::write(
+            &inputs,
+            "[{\"kind\":\"input\",\"participant\":\"client\",\"name\":\"start\",\"payload\":{\"value\":7}}]\n",
+        )
+        .unwrap();
+        explore(&out.path().join("echo.protospec.yaml"), &inputs).unwrap()
+    }
+
+    #[test]
+    fn local_fields_set_and_guards_lower_to_protospec_constructs() {
+        let overlay = echo_machine(
+            echo_value(),
+            vec![OverlayProperty::NeverState(NeverState {
+                name: "never-stuck".into(),
+                participant: "client".into(),
+                state: "waiting".into(),
+            })],
+        );
+        let model = parsed(&lower(&overlay, "test").unwrap()[0]);
+        let client = participant(&model, "client");
+        assert_eq!(
+            client["fields"],
+            serde_json::json!([{"name": "token", "type": "Integer", "initial": 0}])
+        );
+        let start = &transitions(&model, "client")[0];
+        assert_eq!(
+            start["effects"][0],
+            serde_json::json!({"kind": "set", "field": "token", "value": {"kind": "input", "field": "value"}})
+        );
+        assert!(start.get("guards").is_none(), "{start:#}");
+        let accept = &transitions(&model, "client")[1];
+        assert_eq!(
+            accept["guards"],
+            serde_json::json!([{"left": {"kind": "input", "field": "value"}, "right": {"kind": "local", "field": "token"}}])
+        );
+        assert!(participant(&model, "server").get("fields").is_none());
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([{"kind": "never_state", "name": "never-stuck", "participant": "client", "state": "waiting"}])
+        );
+    }
+
+    #[test]
+    fn a_guarded_echo_of_the_local_field_passes_exploration() {
+        let report = explore_echo(&echo_machine(echo_value(), vec![]));
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    #[test]
+    fn an_echo_the_guard_never_admits_is_inconclusive() {
+        let report = explore_echo(&echo_machine(OverlayValue::Integer(99), vec![]));
+        assert_eq!(report["verdict"], "inconclusive", "{report:#}");
+        assert_eq!(
+            report["reason"],
+            "dead end with outstanding queue, timer or flush obligations"
+        );
+    }
+
+    #[test]
+    fn entering_a_never_state_fails_exploration_naming_the_property() {
+        let report = explore_echo(&echo_machine(
+            echo_value(),
+            vec![OverlayProperty::NeverState(NeverState {
+                name: "never-done".into(),
+                participant: "client".into(),
+                state: "done".into(),
+            })],
+        ));
+        assert_eq!(report["verdict"], "failed", "{report:#}");
+        let reason = report["reason"].as_str().unwrap();
+        assert!(
+            reason.contains("property violated") && reason.contains("never-done"),
+            "{reason}"
+        );
+    }
+
+    #[test]
     fn a_client_that_closes_on_the_closing_timeout_is_inconclusive_gap_g9() {
         let mut overlay = websocket_overlay();
         let client = &mut overlay.machines[0].participants[0];
@@ -780,6 +1204,127 @@ mod tests {
         assert_eq!(
             report["reason"],
             "dead end with outstanding queue, timer or flush obligations"
+        );
+    }
+
+    #[test]
+    fn a_state_implication_lowers_to_the_protospec_property() {
+        let overlay = echo_machine(
+            echo_value(),
+            vec![OverlayProperty::StateImplication(StateImplication {
+                name: "done-means-echoed".into(),
+                participant: "client".into(),
+                state: "done".into(),
+                other: "server".into(),
+                other_state: "echoed".into(),
+            })],
+        );
+        let model = parsed(&lower(&overlay, "test").unwrap()[0]);
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([{"kind": "state_implication", "name": "done-means-echoed", "participant": "client", "state": "done", "other": "server", "other_state": "echoed"}])
+        );
+    }
+
+    fn dns() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/dns")
+    }
+
+    fn dns_overlay() -> Overlay {
+        read_yaml(&dns().join("overlay.yaml")).unwrap()
+    }
+
+    #[test]
+    fn the_committed_query_model_equals_a_fresh_lowering_and_explore_passes_it() {
+        let lowered = lower(&dns_overlay(), "dns").unwrap();
+        let files: Vec<&str> = lowered.iter().map(|g| g.file.as_str()).collect();
+        assert_eq!(files, ["query.protospec.yaml"]);
+        assert_eq!(
+            fs::read_to_string(dns().join("generated/query.protospec.yaml")).unwrap(),
+            lowered[0].text
+        );
+        let model = parsed(&lowered[0]);
+        assert_eq!(model["name"], "rfc1035-dns-query");
+        assert_eq!(
+            model["messages"],
+            serde_json::json!([
+                {"name": "query", "fields": [{"name": "id", "type": "Integer"}]},
+                {"name": "response", "fields": [{"name": "id", "type": "Integer"}]}
+            ])
+        );
+        let client = participant(&model, "client");
+        assert_eq!(
+            client["states"],
+            serde_json::json!(["idle", "awaiting", "answered"])
+        );
+        assert_eq!(
+            client["fields"],
+            serde_json::json!([{"name": "qid", "type": "Integer", "initial": 0}])
+        );
+        let server = participant(&model, "server");
+        assert_eq!(
+            server["states"],
+            serde_json::json!(["idle", "late", "replied"])
+        );
+        let accept = transitions(&model, "client")
+            .into_iter()
+            .find(|t| t["from"] == "awaiting" && t["to"] == "answered")
+            .unwrap();
+        assert_eq!(
+            accept["guards"],
+            serde_json::json!([{"left": {"kind": "input", "field": "id"}, "right": {"kind": "local", "field": "qid"}}])
+        );
+        let late: Vec<_> = transitions(&model, "server")
+            .into_iter()
+            .filter(|t| t["to"] == "late")
+            .collect();
+        assert_eq!(late.len(), 1);
+        assert_eq!(late[0]["from"], "idle");
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([{"kind": "state_implication", "name": "answer-matches-query", "participant": "client", "state": "answered", "other": "server", "other_state": "replied"}])
+        );
+        assert_eq!(
+            fs::read_to_string(dns().join("witnesses/query.inputs.json")).unwrap(),
+            "[\n  {\"kind\":\"input\",\"participant\":\"client\",\"name\":\"query\",\"payload\":{\"id\":1}},\n  {\"kind\":\"input\",\"participant\":\"server\",\"name\":\"late-response\",\"payload\":{\"id\":2}}\n]\n"
+        );
+        let report = explore(
+            &dns().join("generated/query.protospec.yaml"),
+            &dns().join("witnesses/query.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    #[test]
+    fn a_mutant_client_that_accepts_a_response_without_the_id_guard_violates_answer_matches_query()
+    {
+        let mut overlay = dns_overlay();
+        let client = overlay.machines[0]
+            .participants
+            .iter_mut()
+            .find(|p| p.name == "client")
+            .unwrap();
+        let mut mutated = 0;
+        for transition in &mut client.transitions {
+            if !transition.guards.is_empty() {
+                transition.guards.clear();
+                mutated += 1;
+            }
+        }
+        assert_eq!(mutated, 1);
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "dns").unwrap()).unwrap();
+        let report = explore(
+            &out.path().join("query.protospec.yaml"),
+            &dns().join("witnesses/query.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "failed", "{report:#}");
+        let reason = report["reason"].as_str().unwrap();
+        assert!(
+            reason.contains("property violated") && reason.contains("answer-matches-query"),
+            "{reason}"
         );
     }
 }

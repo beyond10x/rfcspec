@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use rfcspec_model::{
     Catalogue, Document, Generated, OVERLAY_FILE, Overlay, PROFILE_FILE, Profile, drift, read_yaml,
@@ -50,10 +50,52 @@ enum Command {
         #[arg(long)]
         rfc: u32,
     },
+    /// S3: ask a model, through an `llm.routes/1` route, for an overlay element: a requirement
+    /// entry (`status`, `requirement-from-prose`, `requirement-link`) for each catalogue item of
+    /// the given sections without an overlay status or decision, a machine read from the sections
+    /// (`machine`), or a layout named by `--item` read from them (`bit-widths`); check each answer
+    /// and record it under the profile's `proposals/`; or, with `--replay`, rebuild every
+    /// recorded proposal offline and exit 1 naming each file that is not reproduced byte for
+    /// byte. Nothing else is written.
+    Propose {
+        #[arg(long)]
+        profile: PathBuf,
+        /// Replay the recorded proposals instead of asking a model.
+        #[arg(long, conflicts_with_all = ["task", "sections", "items", "routes", "route"])]
+        replay: bool,
+        #[arg(long, value_enum, required_unless_present = "replay")]
+        task: Option<ProposeTask>,
+        /// The sections whose items (and their subsections') are asked about.
+        #[arg(long = "section", value_name = "N", num_args = 1.., required_unless_present_any = ["replay", "items"])]
+        sections: Vec<String>,
+        /// Catalogue ids to ask about (`R5.1-1`, `P-34`), instead of every item of the sections.
+        #[arg(long = "item", value_name = "ID", num_args = 1..)]
+        items: Vec<String>,
+        /// The `llm.routes/1` document naming the model and its credential references.
+        #[arg(long, value_name = "FILE", required_unless_present = "replay")]
+        routes: Option<PathBuf>,
+        /// The route, or `<endpoint>/<model>` name, of the model to ask.
+        #[arg(long, required_unless_present = "replay")]
+        route: Option<String>,
+    },
+    /// S4: settle one recorded proposal with accept, edit or reject. Writes a decision into the
+    /// profile's overlay, with the proposed (accept) or given (edit) requirement entry, layout or
+    /// machine, only when the overlay and profile checks find no problem the overlay did not
+    /// already have; otherwise writes nothing and exits 1.
+    Review {
+        #[arg(long)]
+        profile: PathBuf,
+        /// The proposal's id, its file name under `proposals/` without `.json`.
+        #[arg(long, value_name = "ID")]
+        proposal: String,
+        #[command(subcommand)]
+        verdict: ReviewVerdict,
+    },
     /// S4: check the profile's overlay against the catalogue and the locked source, its
     /// communication semantics against the overlay's machines, that every catalogue requirement
-    /// in the profile's scope has a status, and every recorded run under `runs/` against the
-    /// current overlay.
+    /// in the profile's scope has a status, every recorded run under `runs/` against the current
+    /// overlay, that every recorded proposal under `proposals/` replays byte for byte, and that
+    /// every overlay decision names a recorded proposal and judges its item's current text.
     Check {
         #[arg(long, required_unless_present = "all", conflicts_with = "all")]
         profile: Option<PathBuf>,
@@ -106,9 +148,57 @@ enum Command {
     },
 }
 
+#[derive(Subcommand)]
+enum ReviewVerdict {
+    /// Add the proposed element and a decision of kind accept.
+    Accept,
+    /// Add the element of `--entry` instead and a decision of kind edit carrying it.
+    Edit {
+        /// A YAML file holding one overlay requirement entry, layout or machine, of the kind the
+        /// proposal proposes.
+        #[arg(long, value_name = "FILE")]
+        entry: Option<PathBuf>,
+    },
+    /// Add a decision of kind reject and no element; the item stays unreviewed and is not
+    /// proposed again.
+    Reject {
+        /// Why; printed, not recorded, since `rfcspec.review.Decision` has no reason field.
+        #[arg(long)]
+        reason: String,
+    },
+}
+
 #[derive(Clone, Copy, clap::ValueEnum)]
 enum Target {
     Rust,
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum ProposeTask {
+    /// A status unsupported or not-applicable with a reason, and a level, for a BCP 14
+    /// requirement.
+    Status,
+    /// A level and a status for a sentence with a lowercase `must`, `should` or `may`.
+    RequirementFromProse,
+    /// One overlay machine read from the sections; the item is the whole profile.
+    Machine,
+    /// One overlay layout read from a packet diagram of the sections, under the name `--item`
+    /// gives.
+    BitWidths,
+    /// A status satisfied by an element the overlay holds, for a BCP 14 requirement.
+    RequirementLink,
+}
+
+impl From<ProposeTask> for rfcspec_propose::Task {
+    fn from(task: ProposeTask) -> Self {
+        match task {
+            ProposeTask::Status => Self::Status,
+            ProposeTask::RequirementFromProse => Self::RequirementFromProse,
+            ProposeTask::Machine => Self::Machine,
+            ProposeTask::BitWidths => Self::BitWidths,
+            ProposeTask::RequirementLink => Self::RequirementLink,
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -204,6 +294,42 @@ fn run(cli: Cli) -> Result<ExitCode> {
             }
             return Ok(ExitCode::from(code));
         }
+        Command::Propose {
+            profile,
+            replay: true,
+            ..
+        } => {
+            let problems = rfcspec_propose::replay(&profile)?;
+            for problem in &problems {
+                eprintln!("rfcspec propose: {problem}");
+            }
+            if !problems.is_empty() {
+                return Ok(ExitCode::FAILURE);
+            }
+            println!(
+                "rfcspec propose: every proposal of {} replays",
+                profile.display()
+            );
+        }
+        Command::Propose {
+            profile,
+            task,
+            sections,
+            items,
+            routes,
+            route,
+            ..
+        } => {
+            let (Some(task), Some(routes), Some(route)) = (task, routes, route) else {
+                bail!("give --task, --routes and --route, or --replay");
+            };
+            return propose(&profile, task.into(), &sections, items, &routes, &route);
+        }
+        Command::Review {
+            profile,
+            proposal,
+            verdict,
+        } => return review(&profile, &proposal, verdict),
         Command::Check { profile, all } => {
             let profiles = match (profile, all) {
                 (Some(profile), _) => vec![profile],
@@ -246,6 +372,11 @@ fn check(profile: &Path) -> bool {
                 &loaded.catalogue,
             ));
             problems.extend(checks::runs(profile));
+            problems.extend(checks::decisions(profile, &loaded.overlay));
+            match rfcspec_propose::replay(profile) {
+                Ok(replayed) => problems.extend(replayed),
+                Err(error) => problems.push(format!("{}: {error:#}", profile.display())),
+            }
             if problems.is_empty() {
                 println!(
                     "{}: overlay holds ({} requirements, {} layouts, {} machines, {} findings, {} layers, {} recorded runs)",
@@ -265,6 +396,135 @@ fn check(profile: &Path) -> bool {
         eprintln!("rfcspec check: {problem}");
     }
     problems.is_empty()
+}
+
+/// Settle one proposal; write the overlay only when the overlay check (inside `decide`) and the
+/// profile checks find no problem on the result that the overlay did not already have.
+fn review(profile: &Path, proposal: &str, verdict: ReviewVerdict) -> Result<ExitCode> {
+    use rfcspec_propose::review::{ReviewError, Verdict, decide, write};
+    let (verdict, reason) = match verdict {
+        ReviewVerdict::Accept => (Verdict::Accept, None),
+        ReviewVerdict::Edit { entry } => (
+            Verdict::Edit(
+                entry
+                    .as_deref()
+                    .map(read_yaml::<rfcspec_model::Edit>)
+                    .transpose()?,
+            ),
+            None,
+        ),
+        ReviewVerdict::Reject { reason } => (Verdict::Reject, Some(reason)),
+    };
+    let reviewed = match decide(profile, proposal, verdict) {
+        Ok(reviewed) => reviewed,
+        Err(ReviewError::Refused(problems)) => {
+            for problem in &problems {
+                eprintln!("rfcspec review: {problem}");
+            }
+            return Ok(ExitCode::FAILURE);
+        }
+        Err(error) => {
+            eprintln!("rfcspec review: {error}");
+            return Ok(ExitCode::FAILURE);
+        }
+    };
+    let loaded = Loaded::from(profile)?;
+    let profile_problems = |overlay: &Overlay| {
+        let mut problems = checks::semantics(profile, &loaded.profile, overlay);
+        problems.extend(checks::scope(&loaded.profile, overlay, &loaded.catalogue));
+        problems.extend(checks::decisions(profile, overlay));
+        problems
+    };
+    let before = profile_problems(&loaded.overlay);
+    let problems: Vec<String> = profile_problems(&reviewed.overlay)
+        .into_iter()
+        .filter(|problem| !before.contains(problem))
+        .collect();
+    if !problems.is_empty() {
+        for problem in &problems {
+            eprintln!("rfcspec review: {problem}");
+        }
+        return Ok(ExitCode::FAILURE);
+    }
+    write(profile, &reviewed)?;
+    let decision = &reviewed.decision;
+    println!(
+        "rfcspec review: {}: {} of proposal {proposal} recorded in {}{}",
+        decision.item,
+        decision.kind,
+        profile.join(OVERLAY_FILE).display(),
+        reason
+            .map(|reason| format!(" ({reason})"))
+            .unwrap_or_default()
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Record a proposal for each item: the given ones, else every pending one of the sections.
+/// Exits 1 when an answer fails its checks; stops at an error from the model.
+fn propose(
+    profile: &Path,
+    task: rfcspec_propose::Task,
+    sections: &[String],
+    items: Vec<String>,
+    routes: &Path,
+    route: &str,
+) -> Result<ExitCode> {
+    let workspace = rfcspec_propose::Workspace::load(profile)?;
+    if task.reads_sections() && sections.is_empty() {
+        bail!("--task {} reads --section", task.wire());
+    }
+    if task == rfcspec_propose::Task::BitWidths && items.is_empty() {
+        bail!("--task bit-widths names its layout with --item");
+    }
+    let items = if items.is_empty() {
+        workspace.pending(task, sections)
+    } else {
+        items
+    };
+    if items.is_empty() {
+        println!("rfcspec propose: nothing to propose");
+        return Ok(ExitCode::SUCCESS);
+    }
+    let text =
+        std::fs::read_to_string(routes).with_context(|| format!("reading {}", routes.display()))?;
+    let routed = rfcspec_propose::routed(&text, route)?;
+    let mut failed = false;
+    for (item, result) in rfcspec_propose::record_all(
+        &workspace,
+        &routed.model,
+        &routed.model_id,
+        task,
+        &items,
+        sections,
+    )? {
+        match result {
+            Ok(rfcspec_propose::Outcome::Recorded(path)) => {
+                println!("rfcspec propose: {item}: recorded {}", path.display());
+            }
+            Ok(rfcspec_propose::Outcome::AlreadyExists(path)) => {
+                println!(
+                    "rfcspec propose: {item}: already recorded {}",
+                    path.display()
+                );
+            }
+            Ok(rfcspec_propose::Outcome::Decided) => {
+                println!("rfcspec propose: {item}: decided in the overlay, not asked");
+            }
+            Err(rfcspec_propose::ProposeError::Model(error)) => {
+                bail!("{item}: {error}");
+            }
+            Err(error) => {
+                eprintln!("rfcspec propose: {item}: {error}");
+                failed = true;
+            }
+        }
+    }
+    Ok(if failed {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    })
 }
 
 /// A locked source read into its normalized document, refused unless the profile names the RFC.

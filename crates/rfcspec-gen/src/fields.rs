@@ -13,8 +13,10 @@
 //!   header plus the elided ones are the length;
 //! - the layout vectors of design section 11, built on the header of the first example: each
 //!   range at its minimum and maximum (accepted), the two values below its minimum and the one
-//!   above its maximum that the field's width holds (refused), and each presence selector at the
-//!   value below the smallest value that selects a field (accepted).
+//!   above its maximum that the field's width holds (refused), each `equals` value (accepted) and
+//!   the values one above and one below it that the field's width holds (refused), and each
+//!   presence selector at the value below the smallest value that selects a field (accepted). A
+//!   layout without an octet example builds them on the header whose present fields are all 0.
 
 use std::collections::BTreeSet;
 
@@ -288,6 +290,16 @@ fn vectors(layout: &Layout, base: &Values) -> Result<Vec<Vector>> {
     for (index, field) in layout.fields.iter().enumerate() {
         let (_, width) = field.bounds();
         for constraint in &field.constraints {
+            if let Constraint::Equals(value) = constraint {
+                let value = i128::from(*value);
+                push(index, u64::try_from(value)?, true)?;
+                for neighbour in [value + 1, value - 1] {
+                    if (0..=width).contains(&neighbour) {
+                        push(index, u64::try_from(neighbour)?, false)?;
+                    }
+                }
+                continue;
+            }
             let Constraint::Range([low, high]) = constraint else {
                 continue;
             };
@@ -725,4 +737,163 @@ fn presence_condition(layout: &Layout, field: &Field, prefix: &str) -> Option<St
     } else {
         format!("{} == {}", widen(&expr, selector.bits), presence.equals)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use rfcspec_model::read_yaml;
+
+    use super::*;
+
+    fn layout(profile: &str) -> Layout {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../profiles")
+            .join(profile)
+            .join("overlay.yaml");
+        let overlay: Overlay = read_yaml(&path).unwrap();
+        let [layout] = overlay.layouts.as_slice() else {
+            panic!("{profile}: {} layouts", overlay.layouts.len());
+        };
+        layout.clone()
+    }
+
+    /// Each vector as field, value, octets and verdict.
+    fn listed(layout: &Layout, base: &Values) -> Vec<(String, u64, String, &'static str)> {
+        vectors(layout, base)
+            .unwrap()
+            .into_iter()
+            .map(|v| {
+                (
+                    layout.fields[v.field].name.clone(),
+                    v.value,
+                    hex(&v.octets),
+                    if v.accepted { "accepted" } else { "refused" },
+                )
+            })
+            .collect()
+    }
+
+    fn zero(layout: &Layout) -> Values {
+        settle(layout, vec![None; layout.fields.len()])
+    }
+
+    #[test]
+    fn the_dns_header_has_its_13_fields_in_96_bits() {
+        let header = layout("dns");
+        let fields: Vec<(&str, u32)> = header
+            .fields
+            .iter()
+            .map(|f| (f.name.as_str(), f.bits))
+            .collect();
+        assert_eq!(
+            fields,
+            [
+                ("id", 16),
+                ("qr", 1),
+                ("opcode", 4),
+                ("aa", 1),
+                ("tc", 1),
+                ("rd", 1),
+                ("ra", 1),
+                ("z", 3),
+                ("rcode", 4),
+                ("qdcount", 16),
+                ("ancount", 16),
+                ("nscount", 16),
+                ("arcount", 16),
+            ]
+        );
+        assert_eq!(header.fields.iter().map(|f| f.bits).sum::<u32>(), 96);
+        assert!(header.epoch.is_none() && header.length.is_empty());
+        assert!(
+            header
+                .fields
+                .iter()
+                .all(|f| !f.signed && f.order == "big-endian" && f.presence.is_none())
+        );
+        let constrained: Vec<(&str, &[Constraint])> = header
+            .fields
+            .iter()
+            .filter(|f| !f.constraints.is_empty())
+            .map(|f| (f.name.as_str(), f.constraints.as_slice()))
+            .collect();
+        assert_eq!(constrained, [("z", &[Constraint::Equals(0)][..])]);
+    }
+
+    #[test]
+    fn an_equals_constraint_yields_z_0_accepted_and_z_1_refused_on_the_zero_header() {
+        let header = layout("dns");
+        assert_eq!(
+            listed(&header, &zero(&header)),
+            [
+                (
+                    "z".to_owned(),
+                    0,
+                    "00 00 00 00 00 00 00 00 00 00 00 00".to_owned(),
+                    "accepted"
+                ),
+                (
+                    "z".to_owned(),
+                    1,
+                    "00 00 00 10 00 00 00 00 00 00 00 00".to_owned(),
+                    "refused"
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_equals_value_is_refused_on_each_side_its_width_holds() {
+        let mut header = layout("dns");
+        let z = index_of(&header, "z");
+        let verdicts = |header: &Layout, value: u64| -> Vec<(u64, &'static str)> {
+            let base = with(header, &zero(header), z, value);
+            listed(header, &base)
+                .into_iter()
+                .map(|(_, value, _, verdict)| (value, verdict))
+                .collect()
+        };
+        header.fields[z].constraints = vec![Constraint::Equals(3)];
+        assert_eq!(
+            verdicts(&header, 3),
+            [(3, "accepted"), (4, "refused"), (2, "refused")]
+        );
+        header.fields[z].constraints = vec![Constraint::Equals(7)];
+        assert_eq!(verdicts(&header, 7), [(7, "accepted"), (6, "refused")]);
+    }
+
+    #[test]
+    fn the_websocket_layout_without_equals_constraints_yields_the_same_vectors_as_before() {
+        let frame = layout("websocket");
+        assert!(
+            frame
+                .fields
+                .iter()
+                .flat_map(|f| &f.constraints)
+                .all(|c| !matches!(c, Constraint::Equals(_)))
+        );
+        let (base, _) = decode(&frame, &[0x81, 0x05]).unwrap();
+        let vectors: Vec<String> = listed(&frame, &base)
+            .into_iter()
+            .map(|(name, value, octets, verdict)| format!("{name} {value} {verdict} {octets}"))
+            .collect();
+        assert_eq!(
+            vectors,
+            [
+                "extended-payload-length-16 126 accepted 81 7e 00 7e",
+                "extended-payload-length-16 65535 accepted 81 7e ff ff",
+                "extended-payload-length-16 124 refused 81 7e 00 7c",
+                "extended-payload-length-16 125 refused 81 7e 00 7d",
+                "extended-payload-length-64 65536 accepted 81 7f 00 00 00 00 00 01 00 00",
+                "extended-payload-length-64 9223372036854775807 accepted 81 7f 7f ff ff ff ff ff ff ff",
+                "extended-payload-length-64 65534 refused 81 7f 00 00 00 00 00 00 ff fe",
+                "extended-payload-length-64 65535 refused 81 7f 00 00 00 00 00 00 ff ff",
+                "extended-payload-length-64 9223372036854775808 refused 81 7f 80 00 00 00 00 00 00 00",
+                "mask 0 accepted 81 05",
+                "payload-len 125 accepted 81 7d",
+            ]
+        );
+    }
 }

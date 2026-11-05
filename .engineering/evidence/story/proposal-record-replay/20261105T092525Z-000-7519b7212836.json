@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-05T09:25:25Z",
+  "actor": "human:timo",
+  "artifact": "story:proposal-record-replay",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:dnsai-adversary-1",
+    "review": "review-result:dnsai-adversary-1",
+    "outcome": "fixed"
+  }
+}

@@ -17,5 +17,6 @@ One row per profile. Kind is the RFC's primary kind ([RFC kinds](/docs/concepts/
 
 | Profile | RFCs | Kind | Stage | Requirements | Satisfied | Unsupported | Not applicable | Unreviewed | Conformance |
 |---|---|---|---|---|---|---|---|---|---|
+| [dns](/docs/catalog/dns) | RFC 1035 Domain Names - Implementation and Specification | K1 | S6 | 3 MUST, 2 SHOULD, 1 SHOULD NOT | 4 | 2 | 0 | 0 | no recorded run |
 | [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |
-| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 21 MUST, 6 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 16 MAY | 17 | 36 | 4 | 139 | no recorded run |
+| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY | 29 | 33 | 8 | 126 | no recorded run |

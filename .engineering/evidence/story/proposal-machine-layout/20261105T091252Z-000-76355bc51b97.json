@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T09:12:52Z",
+  "actor": "human:timo",
+  "artifact": "story:proposal-machine-layout",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-propose (12) -p rfcspec-cli (80) -p rfcspec-extract (44) -p rfcspec-model -p rfcspec-docs exit 0; task spec/time/websocket/dns; docs-check; clippy --workspace"
+  }
+}

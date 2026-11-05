@@ -1,0 +1,198 @@
+format: ess-protospec/1
+name: rfc6455-websocket-ping
+bounds:
+  max_steps: 32
+  max_states: 256
+  max_time_ms: 1000
+participants:
+- name: client
+  initial: open
+  states:
+  - open
+  - pinging
+  - ponged
+  - closing
+  - closed
+  fields:
+  - name: ping-data
+    type: Integer
+    initial: 0
+  inputs:
+  - name: ping
+    fields:
+    - name: data
+      type: Integer
+  - name: close
+    fields:
+    - name: code
+      type: Integer
+  transitions:
+  - name: R5.5.2-1-R5.5.2-4-send-ping
+    from: open
+    to: pinging
+    trigger:
+      kind: input
+      name: ping
+    effects:
+    - kind: set
+      field: ping-data
+      value:
+        kind: input
+        field: data
+    - kind: send
+      channel: client-to-server
+      message: ping
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.2-1-R5.5.2-4-send-ping
+      payload:
+        data:
+          kind: input
+          field: data
+  - name: R5.5.2-2-pong-echoed
+    from: pinging
+    to: ponged
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: pong
+    guards:
+    - left:
+        kind: input
+        field: data
+      right:
+        kind: local
+        field: ping-data
+  - name: R7.1.2-1-start-closing-handshake
+    from: open
+    to: closing
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R7.1.2-1-start-closing-handshake
+      payload:
+        code:
+          kind: input
+          field: code
+  - name: R7.1.2-1-close-after-pong
+    from: ponged
+    to: closed
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R7.1.2-1-close-after-pong
+      payload:
+        code:
+          kind: input
+          field: code
+  - name: R5.5.2-1-R5.5.2-4-ping-after-close
+    from: closing
+    to: closed
+    trigger:
+      kind: input
+      name: ping
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: ping
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.2-1-R5.5.2-4-ping-after-close
+      payload:
+        data:
+          kind: input
+          field: data
+- name: server
+  initial: open
+  states:
+  - open
+  - close-received
+  transitions:
+  - name: R5.5.2-2-R5.5.2-3-pong
+    from: open
+    to: open
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: ping
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: pong
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.2-2-R5.5.2-3-pong
+      payload:
+        data:
+          kind: input
+          field: data
+  - name: R5.5.2-2-close-received
+    from: open
+    to: close-received
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: close-frame
+  - name: R5.5.2-2-ignore-ping-after-close
+    from: close-received
+    to: close-received
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: ping
+messages:
+- name: ping
+  fields:
+  - name: data
+    type: Integer
+- name: pong
+  fields:
+  - name: data
+    type: Integer
+- name: close-frame
+  fields:
+  - name: code
+    type: Integer
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties: []

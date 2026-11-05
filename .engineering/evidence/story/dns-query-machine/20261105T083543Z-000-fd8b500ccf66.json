@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:35:43Z",
+  "actor": "human:timo",
+  "artifact": "story:dns-query-machine",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-model -p rfcspec-extract (35) -p rfcspec-ess (24) -p rfcspec-cli exit 0; explore query passed; mutant failed answer-matches-query; task dns/time/websocket; docs-check; clippy"
+  }
+}

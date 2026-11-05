@@ -1,0 +1,133 @@
+format: rfcspec-overlay/1
+rfc: 1035
+kind: K1
+requirements:
+  - id: R-HDR-1
+    source: prose
+    level: MUST
+    quote: Must be zero in all queries and responses.
+    span: {start: 1473, end: 1474}
+    status: {satisfied: layout.header}
+  - id: R-ID-1
+    source: prose
+    level: MUST
+    quote: This identifier is copied the corresponding reply
+    span: {start: 1424, end: 1425}
+    status: {satisfied: query.server.R-ID-1-answer-query}
+  - id: R-MATCH-1
+    source: prose
+    level: SHOULD
+    quote: The recommended strategy is to do a preliminary matching using the ID field in the domain header
+    span: {start: 2544, end: 2545}
+    status: {satisfied: query.client.R-MATCH-1-accept-response}
+  - id: R-MATCH-2
+    source: prose
+    level: SHOULD
+    quote: and then to verify that the question section corresponds to the information currently desired.
+    span: {start: 2545, end: 2546}
+    status: {unsupported: "the query and response messages carry the ID only: the question section (section 4.1.2) is not modelled"}
+  - id: R-UDP-1
+    source: prose
+    level: SHOULD NOT
+    quote: Queries or their responses may be reordered by the network, or by processing in name servers, so resolvers should not depend on them being returned in order.
+    span: {start: 1762, end: 1764}
+    status: {satisfied: query.server.R-UDP-1-late-response}
+  - id: R-UDP-2
+    source: prose
+    level: MUST
+    quote: Queries sent using UDP may be lost, and hence a retransmission strategy is required.
+    span: {start: 1761, end: 1762}
+    status: {unsupported: "retransmission is not modelled and the lowered channels are reliable"}
+layouts:
+  - name: header
+    quote: 'The header contains the following fields:'
+    span: {start: 1403, end: 1403}
+    fields:
+      - {name: id, bits: 16, signed: false, order: big-endian}
+      - {name: qr, bits: 1, signed: false, order: big-endian}
+      - {name: opcode, bits: 4, signed: false, order: big-endian}
+      - {name: aa, bits: 1, signed: false, order: big-endian}
+      - {name: tc, bits: 1, signed: false, order: big-endian}
+      - {name: rd, bits: 1, signed: false, order: big-endian}
+      - {name: ra, bits: 1, signed: false, order: big-endian}
+      - name: z
+        bits: 3
+        signed: false
+        order: big-endian
+        constraints:
+          - {equals: 0}
+      - {name: rcode, bits: 4, signed: false, order: big-endian}
+      - {name: qdcount, bits: 16, signed: false, order: big-endian}
+      - {name: ancount, bits: 16, signed: false, order: big-endian}
+      - {name: nscount, bits: 16, signed: false, order: big-endian}
+      - {name: arcount, bits: 16, signed: false, order: big-endian}
+machines:
+  - name: query
+    transport: udp
+    messages:
+      - {name: query, fields: {id: Integer}}
+      - {name: response, fields: {id: Integer}}
+    participants:
+      - name: client
+        initial: idle
+        states: [idle, awaiting, answered]
+        fields:
+          - {name: qid, type: Integer, initial: 0}
+        inputs:
+          - {name: query, fields: {id: Integer}}
+        transitions:
+          - implements: [R-MATCH-1]
+            label: send-query
+            from: idle
+            to: awaiting
+            on: {input: query}
+            effects:
+              - {set: {field: qid, value: {input: id}}}
+              - {send: {message: query, payload: {id: {input: id}}}}
+          - implements: [R-MATCH-1]
+            label: accept-response
+            from: awaiting
+            to: answered
+            on: {receive: response}
+            guards:
+              - {left: {input: id}, right: {local: qid}}
+          - implements: [R-MATCH-1, R-UDP-1]
+            label: discard-response
+            from: awaiting
+            to: awaiting
+            on: {receive: response}
+          - implements: [R-MATCH-1, R-UDP-1]
+            label: discard-response-after-answer
+            from: answered
+            to: answered
+            on: {receive: response}
+      - name: server
+        initial: idle
+        states: [idle, late, replied]
+        inputs:
+          - {name: late-response, fields: {id: Integer}}
+        transitions:
+          - implements: [R-ID-1]
+            label: answer-query
+            from: idle
+            to: replied
+            on: {receive: query}
+            effects:
+              - {send: {message: response, payload: {id: {input: id}}}}
+          - implements: [R-ID-1]
+            label: answer-query-after-late-response
+            from: late
+            to: replied
+            on: {receive: query}
+            effects:
+              - {send: {message: response, payload: {id: {input: id}}}}
+          - implements: [R-UDP-1]
+            label: late-response
+            from: idle
+            to: late
+            on: {input: late-response}
+            effects:
+              - {send: {message: response, payload: {id: {input: id}}}}
+    properties:
+      - {name: answer-matches-query, participant: client, state: answered, other: server, other_state: replied}
+findings: []

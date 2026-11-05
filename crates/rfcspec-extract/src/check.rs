@@ -1,12 +1,14 @@
 //! The overlay check: every quote occurs verbatim in the source at the span it names, every id
 //! an overlay item refers to exists, and a requirement read mechanically (`capitals-text`,
-//! `abnf-comment`) keeps its catalogue id and lies within its catalogue span.
+//! `abnf-comment`) keeps its catalogue id and lies within its catalogue span; and every review
+//! decision judges the current catalogue text of its item.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use rfcspec_model::{
-    ABNF_COMMENT, Bcp14Requirement, CAPITALS_TEXT, Catalogue, Constraint, Effect, OVERLAY_FORMAT,
-    Overlay, Property, Span, Status, Trigger, Value, collapse_whitespace,
+    ABNF_COMMENT, Bcp14Requirement, CAPITALS_TEXT, Catalogue, Constraint, DecisionKind, Edit,
+    Effect, Layout, OVERLAY_FORMAT, Operand, Overlay, Property, Span, Status, Trigger, Value,
+    collapse_whitespace, text_digest,
 };
 
 /// Check an overlay against its catalogue and source. Returns one problem per line, each naming
@@ -65,37 +67,15 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
     let mut elements = BTreeSet::new();
     for layout in &overlay.layouts {
         elements.insert(format!("layout.{}", layout.name));
-        let mut earlier = BTreeSet::new();
-        for field in &layout.fields {
-            let item = format!("layout {} field {}", layout.name, field.name);
-            if let Some(presence) = &field.presence
-                && !earlier.contains(presence.field.as_str())
-            {
-                problems.push(format!(
-                    "{item}: present when {}, which is no earlier field of the layout",
-                    presence.field
-                ));
-            }
-            if !(1..=64).contains(&field.bits) {
-                problems.push(format!("{item}: {} bits, not 1 to 64", field.bits));
-            } else {
-                let (low, high) = field.bounds();
-                for constraint in &field.constraints {
-                    if let Constraint::Range([from, to]) = constraint
-                        && !(low <= i128::from(*from) && from <= to && i128::from(*to) <= high)
-                    {
-                        problems.push(format!(
-                            "{item}: range {from} to {to} does not fit {} bits",
-                            field.bits
-                        ));
-                    }
-                }
-            }
-            earlier.insert(field.name.as_str());
-        }
+        problems.extend(layout_problems(layout));
     }
     let requirement_ids: BTreeSet<&str> =
         overlay.requirements.iter().map(|r| r.id.as_str()).collect();
+    let implementable: BTreeSet<&str> = requirement_ids
+        .iter()
+        .copied()
+        .chain(catalogue.requirements.iter().map(|r| r.id.as_str()))
+        .collect();
     let step_ids: BTreeSet<&str> = catalogue
         .dialogue_steps
         .iter()
@@ -105,12 +85,32 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
         let messages: BTreeSet<&str> = machine.messages.iter().map(|m| m.name.as_str()).collect();
         for participant in &machine.participants {
             let states: BTreeSet<&str> = participant.states.iter().map(String::as_str).collect();
+            for field in &participant.fields {
+                let item = format!(
+                    "local field {}.{}.{}",
+                    machine.name, participant.name, field.name
+                );
+                let article = match field.kind.as_str() {
+                    "Integer" => "an",
+                    "Boolean" => "a",
+                    other => {
+                        problems.push(format!("{item}: type {other}, not Integer or Boolean"));
+                        continue;
+                    }
+                };
+                if field.initial.kind() != field.kind {
+                    problems.push(format!(
+                        "{item}: initial {} is not {article} {}",
+                        field.initial, field.kind
+                    ));
+                }
+            }
             for transition in &participant.transitions {
                 let name = transition.name();
                 let item = format!("transition {}.{}.{name}", machine.name, participant.name);
                 elements.insert(format!("{}.{}.{name}", machine.name, participant.name));
                 for id in &transition.implements {
-                    if !requirement_ids.contains(id.as_str()) && !step_ids.contains(id.as_str()) {
+                    if !implementable.contains(id.as_str()) && !step_ids.contains(id.as_str()) {
                         problems.push(format!(
                             "{item}: implements {id}, which is neither a requirement nor a dialogue step"
                         ));
@@ -145,8 +145,45 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         BTreeMap::new()
                     }
                 };
+                for operand in transition
+                    .guards
+                    .iter()
+                    .flat_map(|guard| [&guard.left, &guard.right])
+                {
+                    match operand {
+                        Operand::Local(local) if participant.field(&local.local).is_none() => {
+                            problems.push(format!(
+                                "{item}: guard reads {}, which is no local field of the participant",
+                                local.local
+                            ));
+                        }
+                        Operand::Input(source) if !trigger_fields.contains_key(&source.input) => {
+                            problems.push(format!(
+                                "{item}: guard reads {}, which is no field of its trigger",
+                                source.input
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
                 for effect in &transition.effects {
                     match effect {
+                        Effect::Set(set) => {
+                            if participant.field(&set.field).is_none() {
+                                problems.push(format!(
+                                    "{item}: set {}, which is no local field of the participant",
+                                    set.field
+                                ));
+                            }
+                            if let Value::Field(source) = &set.value
+                                && !trigger_fields.contains_key(&source.input)
+                            {
+                                problems.push(format!(
+                                    "{item}: set {} reads {}, which is no field of its trigger",
+                                    set.field, source.input
+                                ));
+                            }
+                        }
                         Effect::Send(send) => {
                             used.push(&send.message);
                             for (field, value) in &send.payload {
@@ -183,16 +220,29 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
             .map(|p| p.name.as_str())
             .collect();
         for property in &machine.properties {
-            let participant = match property {
-                Property::EventCount(count) => &count.participant,
-                Property::FlushBeforeClose(flush) => &flush.flush_before_close,
+            let item = format!("property {}.{}", machine.name, property.name());
+            let named: Vec<(&String, Option<&String>)> = match property {
+                Property::EventCount(count) => vec![(&count.participant, None)],
+                Property::FlushBeforeClose(flush) => vec![(&flush.flush_before_close, None)],
+                Property::NeverState(never) => vec![(&never.participant, Some(&never.state))],
+                Property::StateImplication(implication) => vec![
+                    (&implication.participant, Some(&implication.state)),
+                    (&implication.other, Some(&implication.other_state)),
+                ],
             };
-            if !participants.contains(participant.as_str()) {
-                problems.push(format!(
-                    "property {}.{}: unknown participant {participant}",
-                    machine.name,
-                    property.name()
-                ));
+            for (participant, state) in named {
+                if !participants.contains(participant.as_str()) {
+                    problems.push(format!("{item}: unknown participant {participant}"));
+                } else if let Some(state) = state
+                    && !machine
+                        .participants
+                        .iter()
+                        .any(|p| &p.name == participant && p.states.contains(state))
+                {
+                    problems.push(format!(
+                        "{item}: unknown state {state} of participant {participant}"
+                    ));
+                }
             }
         }
     }
@@ -251,12 +301,229 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
             ));
         }
     }
+    problems.extend(decisions(overlay, catalogue));
     problems
 }
 
-/// Whether a quote occurs at its span; page-furniture lines inside the span are skipped, so a
-/// sentence continued across a page break is quoted as one.
-fn quote_problem(lines: &[&str], furniture: &[usize], quote: &str, span: Span) -> Option<String> {
+/// The layout rules on one layout, each problem naming the layout and the field: every width is
+/// 1 to 64 bits, a presence names an earlier field and a value that field's width holds, and
+/// every value of every constraint (`equals`, `one_of`, both ends of a `range`) fits the field's
+/// width, as `rfcspec generate` requires.
+pub fn layout_problems(layout: &Layout) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut earlier: BTreeMap<&str, &rfcspec_model::Field> = BTreeMap::new();
+    for field in &layout.fields {
+        let item = format!("layout {} field {}", layout.name, field.name);
+        if let Some(presence) = &field.presence {
+            match earlier.get(presence.field.as_str()) {
+                None => problems.push(format!(
+                    "{item}: present when {}, which is no earlier field of the layout",
+                    presence.field
+                )),
+                Some(named)
+                    if (1..=64).contains(&named.bits) && !fits(named.bounds(), presence.equals) =>
+                {
+                    problems.push(format!(
+                        "{item}: present when {} equals {}, which does not fit its {} bits",
+                        presence.field, presence.equals, named.bits
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
+        if !(1..=64).contains(&field.bits) {
+            problems.push(format!("{item}: {} bits, not 1 to 64", field.bits));
+        } else {
+            let bounds = field.bounds();
+            let bits = field.bits;
+            for constraint in &field.constraints {
+                match constraint {
+                    Constraint::Range([from, to]) => {
+                        if !(fits(bounds, *from) && from <= to && fits(bounds, *to)) {
+                            problems.push(format!(
+                                "{item}: range {from} to {to} does not fit {bits} bits"
+                            ));
+                        }
+                    }
+                    Constraint::Equals(value) => {
+                        if !fits(bounds, *value) {
+                            problems
+                                .push(format!("{item}: equals {value} does not fit {bits} bits"));
+                        }
+                    }
+                    Constraint::OneOf(values) => {
+                        for value in values.iter().filter(|v| !fits(bounds, **v)) {
+                            problems.push(format!(
+                                "{item}: one_of value {value} does not fit {bits} bits"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        earlier.insert(field.name.as_str(), field);
+    }
+    problems
+}
+
+/// Whether a value lies within a field's inclusive bounds.
+fn fits((low, high): (i128, i128), value: i64) -> bool {
+    (low..=high).contains(&i128::from(value))
+}
+
+/// What a decision's item names: a catalogue item of the overlay's RFC (`rfc<N>/<id>`) and its
+/// text, a layout (`rfc<N>/layout/<name>`), or the whole profile (`<profile>`, the item of a
+/// machine proposal).
+enum Decided<'a> {
+    Catalogue(&'a str, &'a str),
+    Layout(&'a str),
+    Profile,
+    Unknown,
+}
+
+/// The decision rules (ESS `rfcspec.review.Decision`): each decision's item is a catalogue item
+/// of the overlay's RFC, a layout or the whole profile; a catalogue item's `text_digest` is the
+/// digest of its current catalogue text (a layout's or machine's judges the sections its proposal
+/// was asked about, which `rfcspec check` compares through the proposal); one item holds at most
+/// one decision per digest, one proposal at most one decision; an `edit` carries an entry of its
+/// item's kind; an `accept` or `edit` of a catalogue item has its requirement in `requirements`,
+/// of a layout the layout in `layouts`, and an `edit` the entry it carries (a machine `edit` an
+/// equal machine in `machines`). Each problem names the decision's item.
+fn decisions(overlay: &Overlay, catalogue: &Catalogue) -> Vec<String> {
+    let texts: BTreeMap<&str, &str> = catalogue
+        .requirements
+        .iter()
+        .map(|r| (r.id.as_str(), r.text.as_str()))
+        .chain(
+            catalogue
+                .prose_candidates
+                .iter()
+                .map(|c| (c.id.as_str(), c.text.as_str())),
+        )
+        .collect();
+    let prefix = format!("rfc{}/", overlay.rfc);
+    let mut problems = Vec::new();
+    let mut keys = BTreeSet::new();
+    let mut proposals = BTreeSet::new();
+    for decision in &overlay.decisions {
+        let item = format!("decision {}", decision.item);
+        let decided = match decision.item.strip_prefix(&prefix) {
+            Some(id) => match (id.strip_prefix("layout/"), texts.get_key_value(id)) {
+                (Some(name), _) if !name.is_empty() => Decided::Layout(name),
+                (_, Some((id, text))) => Decided::Catalogue(id, text),
+                _ => Decided::Unknown,
+            },
+            None if !decision.item.is_empty() && !decision.item.contains('/') => Decided::Profile,
+            None => Decided::Unknown,
+        };
+        match decided {
+            Decided::Unknown => problems.push(format!(
+                "{item}: no catalogue item of RFC {} has this id",
+                overlay.rfc
+            )),
+            Decided::Catalogue(_, text) => {
+                let digest = text_digest(text);
+                if decision.text_digest != digest {
+                    problems.push(format!(
+                        "{item}: text_digest {} is not {digest}, the digest of the item's catalogue text",
+                        decision.text_digest
+                    ));
+                }
+            }
+            Decided::Layout(_) | Decided::Profile => {}
+        }
+        if !keys.insert((decision.item.as_str(), decision.text_digest.as_str())) {
+            problems.push(format!(
+                "{item}: a second decision under text_digest {}",
+                decision.text_digest
+            ));
+        }
+        if let Some(proposal) = &decision.proposal_id
+            && !proposals.insert(proposal.as_str())
+        {
+            problems.push(format!(
+                "{item}: proposal {proposal} already has a decision"
+            ));
+        }
+        let kind = decision.kind;
+        let settles = matches!(kind, DecisionKind::Accept | DecisionKind::Edit);
+        match (&decided, &decision.edit) {
+            (_, None) if kind == DecisionKind::Edit => {
+                problems.push(format!("{item}: edit decision carries no entry"));
+            }
+            (Decided::Catalogue(id, _), edit) if settles => {
+                match (overlay.requirements.iter().find(|r| r.id == *id), edit) {
+                    (None, _) => problems.push(format!(
+                        "{item}: {kind} decision, but requirements holds no {id}"
+                    )),
+                    (Some(_), Some(edit)) if edit.requirement().is_none() => {
+                        problems.push(format!(
+                            "{item}: edit decision carries a {}, not a requirement entry",
+                            edit.kind()
+                        ));
+                    }
+                    (Some(requirement), Some(Edit::Requirement(edit))) if requirement != edit => {
+                        problems.push(format!(
+                            "{item}: edit decision, but requirement {} differs from the entry it carries",
+                            requirement.id
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+            (Decided::Layout(name), edit) if settles => {
+                match (overlay.layouts.iter().find(|l| l.name == *name), edit) {
+                    (_, Some(edit)) if !matches!(edit, Edit::Layout(_)) => {
+                        problems.push(format!(
+                            "{item}: edit decision carries a {}, not a layout",
+                            edit.kind()
+                        ));
+                    }
+                    (None, _) => problems.push(format!(
+                        "{item}: {kind} decision, but layouts holds no {name}"
+                    )),
+                    (Some(layout), Some(Edit::Layout(edit))) if layout != edit => {
+                        problems.push(format!(
+                            "{item}: edit decision, but layout {name} differs from the one it carries"
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+            (Decided::Profile, Some(edit)) if kind == DecisionKind::Edit => match edit {
+                Edit::Machine(machine) if !overlay.machines.contains(machine) => {
+                    problems.push(format!(
+                        "{item}: edit decision, but machines holds no machine equal to the one it carries"
+                    ));
+                }
+                Edit::Machine(_) => {}
+                other => problems.push(format!(
+                    "{item}: edit decision carries a {}, not a machine",
+                    other.kind()
+                )),
+            },
+            (Decided::Unknown, None) if settles => problems.push(format!(
+                "{item}: {kind} decision, but requirements holds no {}",
+                decision
+                    .item
+                    .strip_prefix(&prefix)
+                    .unwrap_or(&decision.item)
+            )),
+            _ => {}
+        }
+    }
+    problems
+}
+
+/// Whether a quote occurs at its span of `lines`, the source split into lines; the 1-based
+/// page-furniture lines inside the span are skipped, so a sentence continued across a page break
+/// is quoted as one. `None` when it does; otherwise the problem, as `rfcspec check` reports it.
+pub fn quote_problem(
+    lines: &[&str],
+    furniture: &[usize],
+    quote: &str,
+    span: Span,
+) -> Option<String> {
     if span.start == 0 || span.start > span.end || span.end > lines.len() {
         return Some(format!(
             "{span} is outside the source ({} lines)",
@@ -279,7 +546,10 @@ fn quote_problem(lines: &[&str], furniture: &[usize], quote: &str, span: Span) -
 mod tests {
     use std::path::PathBuf;
 
-    use rfcspec_model::{Requirement, read_yaml};
+    use rfcspec_model::{
+        Decision, DecisionKind, FieldRef, Guard, Literal, LocalField, LocalRef, NeverState,
+        Operand, Requirement, Set, StateImplication, read_yaml, text_digest,
+    };
 
     use super::*;
     use crate::tests::{catalogue, catalogue_6455, source, source_6455};
@@ -353,7 +623,254 @@ mod tests {
             layouts: vec![],
             machines: vec![],
             findings: vec![],
+            decisions: vec![],
         }
+    }
+
+    const R5_1_1: &str = "a client MUST mask all frames that it sends to the server";
+    const R5_1_2: &str =
+        "The server MUST close the connection upon receiving a frame that is not masked.";
+
+    fn catalogue_text(id: &str) -> String {
+        catalogue_6455()
+            .requirements
+            .into_iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .text
+    }
+
+    fn decision(id: &str, kind: DecisionKind, proposal: &str) -> Decision {
+        Decision {
+            item: format!("rfc6455/{id}"),
+            text_digest: text_digest(&catalogue_text(id)),
+            kind,
+            proposal_id: Some(proposal.into()),
+            edit: None,
+        }
+    }
+
+    /// `R5.1-1` accepted, `R5.1-2` edited and `R5.1-5` rejected.
+    fn decided() -> Overlay {
+        let edited = reviewed("R5.1-2", R5_1_2, 1493, 1496);
+        let mut overlay =
+            websocket_overlay(vec![reviewed("R5.1-1", R5_1_1, 1490, 1493), edited.clone()]);
+        let mut edit = decision("R5.1-2", DecisionKind::Edit, "p2");
+        edit.edit = Some(Edit::Requirement(edited));
+        overlay.decisions = vec![
+            decision("R5.1-1", DecisionKind::Accept, "p1"),
+            edit,
+            decision("R5.1-5", DecisionKind::Reject, "p3"),
+        ];
+        overlay
+    }
+
+    #[test]
+    fn accept_edit_and_reject_decisions_hold() {
+        assert_eq!(
+            check(&decided(), &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_text_digest_that_is_not_the_catalogue_texts_is_named() {
+        let mut overlay = decided();
+        overlay.decisions[2].text_digest = text_digest("another text");
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert!(
+            problems[0].starts_with("decision rfc6455/R5.1-5: text_digest"),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn two_decisions_on_one_proposal_are_named() {
+        let mut overlay = decided();
+        overlay.decisions[2].proposal_id = Some("p1".into());
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert!(
+            problems[0].starts_with("decision rfc6455/R5.1-5: proposal p1"),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn an_accept_or_edit_without_its_requirement_is_named() {
+        let mut overlay = decided();
+        overlay.requirements.clear();
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 2, "{problems:#?}");
+        assert!(
+            problems[0].starts_with("decision rfc6455/R5.1-1: accept"),
+            "{problems:#?}"
+        );
+        assert!(
+            problems[1].starts_with("decision rfc6455/R5.1-2: edit"),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn an_edit_without_its_entry_and_an_item_outside_the_catalogue_are_named() {
+        let mut overlay = decided();
+        overlay.decisions[1].edit = None;
+        overlay.decisions[2].item = "rfc6455/R99-1".into();
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 2, "{problems:#?}");
+        assert!(
+            problems[0].starts_with("decision rfc6455/R5.1-2: edit"),
+            "{problems:#?}"
+        );
+        assert!(
+            problems[1].starts_with("decision rfc6455/R99-1:"),
+            "{problems:#?}"
+        );
+    }
+
+    /// The `frame-header` layout of the proposal fixture profile `no-machines`.
+    fn fixture_layout() -> rfcspec_model::Layout {
+        let overlay: Overlay = read_yaml(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../rfcspec-propose/tests/fixtures/no-machines/overlay.yaml"),
+        )
+        .unwrap();
+        overlay.layouts[0].clone()
+    }
+
+    /// A Ping/Pong machine implementing requirements of sections 5.5.2 and 5.5.3 that have no
+    /// overlay status.
+    fn ping_pong() -> rfcspec_model::Machine {
+        rfcspec_model::from_yaml(
+            "name: ping-pong\ntransport: tcp\nmessages:\n- {name: ping, fields: {data: Integer}}\n- {name: pong, fields: {data: Integer}}\nparticipants:\n- name: client\n  initial: open\n  states: [open, pinging]\n  inputs: [{name: ping, fields: {data: Integer}}]\n  transitions:\n  - {implements: [R5.5.2-4], label: send-ping, from: open, to: pinging, on: {input: ping}, effects: [{send: {message: ping, payload: {data: {input: data}}}}]}\n  - {implements: [R5.5.2-2], label: pong-received, from: pinging, to: open, on: {receive: pong}}\n- name: server\n  initial: open\n  states: [open]\n  transitions:\n  - {implements: [R5.5.2-2, R5.5.3-1], label: pong, from: open, to: open, on: {receive: ping}, effects: [{send: {message: pong, payload: {data: {input: data}}}}]}\nproperties: []\n",
+        )
+        .unwrap()
+    }
+
+    /// An overlay without requirements, holding a layout decided by
+    /// `layout_kind` and the `ping` machine decided by `machine_kind`.
+    fn element_decisions(layout_kind: DecisionKind, machine_kind: DecisionKind) -> Overlay {
+        let mut overlay = websocket_overlay(vec![]);
+        let mut layout = fixture_layout();
+        layout.name = "frame-header-copy".into();
+        overlay.layouts = vec![layout.clone()];
+        let ping = ping_pong();
+        overlay.machines = vec![ping.clone()];
+        overlay.decisions = vec![
+            Decision {
+                item: "rfc6455/layout/frame-header-copy".into(),
+                text_digest: text_digest("the layout's sections"),
+                kind: layout_kind,
+                proposal_id: Some("p1".into()),
+                edit: (layout_kind == DecisionKind::Edit).then_some(Edit::Layout(layout)),
+            },
+            Decision {
+                item: "websocket".into(),
+                text_digest: text_digest("the machine's sections"),
+                kind: machine_kind,
+                proposal_id: Some("p2".into()),
+                edit: (machine_kind == DecisionKind::Edit).then_some(Edit::Machine(ping)),
+            },
+        ];
+        overlay
+    }
+
+    #[test]
+    fn layout_and_machine_decisions_hold_and_a_machine_implements_unreviewed_requirements() {
+        for (layout, machine) in [
+            (DecisionKind::Accept, DecisionKind::Accept),
+            (DecisionKind::Edit, DecisionKind::Edit),
+            (DecisionKind::Reject, DecisionKind::Reject),
+        ] {
+            assert_eq!(
+                check(
+                    &element_decisions(layout, machine),
+                    &catalogue_6455(),
+                    &source_6455()
+                ),
+                Vec::<String>::new(),
+                "{layout} {machine}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_accepted_layout_missing_and_an_edit_of_another_kind_or_text_are_named() {
+        let mut overlay = element_decisions(DecisionKind::Accept, DecisionKind::Edit);
+        overlay.layouts.clear();
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert!(
+            problems[0]
+                .starts_with("decision rfc6455/layout/frame-header-copy: accept decision, but layouts holds no frame-header-copy"),
+            "{problems:#?}"
+        );
+
+        let mut overlay = element_decisions(DecisionKind::Edit, DecisionKind::Edit);
+        overlay.decisions[0].edit = overlay.decisions[1].edit.clone();
+        overlay.machines[0].transport = "udp".into();
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 2, "{problems:#?}");
+        assert!(
+            problems[0].starts_with(
+                "decision rfc6455/layout/frame-header-copy: edit decision carries a machine"
+            ),
+            "{problems:#?}"
+        );
+        assert!(
+            problems[1].starts_with(
+                "decision websocket: edit decision, but machines holds no machine equal to the one it carries"
+            ),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn a_transition_implementing_an_id_outside_the_catalogue_is_named() {
+        let mut overlay = element_decisions(DecisionKind::Reject, DecisionKind::Reject);
+        overlay.machines[0].participants[0].transitions[0].implements = vec!["R99-1".into()];
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(problems.len(), 1, "{problems:#?}");
+        assert!(
+            problems[0]
+                .ends_with("implements R99-1, which is neither a requirement nor a dialogue step"),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn the_layout_rules_hold_on_one_layout() {
+        let mut layout = fixture_layout();
+        assert_eq!(layout_problems(&layout), Vec::<String>::new());
+        layout.fields[6].bits = 65;
+        assert_eq!(
+            layout_problems(&layout),
+            ["layout frame-header field payload-len: 65 bits, not 1 to 64"]
+        );
+    }
+
+    #[test]
+    fn every_constraint_and_presence_value_outside_its_field_width_is_named() {
+        let mut layout = fixture_layout();
+        layout.fields[7].constraints = vec![
+            Constraint::Equals(65536),
+            Constraint::OneOf(vec![126, 70000]),
+            Constraint::Range([126, 65536]),
+            Constraint::Equals(-1),
+        ];
+        layout.fields[8].presence.as_mut().unwrap().equals = 128;
+        assert_eq!(
+            layout_problems(&layout),
+            [
+                "layout frame-header field extended-payload-length-16: equals 65536 does not fit 16 bits",
+                "layout frame-header field extended-payload-length-16: one_of value 70000 does not fit 16 bits",
+                "layout frame-header field extended-payload-length-16: range 126 to 65536 does not fit 16 bits",
+                "layout frame-header field extended-payload-length-16: equals -1 does not fit 16 bits",
+                "layout frame-header field extended-payload-length-64: present when payload-len equals 128, which does not fit its 7 bits",
+            ]
+        );
     }
 
     fn reviewed(id: &str, quote: &str, start: usize, end: usize) -> Requirement {
@@ -410,6 +927,225 @@ mod tests {
         assert!(
             problems.contains(&format!("{start}: unknown timer close-timeout")),
             "{problems:#?}"
+        );
+    }
+
+    const START: &str = "transition close.client.R7.1.2-1-start-closing-handshake";
+    const ECHOED: &str = "transition close.client.R5.5.1-9-R7.1.2-2-close-echoed";
+
+    /// The committed websocket overlay with a local field `token` on the client, and a `set` on
+    /// its first transition and a guard on its second built from the operands given.
+    fn guarded(set_field: &str, set_value: Value, guard: Operand) -> Overlay {
+        let mut overlay = committed_websocket();
+        let client = &mut overlay.machines[0].participants[0];
+        client.fields.push(LocalField {
+            name: "token".into(),
+            kind: "Integer".into(),
+            initial: Literal::Integer(0),
+        });
+        client.transitions[0].effects.push(Effect::Set(Set {
+            field: set_field.into(),
+            value: set_value,
+        }));
+        client.transitions[1].guards.push(Guard {
+            left: guard,
+            right: Operand::Local(LocalRef {
+                local: "token".into(),
+            }),
+        });
+        overlay
+    }
+
+    fn input(field: &str) -> FieldRef {
+        FieldRef {
+            input: field.into(),
+        }
+    }
+
+    #[test]
+    fn declared_local_fields_set_and_guards_hold() {
+        let overlay = guarded(
+            "token",
+            Value::Field(input("code")),
+            Operand::Input(input("code")),
+        );
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_guard_or_set_naming_an_undeclared_local_field_is_named() {
+        let overlay = guarded(
+            "missing",
+            Value::Integer(1),
+            Operand::Local(LocalRef {
+                local: "absent".into(),
+            }),
+        );
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(
+            problems,
+            [
+                format!("{START}: set missing, which is no local field of the participant"),
+                format!("{ECHOED}: guard reads absent, which is no local field of the participant"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_guard_whose_right_operand_names_an_undeclared_local_field_is_named() {
+        let mut overlay = guarded(
+            "token",
+            Value::Integer(1),
+            Operand::Local(LocalRef {
+                local: "token".into(),
+            }),
+        );
+        overlay.machines[0].participants[0].transitions[1].guards[0].right =
+            Operand::Local(LocalRef {
+                local: "absent".into(),
+            });
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(
+            problems,
+            [format!(
+                "{ECHOED}: guard reads absent, which is no local field of the participant"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_guard_or_set_reading_a_field_its_trigger_lacks_is_named() {
+        let overlay = guarded(
+            "token",
+            Value::Field(input("reason")),
+            Operand::Input(input("reason")),
+        );
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(
+            problems,
+            [
+                format!("{START}: set token reads reason, which is no field of its trigger"),
+                format!("{ECHOED}: guard reads reason, which is no field of its trigger"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_local_field_whose_initial_literal_does_not_match_its_type_is_named() {
+        let mut overlay = committed_websocket();
+        let client = &mut overlay.machines[0].participants[0];
+        client.fields = vec![
+            LocalField {
+                name: "token".into(),
+                kind: "Integer".into(),
+                initial: Literal::Boolean(true),
+            },
+            LocalField {
+                name: "seen".into(),
+                kind: "Boolean".into(),
+                initial: Literal::Integer(0),
+            },
+            LocalField {
+                name: "text".into(),
+                kind: "String".into(),
+                initial: Literal::Integer(0),
+            },
+        ];
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(
+            problems,
+            [
+                "local field close.client.token: initial true is not an Integer",
+                "local field close.client.seen: initial 0 is not a Boolean",
+                "local field close.client.text: type String, not Integer or Boolean",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_never_state_naming_an_undeclared_participant_or_state_is_named() {
+        let mut overlay = committed_websocket();
+        let never = |name: &str, participant: &str, state: &str| {
+            Property::NeverState(NeverState {
+                name: name.into(),
+                participant: participant.into(),
+                state: state.into(),
+            })
+        };
+        overlay.machines[0].properties.extend([
+            never("no-ghost", "ghost", "closed"),
+            never("no-limbo", "client", "limbo"),
+            never("no-closing", "client", "closing"),
+        ]);
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        assert_eq!(
+            problems,
+            [
+                "property close.no-ghost: unknown participant ghost",
+                "property close.no-limbo: unknown state limbo of participant client",
+            ]
+        );
+    }
+
+    fn implication_problems(
+        participant: &str,
+        state: &str,
+        other: &str,
+        other_state: &str,
+    ) -> Vec<String> {
+        let mut overlay = committed_websocket();
+        overlay.machines[0]
+            .properties
+            .push(Property::StateImplication(StateImplication {
+                name: "implied".into(),
+                participant: participant.into(),
+                state: state.into(),
+                other: other.into(),
+                other_state: other_state.into(),
+            }));
+        check(&overlay, &catalogue_6455(), &source_6455())
+    }
+
+    #[test]
+    fn a_state_implication_between_declared_participants_and_states_holds() {
+        assert_eq!(
+            implication_problems("client", "closed", "server", "closed"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_state_implication_whose_participant_is_undeclared_is_named() {
+        assert_eq!(
+            implication_problems("ghost", "closed", "server", "closed"),
+            ["property close.implied: unknown participant ghost"]
+        );
+    }
+
+    #[test]
+    fn a_state_implication_whose_other_participant_is_undeclared_is_named() {
+        assert_eq!(
+            implication_problems("client", "closed", "ghost", "closed"),
+            ["property close.implied: unknown participant ghost"]
+        );
+    }
+
+    #[test]
+    fn a_state_implication_whose_state_is_undeclared_is_named() {
+        assert_eq!(
+            implication_problems("client", "limbo", "server", "closed"),
+            ["property close.implied: unknown state limbo of participant client"]
+        );
+    }
+
+    #[test]
+    fn a_state_implication_whose_other_state_is_undeclared_is_named() {
+        assert_eq!(
+            implication_problems("client", "closed", "server", "limbo"),
+            ["property close.implied: unknown state limbo of participant server"]
         );
     }
 

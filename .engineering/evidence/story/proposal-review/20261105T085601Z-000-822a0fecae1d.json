@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:56:01Z",
+  "actor": "human:timo",
+  "artifact": "story:proposal-review",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-model (17) -p rfcspec-extract (40) -p rfcspec-cli (review 8) -p rfcspec-docs -p rfcspec-propose -p rfcspec-ess exit 0; ess specify validate; task time/websocket/dns; docs-check; clippy --workspace"
+  }
+}

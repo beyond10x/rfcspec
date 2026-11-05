@@ -1,0 +1,45 @@
+type: ess-scenario/1
+domain: rfcspec.review
+scenario: record-proposal-already-exists
+summary: A second status proposal under one proposal id is refused, and the first stays.
+
+timeline:
+  - at: 2026-11-05T09:00:00Z
+    command: rfcspec.review.RecordProposal
+    actor: rfcspec.review.Proposer
+    input:
+      proposal_id: "0e"
+      profile: websocket
+      item: rfc6455/R5.1-1
+      task: Status
+      model_id: double
+      input_digest: "0f"
+      response: {status: {kind: unsupported, reason: G1}}
+      cited_spans: []
+    outcome: recorded
+
+  - at: 2026-11-05T09:00:01Z
+    command: rfcspec.review.RecordProposal
+    actor: rfcspec.review.Proposer
+    input:
+      proposal_id: "0e"
+      profile: websocket
+      item: rfc6455/R5.1-1
+      task: Status
+      model_id: double
+      input_digest: "0f"
+      response: {status: {kind: unsupported, reason: G1}}
+      cited_spans: []
+    outcome: already-exists
+    error:
+      name: rfcspec.review.AlreadyExists
+
+assert:
+  - view: rfcspec.review.Proposals
+    counts: {at_least: 1, at_most: 1}
+  - view: rfcspec.review.Proposals
+    contains:
+      proposal_id: "0e"
+      item: rfc6455/R5.1-1
+      task: Status
+      state: Recorded

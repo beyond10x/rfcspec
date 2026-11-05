@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:29:30Z",
+  "actor": "human:timo",
+  "artifact": "story:dns-header-codec",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-gen (16) -p rfcspec-cli -p rfc1035-dns (3) -p rfc6455-websocket -p rfc868-time exit 0; generate --check all profiles; docs generate --check; clippy --workspace -D warnings"
+  }
+}

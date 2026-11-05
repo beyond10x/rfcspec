@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T08:25:27Z",
+  "actor": "human:timo",
+  "artifact": "story:dns-source-catalogue",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-doc -p rfcspec-extract -p rfcspec-cli -p rfcspec-docs exit 0; rfcspec check --all profiles; docs generate --check; clippy --workspace -D warnings"
+  }
+}

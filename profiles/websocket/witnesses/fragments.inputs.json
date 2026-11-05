@@ -1,0 +1,3 @@
+[
+  {"kind":"input","participant":"client","name":"close","payload":{"code":1000}}
+]

@@ -1,0 +1,181 @@
+format: ess-protospec/1
+name: rfc1035-dns-query
+bounds:
+  max_steps: 32
+  max_states: 256
+  max_time_ms: 1000
+participants:
+- name: client
+  initial: idle
+  states:
+  - idle
+  - awaiting
+  - answered
+  fields:
+  - name: qid
+    type: Integer
+    initial: 0
+  inputs:
+  - name: query
+    fields:
+    - name: id
+      type: Integer
+  transitions:
+  - name: R-MATCH-1-send-query
+    from: idle
+    to: awaiting
+    trigger:
+      kind: input
+      name: query
+    effects:
+    - kind: set
+      field: qid
+      value:
+        kind: input
+        field: id
+    - kind: send
+      channel: client-to-server
+      message: query
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R-MATCH-1-send-query
+      payload:
+        id:
+          kind: input
+          field: id
+  - name: R-MATCH-1-accept-response
+    from: awaiting
+    to: answered
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+    guards:
+    - left:
+        kind: input
+        field: id
+      right:
+        kind: local
+        field: qid
+  - name: R-MATCH-1-R-UDP-1-discard-response
+    from: awaiting
+    to: awaiting
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+  - name: R-MATCH-1-R-UDP-1-discard-response-after-answer
+    from: answered
+    to: answered
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: response
+- name: server
+  initial: idle
+  states:
+  - idle
+  - late
+  - replied
+  inputs:
+  - name: late-response
+    fields:
+    - name: id
+      type: Integer
+  transitions:
+  - name: R-ID-1-answer-query
+    from: idle
+    to: replied
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: query
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R-ID-1-answer-query
+      payload:
+        id:
+          kind: input
+          field: id
+  - name: R-ID-1-answer-query-after-late-response
+    from: late
+    to: replied
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: query
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R-ID-1-answer-query-after-late-response
+      payload:
+        id:
+          kind: input
+          field: id
+  - name: R-UDP-1-late-response
+    from: idle
+    to: late
+    trigger:
+      kind: input
+      name: late-response
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: response
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R-UDP-1-late-response
+      payload:
+        id:
+          kind: input
+          field: id
+messages:
+- name: query
+  fields:
+  - name: id
+    type: Integer
+- name: response
+  fields:
+  - name: id
+    type: Integer
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties:
+- kind: state_implication
+  name: answer-matches-query
+  participant: client
+  state: answered
+  other: server
+  other_state: replied
