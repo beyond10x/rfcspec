@@ -5,7 +5,7 @@ every item, ESS documents for its machines and types, a wire-format sidecar for 
 and from those a generated protocol core and a conformance suite. The first worked example is
 WebSocket (RFC 6455).
 
-**Status:** the pipeline runs end to end for three profiles (RFC 868, RFC 6455, RFC 1035); [`AGENTS.md`](AGENTS.md) records what exists.
+**Status:** the pipeline runs end to end for four profiles (RFC 868, RFC 6455, RFC 1035, RFC 5905); [`AGENTS.md`](AGENTS.md) records what exists.
 
 - Documentation: https://beyond10x.github.io/rfcspec/
 - Design: [`docs/design/rfcspec.md`](docs/design/rfcspec.md)

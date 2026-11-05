@@ -897,6 +897,14 @@ impl Property {
             Property::StateImplication(implication) => &implication.name,
         }
     }
+
+    /// What exploration of the property checks, where the reviewer recorded it.
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            Property::EventCount(count) => count.description.as_deref(),
+            _ => None,
+        }
+    }
 }
 
 /// A `state_implication` property: whenever `participant` is in `state`, `other` is in
@@ -920,7 +928,8 @@ pub struct NeverState {
     pub state: String,
 }
 
-/// An `event_count` property: the participant emits the event at most `max` times.
+/// An `event_count` property: the participant emits the event at most `max` times. An optional
+/// `description` says what exploration of it checks; it is not lowered.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EventCount {
@@ -928,6 +937,8 @@ pub struct EventCount {
     pub participant: String,
     pub event: String,
     pub max: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// A `flush_before_close` property: the participant named by `flush_before_close` closes only
@@ -1313,6 +1324,24 @@ mod tests {
         assert_eq!(machine.capacity, Some(8));
         assert_eq!(to_yaml(&machine).unwrap(), declared);
         assert!(from_yaml::<Machine>(&declared.replace("8", "-1")).is_err());
+    }
+
+    #[test]
+    fn an_event_count_may_carry_a_description_and_omits_it_when_absent() {
+        let plain: Property = from_yaml("{name: n, participant: p, event: e, max: 1}").unwrap();
+        assert_eq!(plain.description(), None);
+        assert_eq!(
+            to_yaml(&plain).unwrap(),
+            "name: n\nparticipant: p\nevent: e\nmax: 1\n"
+        );
+        let described: Property = from_yaml(
+            "{name: n, participant: p, event: e, max: 1, description: what exploration checks}",
+        )
+        .unwrap();
+        assert_eq!(described.description(), Some("what exploration checks"));
+        assert!(
+            from_yaml::<Property>("{name: n, participant: p, event: e, max: 1, note: x}").is_err()
+        );
     }
 
     #[test]

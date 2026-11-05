@@ -31,7 +31,7 @@ One row per layer, as `profile.yaml` declares them ([communication semantics](/d
 
 ## Requirement matrix
 
-Reviewed: 9 requirements, by level 6 MUST, 1 SHOULD, 2 MAY; by status 5 satisfied, 4 unsupported, 0 not applicable.
+Reviewed: 16 requirements, by level 13 MUST, 1 SHOULD, 2 MAY; by status 7 satisfied, 9 unsupported, 0 not applicable.
 
 Unreviewed: 10 requirements of the mechanical catalogue of RFC 5905 have no status, by level 6 MUST, 1 MUST NOT, 2 SHOULD, 1 MAY. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
 
@@ -48,6 +48,13 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R8-DUP-1 | MUST | all | a packet is duplicate or replay if the transmit timestamp t3 in the packet matches the org state variable T3. | lines 1588-1590 | unsupported | ess-gap G1: accepting requires the transmit timestamp t3 to differ from org, an inequality, and the server's xmt and rec are not modelled |
 | R8-LOSS-1 | MUST | all | It is inherently resistant to lost or duplicate packets. | lines 1434-1435 | satisfied | exchange.server.R8-LOSS-1-replay |
 | R9.2-FXMIT-1 | MUST | all | the server constructs a server (mode 4) packet and returns it to the client without retaining state. | lines 1862-1863 | satisfied | exchange.server.R9.2-FXMIT-1-answer |
+| R13-BACKOFF-1 | MUST | all | Thereafter for each poll hpoll is increased by one, which doubles the poll interval up to the maximum MAXPOLL | lines 2948-2950 | satisfied | poll.client.R13-BACKOFF-1-poll-backoff |
+| R13-RESET-1 | MUST | all | When the server again becomes reachable, unreach is set to zero, hpoll is reset to the tc system variable | lines 2951-2952 | unsupported | ess-gap G7: tc is a system variable the model does not carry, and a timer cannot be armed from a field; the model resets the poll interval to 2^MINPOLL s |
+| R9.2-REACH-1 | MUST | all | If the register contains any nonzero bits, the server is considered reachable; otherwise, it is unreachable. | lines 2012-2014 | satisfied | poll.client.R9.2-REACH-1-poll-emptied |
+| R9.2-REACH-2 | MUST | all | The register is shifted left by one bit when a packet is sent and the rightmost bit is set to zero. | lines 2010-2011 | unsupported | ess-gap G2: set has no shift or count, so the 8 polls of the register are abstracted to a nondeterministic step from reachable to unreachable |
+| R13-UNREACH-1 | MUST | all | otherwise, unreach is incremented by one for each poll to the maximum UNREACH. | lines 2947-2948 | unsupported | ess-gap G2: set has no count, so the polls up to UNREACH are abstracted to a nondeterministic step from unreachable to backoff |
+| R13-RUN-1 | MUST | all | It runs continuously, whether or not servers are reachable | lines 2833-2834 | unsupported | ess-gap G11: a timer re-armed on every expiry never passes exploration, so the model ends the poll process at a 48 s horizon, a model construct and not RFC behaviour |
+| R13-UPDATE-1 | MUST | all | otherwise, the host poll exponent hpoll is set to the minimum of ppoll from the last packet received and hpoll from the poll routine, but not less than MINPOLL or greater than MAXPOLL. | lines 2999-3002 | unsupported | ess-gap G7: the poll exponent comes from fields of the packet and the association, and a timer cannot be armed from a field |
 
 ## ESS gaps
 
@@ -56,6 +63,9 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | Gap | Requirements |
 |---|---|
 | [G1](/docs/design#7-lowering-to-ess-and-the-gaps) | R8-DUP-1 |
+| [G2](/docs/design#7-lowering-to-ess-and-the-gaps) | R9.2-REACH-2, R13-UNREACH-1 |
+| [G7](/docs/design#7-lowering-to-ess-and-the-gaps) | R13-RESET-1, R13-UPDATE-1 |
+| [G11](/docs/design#7-lowering-to-ess-and-the-gaps) | R13-RUN-1 |
 
 ### Unsupported, no ESS gap
 
@@ -64,6 +74,14 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R9.2-1 | the message is a crypto-NAK, the answer to a failed authentication, and the profile models neither the MAC nor authentication |
 | R9.2-2 | applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only |
 | R9.2-3 | applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only |
+
+## Property notes
+
+What exploration of a model's property checks, where it checks less than its name says.
+
+| Machine | Property | Note |
+|---|---|---|
+| `poll` | `backoff-doubles-interval` | Within the 48 s model horizon exploration checks only that the first backoff interval is not 16 s: it fails a client whose first two backoff intervals sum to 32 s or less. The doubling (factor 2) and the 2^MAXPOLL s ceiling lie beyond the horizon; the arm pins of the lowering test check them. |
 
 ## Conformance
 
@@ -76,5 +94,6 @@ The files under [`profiles/ntp/generated/`](https://github.com/beyond10x/rfcspec
 | File | What | Bytes | SHA-256 |
 |---|---|---|---|
 | [`exchange.protospec.yaml`](pathname:///rfcspec/downloads/ntp/exchange.protospec.yaml) | `ess-protospec/1` model of machine `exchange` | 5122 | `7b0262ff31e27ffd0f7f69155aed22091ecbce1256d56280efd3b5f1191f9c97` |
+| [`poll.protospec.yaml`](pathname:///rfcspec/downloads/ntp/poll.protospec.yaml) | `ess-protospec/1` model of machine `poll` | 5461 | `feecc676c9d00809a1f6e471898259f6bc7ab9d2b7aa0fb0d9fd0af551152659` |
 | [`rust/Cargo.toml`](pathname:///rfcspec/downloads/ntp/rust/Cargo.toml) | generated Rust crate | 283 | `756bebe40266ee997aef8131a53e3ff90bf92ac85646c508f3b69de4d19330ef` |
 | [`rust/src/lib.rs`](pathname:///rfcspec/downloads/ntp/rust/src/lib.rs) | generated Rust crate | 10183 | `be1e88618fdf596cbcb4984d208bfb82d12e214fb77bfe88cc9975e99ea6c5c5` |

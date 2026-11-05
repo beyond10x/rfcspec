@@ -13,9 +13,10 @@ The contract for changing this repository. Humans start at [`README.md`](README.
 
 ## State
 
-The pipeline runs every stage end to end: S0–S2 and S4–S7 for three profiles, `profiles/time`
-(RFC 868), `profiles/websocket` (RFC 6455 sections 5.2, 5.4, 5.5, 5.6 and 7) and `profiles/dns`
-(RFC 1035 sections 4.1.1, 4.2.1 and 7.3), and S3 (AI proposals) for `profiles/websocket`. S3
+The pipeline runs every stage end to end: S0–S2 and S4–S7 for four profiles, `profiles/time`
+(RFC 868), `profiles/websocket` (RFC 6455 sections 5.2, 5.4, 5.5, 5.6 and 7), `profiles/dns`
+(RFC 1035 sections 4.1.1, 4.2.1 and 7.3) and `profiles/ntp` (RFC 5905 sections 7.2, 7.3, 8, 9.2
+and 13), and S3 (AI proposals) for `profiles/websocket`. S3
 records and replays proposals for five tasks, `status`, `requirement-from-prose`, `machine`,
 `bit-widths` and `requirement-link`, and `rfcspec review` settles one with accept, edit or reject
 into the overlay, adding a requirement entry, layout or machine. `profiles/websocket/proposals/`
@@ -40,6 +41,7 @@ design. What exists:
 | `profiles/time/` | RFC 868: locked source, `profile.yaml` with the semantics of the `tcp` and `udp` layers, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate); a profile may hold recorded runs (`runs/*.json`, `rfcspec-run/1`, written by `rfcspec verify --report`) |
 | `profiles/websocket/` | RFC 6455: locked source, `profile.yaml` (one `tcp` layer, sections 5.2, 5.4, 5.5, 5.6 and 7 in scope), `overlay.yaml` giving every in-scope requirement a status (the rest of the catalogue counts as unreviewed, except the requirements its review decisions accepted or edited), `proposals/` (the recorded `status` proposals for requirements outside those sections), the `close`, `ping` and `fragments` machines and their input witnesses, the `frame-header` layout, and `generated/` (`close.protospec.yaml`, `ping.protospec.yaml`, `fragments.protospec.yaml` and the `rfc6455-websocket` frame codec crate) |
 | `profiles/dns/` | RFC 1035: locked source, `profile.yaml` (one `udp` layer correlated `by-id`, sections 4.1.1, 4.2.1 and 7.3 in scope), `overlay.yaml` (prose requirements only: RFC 1035 predates BCP 14), the `header` layout, the `query` machine (a response is accepted only when its ID equals the query's) and its input witness, and `generated/` (`query.protospec.yaml` and the `rfc1035-dns` header codec crate) |
+| `profiles/ntp/` | RFC 5905: locked source, `profile.yaml` (one `udp` layer on port 123, sections 7.2, 7.3, 8, 9.2 and 13 in scope), `overlay.yaml` (the section 9.2 BCP 14 requirements and the prose requirements of the on-wire exchange and the poll process, the ones ESS cannot carry marked with their gap), the `header` layout, the `exchange` machine (origin check and replay protection over a lossy channel) and the `poll` machine (reach, unreachable and a backoff doubling the poll interval up to 2^MAXPOLL s, ended at a 48 s model horizon; within the horizon exploration checks only that the first backoff interval is not 16 s, and the arm pins of `crates/rfcspec-ess/tests/ntp_poll.rs` check the doubling and the ceiling and its transition pins every from, to and trigger) with their input witnesses, and `generated/` (`exchange.protospec.yaml`, `poll.protospec.yaml` and the `rfc5905-ntp` header codec crate) |
 | `crates/rfcspec-docs/` | generates the site's derived pages (design, status, and the protocol catalogue `website/docs/catalog/` with its downloads `website/static/downloads/`, both from `profiles/`) and binds a built site to its commit |
 | `website/` | the Docusaurus site published at `https://beyond10x.github.io/rfcspec/`; `website/static/pitch/` is a standalone slide deck |
 | `.engineering/` | the AEP planning store (`aep.project/5`) |
@@ -63,6 +65,9 @@ the `websocket` task (`rfcspec propose --profile profiles/websocket --replay`,
 `cargo test -p rfc6455-websocket`),
 the `dns` task (`rfcspec lower --profile profiles/dns --check`, exploration of the `query` model
 with its witness, `rfcspec generate --profile profiles/dns --check`, `cargo test -p rfc1035-dns`),
+the `ntp` task (`rfcspec lower --profile profiles/ntp --check`, exploration of the `exchange` and
+`poll` models with their witnesses, `rfcspec generate --profile profiles/ntp --check`,
+`cargo test -p rfc5905-ntp`),
 the `bulk` task (`rfcspec bulk check --summary bulk/rfc-summary.jsonl --profiles profiles`, offline),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
