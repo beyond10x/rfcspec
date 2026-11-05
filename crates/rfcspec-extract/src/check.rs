@@ -3,15 +3,18 @@
 //! `abnf-comment`) keeps its catalogue id and lies within its catalogue span; a participant's
 //! local fields have distinct names, a guard compares operands of one type and a `set` writes a
 //! value of its field's type (a literal has its own type, a local operand its field's, an input
-//! operand its trigger field's); a machine's declared channel capacity is a positive integer; and
+//! operand its trigger field's); a machine's declared channel capacity is a positive integer; a
+//! timer armed with a backoff is declared by its participant, armed by it with `millis` on some
+//! transition (else it has no prior interval to multiply), and has a positive factor and a
+//! positive ceiling within the machine's `max_time_ms` (declared or the lowering default); and
 //! every review decision judges the current catalogue text of its item.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use rfcspec_model::{
     ABNF_COMMENT, Bcp14Requirement, CAPITALS_TEXT, Catalogue, Constraint, DecisionKind, Edit,
-    Effect, Layout, OVERLAY_FORMAT, Operand, Overlay, Property, Span, Status, Trigger, Value,
-    collapse_whitespace, text_digest,
+    Effect, Interval, Layout, OVERLAY_FORMAT, Operand, Overlay, Property, Span, Status, Trigger,
+    Value, collapse_whitespace, text_digest,
 };
 
 /// Check an overlay against its catalogue and source. Returns one problem per line, each naming
@@ -118,6 +121,17 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                     ));
                 }
             }
+            let armed_with_millis: BTreeSet<&str> = participant
+                .transitions
+                .iter()
+                .flat_map(|transition| &transition.effects)
+                .filter_map(|effect| match effect {
+                    Effect::Arm(arm) if matches!(arm.interval, Interval::Fixed { .. }) => {
+                        Some(arm.timer.as_str())
+                    }
+                    _ => None,
+                })
+                .collect();
             for transition in &participant.transitions {
                 let name = transition.name();
                 let item = format!("transition {}.{}.{name}", machine.name, participant.name);
@@ -255,7 +269,35 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                                 }
                             }
                         }
-                        Effect::Arm(arm) => timers.push(&arm.timer),
+                        Effect::Arm(arm) => {
+                            timers.push(&arm.timer);
+                            if let Interval::Backoff(backoff) = &arm.interval {
+                                let head = format!("{item}: arm {} with backoff", arm.timer);
+                                if participant.timers.contains(&arm.timer)
+                                    && !armed_with_millis.contains(arm.timer.as_str())
+                                {
+                                    problems.push(format!(
+                                        "{head}, but the participant never arms {} with millis, so it has no prior interval",
+                                        arm.timer
+                                    ));
+                                }
+                                if backoff.factor == 0 {
+                                    problems
+                                        .push(format!("{head} factor 0, not a positive integer"));
+                                }
+                                let max_time_ms = machine.bounds().max_time_ms;
+                                if backoff.ceiling_ms == 0 {
+                                    problems.push(format!(
+                                        "{head} ceiling_ms 0, not a positive integer"
+                                    ));
+                                } else if backoff.ceiling_ms > u64::from(max_time_ms) {
+                                    problems.push(format!(
+                                        "{head} ceiling_ms {} above the machine's max_time_ms {max_time_ms}",
+                                        backoff.ceiling_ms
+                                    ));
+                                }
+                            }
+                        }
                         Effect::Cancel(timer) => timers.push(timer),
                         Effect::Emit(_) | Effect::Close(_) | Effect::Flush(_) => {}
                     }
@@ -618,8 +660,8 @@ mod tests {
     use std::path::PathBuf;
 
     use rfcspec_model::{
-        Decision, DecisionKind, FieldRef, Guard, Literal, LocalField, LocalRef, NeverState,
-        Operand, Requirement, Set, StateImplication, read_yaml, text_digest,
+        Backoff, Decision, DecisionKind, FieldRef, Guard, Interval, Literal, LocalField, LocalRef,
+        NeverState, Operand, Requirement, Set, StateImplication, read_yaml, text_digest,
     };
 
     use super::*;
@@ -1250,6 +1292,120 @@ mod tests {
         assert_eq!(
             check(&overlay, &catalogue_6455(), &source_6455()),
             ["machine close: capacity 0 is not a positive integer"]
+        );
+    }
+
+    /// The committed WebSocket overlay whose close client, after its fixed arm of
+    /// `close-timeout`, arms `timer` with a backoff.
+    fn close_backoff(timer: &str, factor: u32, ceiling_ms: u64) -> Overlay {
+        let mut overlay = committed_websocket();
+        let client = &mut machine(&mut overlay, "close").participants[0];
+        let effects = &mut client.transitions[0].effects;
+        assert!(
+            matches!(&effects[1], Effect::Arm(arm) if arm.timer == "close-timeout" && matches!(arm.interval, Interval::Fixed { .. })),
+            "the second effect arms close-timeout with millis"
+        );
+        effects.insert(
+            2,
+            Effect::Arm(rfcspec_model::Arm {
+                timer: timer.into(),
+                interval: Interval::Backoff(Backoff { factor, ceiling_ms }),
+            }),
+        );
+        overlay
+    }
+
+    #[test]
+    fn a_backoff_of_a_timer_the_participant_never_arms_with_millis_is_named() {
+        let mut overlay = close_backoff("close-timeout", 2, 8000);
+        machine(&mut overlay, "close").participants[0].transitions[0]
+            .effects
+            .remove(1);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with backoff, but the participant never arms close-timeout with millis, so it has no prior interval"
+            )]
+        );
+    }
+
+    const CLOSE_START: &str = "transition close.client.R7.1.2-1-start-closing-handshake";
+
+    #[test]
+    fn a_backoff_within_the_machine_bounds_holds() {
+        assert_eq!(
+            check(
+                &close_backoff("close-timeout", 2, 30000),
+                &catalogue_6455(),
+                &source_6455()
+            ),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_backoff_factor_of_zero_is_named() {
+        assert_eq!(
+            check(
+                &close_backoff("close-timeout", 0, 8000),
+                &catalogue_6455(),
+                &source_6455()
+            ),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with backoff factor 0, not a positive integer"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_backoff_ceiling_of_zero_is_named() {
+        assert_eq!(
+            check(
+                &close_backoff("close-timeout", 2, 0),
+                &catalogue_6455(),
+                &source_6455()
+            ),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with backoff ceiling_ms 0, not a positive integer"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_backoff_ceiling_above_the_declared_or_default_max_time_is_named() {
+        let mut overlay = close_backoff("close-timeout", 2, 30001);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with backoff ceiling_ms 30001 above the machine's max_time_ms 30000"
+            )]
+        );
+        let close = machine(&mut overlay, "close");
+        close.bounds = None;
+        let Effect::Arm(arm) = &mut close.participants[0].transitions[0].effects[2] else {
+            panic!("the third effect arms");
+        };
+        arm.interval = Interval::Backoff(Backoff {
+            factor: 2,
+            ceiling_ms: 1001,
+        });
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with backoff ceiling_ms 1001 above the machine's max_time_ms 1000"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_backoff_of_a_timer_the_participant_does_not_declare_is_named() {
+        assert_eq!(
+            check(
+                &close_backoff("poll", 2, 8000),
+                &catalogue_6455(),
+                &source_6455()
+            ),
+            [format!("{CLOSE_START}: unknown timer poll")]
         );
     }
 
