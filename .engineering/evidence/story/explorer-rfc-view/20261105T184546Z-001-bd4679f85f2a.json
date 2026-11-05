@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T18:45:46Z",
+  "actor": "human:timo",
+  "artifact": "story:explorer-rfc-view",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-model -p rfcspec-docs -p rfcspec-cli (all lanes ok, incl. bulk_sections 12, bulk_sections_adversary 4, explorer_adversary 2); task explorer (vue-tsc, vitest 15/15, vite build); task types-check; task bulk; task docs-check (137 current); fmt; clippy -D warnings"
+  }
+}
