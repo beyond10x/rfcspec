@@ -291,8 +291,8 @@ mod tests {
     };
 
     use rfcspec_extract::{EXTRACTOR_VERSION, extract, level_counts};
-    use rfcspec_model::{BulkRow, bulk_summary, sha256_hex};
-    use rfcspec_source::index::parse_index;
+    use rfcspec_model::{BulkRow, SourceFormat, bulk_summary, sha256_hex};
+    use rfcspec_source::{corpus::bulk_format, index::parse_index};
 
     use super::*;
     use crate::page::passive_problems;
@@ -302,34 +302,34 @@ mod tests {
     }
 
     /// The `story:bulk-summary-format` fixture: the summary `rfcspec bulk summarise` writes for
-    /// the fixture index and the profiles' locked texts, built here through the same functions,
-    /// plus the rows given.
+    /// the fixture index, the profiles' locked texts and RFC 9220's XML fixture, built here
+    /// through the same functions, plus the rows given.
     fn fixture_summary(extra: &[BulkRow]) -> String {
         let repository = repository();
         let xml = fs::read_to_string(
             repository.join("crates/rfcspec-cli/tests/fixtures/bulk/rfc-index.xml"),
         )
         .unwrap();
-        let profiles = [
-            (868, "time"),
-            (1035, "dns"),
-            (5905, "ntp"),
-            (6455, "websocket"),
+        let sources = [
+            (868, "profiles/time/sources/rfc868.txt"),
+            (1035, "profiles/dns/sources/rfc1035.txt"),
+            (5905, "profiles/ntp/sources/rfc5905.txt"),
+            (6455, "profiles/websocket/sources/rfc6455.txt"),
+            (9220, "crates/rfcspec-doc/tests/fixtures/rfc9220.xml"),
         ];
         let mut rows: Vec<BulkRow> = parse_index(&xml)
             .unwrap()
             .into_iter()
-            .filter(|entry| entry.has_text())
-            .map(|entry| {
-                let profile = profiles.iter().find(|(n, _)| *n == entry.rfc).unwrap().1;
-                let bytes = fs::read(
-                    repository.join(format!("profiles/{profile}/sources/rfc{}.txt", entry.rfc)),
-                )
-                .unwrap();
+            .filter_map(|entry| bulk_format(&entry).map(|format| (format, entry)))
+            .map(|(format, entry)| {
+                let source = sources.iter().find(|(n, _)| *n == entry.rfc).unwrap().1;
+                let bytes = fs::read(repository.join(source)).unwrap();
                 let sha256 = sha256_hex(&bytes);
                 let text = String::from_utf8(bytes).unwrap();
+                let document = rfcspec_doc::read_format(entry.rfc, format, &sha256, &text).unwrap();
                 BulkRow {
-                    counts: level_counts(&extract(&rfcspec_doc::read(entry.rfc, &sha256, &text))),
+                    format,
+                    counts: level_counts(&extract(&document)),
                     rfc: entry.rfc,
                     title: entry.title,
                     status: entry.status,
@@ -365,6 +365,7 @@ mod tests {
             updated_by: vec![],
             sha256: "0".repeat(64),
             counts: BTreeMap::from([("MAY".into(), 1), ("MUST".into(), 2)]),
+            format: SourceFormat::Text,
             lossy: false,
         }
     }
@@ -416,6 +417,7 @@ mod tests {
                 "website/docs/catalog/rfcs/05000.md",
                 "website/docs/catalog/rfcs/06000.md",
                 "website/docs/catalog/rfcs/08000.md",
+                "website/docs/catalog/rfcs/09000.md",
                 "website/docs/catalog/rfcs/index.md",
             ]
         );
@@ -450,15 +452,21 @@ mod tests {
                 "| [8441](https://www.rfc-editor.org/rfc/rfc8441) | A \\{braced\\} &lt;Fixture> \\| Protocol | PROPOSED STANDARD | IETF | - | 2018-09 |  |  | 2 MUST, 1 MAY |  |"
             ]
         );
+        assert_eq!(
+            rows(&pages["website/docs/catalog/rfcs/09000.md"]),
+            [
+                "| [9220](https://www.rfc-editor.org/rfc/rfc9220) | Bootstrapping WebSockets with HTTP/3 | PROPOSED STANDARD | IETF | wit | 2022-06 |  |  | 1 SHOULD, 1 MAY |  |"
+            ]
+        );
 
         let overview = &pages["website/docs/catalog/rfcs/index.md"];
         let index_sha256 = &summary.header.index_sha256;
         for line in [
             format!("- Index SHA-256: `{index_sha256}`"),
             format!("- Extractor version: {EXTRACTOR_VERSION}"),
-            "- RFCs: 5".to_owned(),
-            "- RFCs with at least one requirement: 3".to_owned(),
-            "- Requirements by level: 116 MUST, 24 MUST NOT, 21 SHOULD, 4 SHOULD NOT, 46 MAY, 1 OPTIONAL".to_owned(),
+            "- RFCs: 6".to_owned(),
+            "- RFCs with at least one requirement: 4".to_owned(),
+            "- Requirements by level: 116 MUST, 24 MUST NOT, 22 SHOULD, 4 SHOULD NOT, 47 MAY, 1 OPTIONAL".to_owned(),
             "| [dns](/docs/catalog/dns) | [RFC 1035](/docs/catalog/rfcs/01000) |".to_owned(),
             "| [ntp](/docs/catalog/ntp) | [RFC 5905](/docs/catalog/rfcs/05000) |".to_owned(),
             "| [time](/docs/catalog/time) | [RFC 868](/docs/catalog/rfcs/00000) |".to_owned(),
@@ -468,6 +476,7 @@ mod tests {
             "| [RFC 5000 to 5999](/docs/catalog/rfcs/05000) | 1 |".to_owned(),
             "| [RFC 6000 to 6999](/docs/catalog/rfcs/06000) | 1 |".to_owned(),
             "| [RFC 8000 to 8999](/docs/catalog/rfcs/08000) | 1 |".to_owned(),
+            "| [RFC 9000 to 9999](/docs/catalog/rfcs/09000) | 1 |".to_owned(),
         ] {
             assert!(
                 overview.lines().any(|l| l == line),
@@ -485,10 +494,10 @@ mod tests {
         let text = fixture_summary(&[]);
         assert!(parse(&text).is_ok());
         assert!(parse(&text.replacen("rfcspec-bulk/1", "rfcspec-bulk/2", 1)).is_err());
-        assert!(text.contains("\"rows\":4"), "{text}");
-        assert!(parse(&text.replacen("\"rows\":4", "\"rows\":5", 1)).is_err());
+        assert!(text.contains("\"rows\":5"), "{text}");
+        assert!(parse(&text.replacen("\"rows\":5", "\"rows\":6", 1)).is_err());
         let error = parse(&format!("{text}not json\n")).unwrap_err().to_string();
-        assert!(error.contains("line 6"), "{error}");
+        assert!(error.contains("line 7"), "{error}");
     }
 
     #[test]
