@@ -1097,11 +1097,19 @@ name = "rfc868-time"
 version = "0.1.0"
 
 [[package]]
+name = "rfcspec-abnf"
+version = "0.1.0"
+dependencies = [
+ "rfcspec-doc",
+]
+
+[[package]]
 name = "rfcspec-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rfcspec-abnf",
  "rfcspec-conformance",
  "rfcspec-doc",
  "rfcspec-docs",
@@ -1111,6 +1119,7 @@ dependencies = [
  "rfcspec-model",
  "rfcspec-propose",
  "rfcspec-source",
+ "rfcspec-wire",
  "serde_json",
  "tempfile",
 ]
@@ -1182,6 +1191,7 @@ version = "0.1.0"
 dependencies = [
  "rfcspec-doc",
  "rfcspec-model",
+ "rfcspec-wire",
 ]
 
 [[package]]
@@ -1189,6 +1199,8 @@ name = "rfcspec-gen"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "rfc6455-websocket",
+ "rfcspec-abnf",
  "rfcspec-doc",
  "rfcspec-extract",
  "rfcspec-model",
@@ -1237,6 +1249,15 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "ureq",
+]
+
+[[package]]
+name = "rfcspec-wire"
+version = "0.1.0"
+dependencies = [
+ "rfcspec-abnf",
+ "rfcspec-doc",
+ "rfcspec-model",
 ]
 
 [[package]]

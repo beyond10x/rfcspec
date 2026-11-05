@@ -9,9 +9,11 @@ publish.workspace = true
 
 [dependencies]
 anyhow = "1"
+rfcspec-abnf = { path = "../rfcspec-abnf" }
 rfcspec-model = { path = "../rfcspec-model" }
 
 [dev-dependencies]
+rfc6455-websocket = { path = "../../profiles/websocket/generated/rust" }
 rfcspec-doc = { path = "../rfcspec-doc" }
 rfcspec-extract = { path = "../rfcspec-extract" }
 tempfile = "3"

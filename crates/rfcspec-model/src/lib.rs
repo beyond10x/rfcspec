@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 mod bulk;
 mod run;
 mod semantics;
+pub mod wire;
 
 pub use bulk::{
     BULK_FORMAT, BulkHeader, BulkRow, SECTIONS_FORMAT, SectionCounts, SectionsRow, bulk_line,
