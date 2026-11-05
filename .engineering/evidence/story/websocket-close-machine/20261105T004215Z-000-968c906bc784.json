@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T00:42:15Z",
+  "actor": "human:timo",
+  "artifact": "story:websocket-close-machine",
+  "kind": "story",
+  "revision": 5,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "task check"
+  }
+}

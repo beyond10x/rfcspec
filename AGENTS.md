@@ -13,8 +13,9 @@ The contract for changing this repository. Humans start at [`README.md`](README.
 
 ## State
 
-The RFC 868 thin slice runs every stage except S3 (AI proposals) end to end for one profile,
-`profiles/time`; everything else is design. What exists:
+The pipeline runs every stage except S3 (AI proposals) end to end for two profiles,
+`profiles/time` (RFC 868) and `profiles/websocket` (RFC 6455 sections 5.2, 5.5 and 7); everything
+else is design. What exists:
 
 | path | what |
 |---|---|
@@ -24,6 +25,7 @@ The RFC 868 thin slice runs every stage except S3 (AI proposals) end to end for 
 | `crates/rfcspec-{model,source,doc,extract,ess,gen,conformance}/` | the pipeline stages S0–S2 and S4–S7 (design §13) for plain-text RFCs |
 | `crates/rfcspec-cli/` | the `rfcspec` binary: `fetch`, `read`, `extract`, `check`, `lower`, `generate`, `verify` |
 | `profiles/time/` | RFC 868: locked source, `profile.yaml` with the semantics of the `tcp` and `udp` layers, reviewed `overlay.yaml`, input witnesses, and `generated/` (protospec models and the `rfc868-time` codec crate); a profile may hold recorded runs (`runs/*.json`, `rfcspec-run/1`, written by `rfcspec verify --report`) |
+| `profiles/websocket/` | RFC 6455: locked source, `profile.yaml` (one `tcp` layer, sections 5.2, 5.5 and 7 in scope), `overlay.yaml` giving every in-scope requirement a status (the rest of the catalogue counts as unreviewed), the `close` machine and its input witness, the `frame-header` layout, and `generated/` (`close.protospec.yaml` and the `rfc6455-websocket` frame codec crate) |
 | `crates/rfcspec-docs/` | generates the site's derived pages (design, status, and the protocol catalogue `website/docs/catalog/` with its downloads `website/static/downloads/`, both from `profiles/`) and binds a built site to its commit |
 | `website/` | the Docusaurus site published at `https://beyond10x.github.io/rfcspec/`; `website/static/pitch/` is a standalone slide deck |
 | `.engineering/` | the AEP planning store (`aep.project/5`) |
@@ -36,8 +38,12 @@ task check
 
 Steps (`Taskfile.yml`): `aep plan artifact validate`, `ess specify validate --path ess`, bounded
 exploration of every model under `examples/` must report `"verdict": "passed"`,
-the `time` task (`rfcspec check --all profiles`, which also fails on a stale recorded run, `rfcspec lower --check`, exploration of both
+the `time` task (`rfcspec check --all profiles`, which also fails on a stale recorded run or an
+in-scope requirement without a status, `rfcspec lower --check`, exploration of both
 Time Protocol models, `rfcspec generate --check`, `cargo test -p rfc868-time`),
+the `websocket` task (`rfcspec lower --profile profiles/websocket --check`, exploration of the
+`close` model with its witness, `rfcspec generate --profile profiles/websocket --check`,
+`cargo test -p rfc6455-websocket`),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
 CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
 `task website` (`npm ci --allow-git=root` locally; CI's Node 22 needs no flag).

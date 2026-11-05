@@ -51,8 +51,9 @@ enum Command {
         rfc: u32,
     },
     /// S4: check the profile's overlay against the catalogue and the locked source, its
-    /// communication semantics against the overlay's machines, and every recorded run under
-    /// `runs/` against the current overlay.
+    /// communication semantics against the overlay's machines, that every catalogue requirement
+    /// in the profile's scope has a status, and every recorded run under `runs/` against the
+    /// current overlay.
     Check {
         #[arg(long, required_unless_present = "all", conflicts_with = "all")]
         profile: Option<PathBuf>,
@@ -239,6 +240,11 @@ fn check(profile: &Path) -> bool {
             let mut problems =
                 rfcspec_extract::check(&loaded.overlay, &loaded.catalogue, &loaded.source);
             problems.extend(checks::semantics(profile, &loaded.profile, &loaded.overlay));
+            problems.extend(checks::scope(
+                &loaded.profile,
+                &loaded.overlay,
+                &loaded.catalogue,
+            ));
             problems.extend(checks::runs(profile));
             if problems.is_empty() {
                 println!(

@@ -32,6 +32,10 @@ One row per layer, as `profile.yaml` declares them ([communication semantics](/d
 
 ## Requirement matrix
 
+Reviewed: 6 requirements, by level 4 MUST, 2 SHOULD; by status 6 satisfied, 0 unsupported, 0 not applicable.
+
+Unreviewed: none. Every requirement the mechanical catalogue of RFC 868 holds has a status.
+
 One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec/blob/main/profiles/time/overlay.yaml), in its order. The source is the line span in RFC 868.
 
 | Id | Level | Transports | Quote | Source | Status | Element or reason |

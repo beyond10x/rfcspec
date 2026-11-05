@@ -1,0 +1,438 @@
+format: rfcspec-overlay/1
+rfc: 6455
+kind: K1
+requirements:
+  - id: R5.2-1
+    source: capitals-text
+    level: MAY
+    quote: "The first fragment MAY also be the final fragment."
+    span: {start: 1556, end: 1557}
+    status: {satisfied: layout.frame-header}
+  - id: R5.2-2
+    source: capitals-text
+    level: MUST
+    quote: "MUST be 0 unless an extension is negotiated that defines meanings for non-zero values."
+    span: {start: 1561, end: 1562}
+    status: {unsupported: "the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.2-3
+    source: capitals-text
+    level: MUST
+    quote: "If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_."
+    span: {start: 1562, end: 1565}
+    status: {unsupported: "failing the connection on a received frame header is not modelled: the close machine carries no data frames"}
+  - id: R5.2-4
+    source: capitals-text
+    level: MUST
+    quote: "If an unknown opcode is received, the receiving endpoint MUST _Fail the WebSocket Connection_."
+    span: {start: 1577, end: 1579}
+    status: {unsupported: "the opcode registry and failing the connection on an unknown opcode are not modelled: the close machine carries no data frames"}
+  - id: R5.2-5
+    source: capitals-text
+    level: MUST
+    quote: "If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the most significant bit MUST be 0) are the payload length."
+    span: {start: 1608, end: 1610}
+    status: {satisfied: layout.frame-header}
+  - id: R5.2-6
+    source: capitals-text
+    level: MUST
+    quote: "Note that in all cases, the minimal number of bytes MUST be used to encode the length, for example, the length of a 124-byte-long string can't be encoded as the sequence 126, 0, 124."
+    span: {start: 1611, end: 1614}
+    status: {satisfied: layout.frame-header}
+  - id: R5.2-7
+    source: capitals-text
+    level: MUST
+    quote: "Any extension MUST specify the length of the \"Extension data\", or how that length may be calculated, and how the extension use MUST be negotiated during the opening handshake."
+    span: {start: 1647, end: 1649}
+    status: {not-applicable: "addressed to the authors of extension specifications, not to an endpoint"}
+  - id: R5.2-8
+    source: abnf-comment
+    level: MUST
+    quote: "1 bit in length, MUST be 0 unless"
+    span: {start: 1706, end: 1706}
+    status: {unsupported: "the layout leaves RSV1 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.2-9
+    source: abnf-comment
+    level: MUST
+    quote: "1 bit in length, MUST be 0 unless"
+    span: {start: 1710, end: 1710}
+    status: {unsupported: "the layout leaves RSV2 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.2-10
+    source: abnf-comment
+    level: MUST
+    quote: "1 bit in length, MUST be 0 unless"
+    span: {start: 1714, end: 1714}
+    status: {unsupported: "the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model"}
+  - id: R5.5-1
+    source: capitals-text
+    level: MUST
+    quote: "All control frames MUST have a payload length of 125 bytes or less and MUST NOT be fragmented."
+    span: {start: 1978, end: 1979}
+    status: {unsupported: "ess-gap G1: a payload length class that depends on the opcode needs a guard beyond equality, and fragmentation is not modelled"}
+  - id: R5.5.1-1
+    source: capitals-text
+    level: MAY
+    quote: "The Close frame MAY contain a body (the \"Application data\" portion of the frame) that indicates a reason for closing, such as an endpoint shutting down, an endpoint having received a frame too large, or an endpoint having received a frame that does not conform to the format expected by the endpoint."
+    span: {start: 1985, end: 1989}
+    status: {unsupported: "ess-gap G3: the close reason is a byte string; the close frame carries only its status code"}
+  - id: R5.5.1-2
+    source: capitals-text
+    level: MUST
+    quote: "If there is a body, the first two bytes of the body MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined in Section 7.4."
+    span: {start: 1989, end: 1991}
+    status: {unsupported: "ess-gap G8: the byte form of the close frame body belongs to the wire layer; the close frame carries its status code as an Integer"}
+  - id: R5.5.1-3
+    source: capitals-text
+    level: MAY
+    quote: "Following the 2-byte integer, the body MAY contain UTF-8-encoded data with value /reason/, the interpretation of which is not defined by this specification."
+    span: {start: 1992, end: 1994}
+    status: {unsupported: "ess-gap G3: the close reason is a byte string; the close frame carries only its status code"}
+  - id: R5.5.1-4
+    source: capitals-text
+    level: MUST NOT
+    quote: "As the data is not guaranteed to be human readable, clients MUST NOT show it to end users."
+    span: {start: 1996, end: 1997}
+    status: {not-applicable: "about what a client application shows its user, outside the protocol"}
+  - id: R5.5.1-5
+    source: capitals-text
+    level: MUST NOT
+    quote: "The application MUST NOT send any more data frames after sending a Close frame."
+    span: {start: 2002, end: 2003}
+    status: {unsupported: "data frames are not modelled: the close machine sends nothing after its Close frame, but has no data frame to forbid"}
+  - id: R5.5.1-6
+    source: capitals-text
+    level: MUST
+    quote: "If an endpoint receives a Close frame and did not previously send a Close frame, the endpoint MUST send a Close frame in response."
+    span: {start: 2005, end: 2006}
+    status: {satisfied: close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close}
+  - id: R5.5.1-7
+    source: capitals-text
+    level: SHOULD
+    quote: "(When sending a Close frame in response, the endpoint typically echos the status code it received.)  It SHOULD do so as soon as practical."
+    span: {start: 2006, end: 2008}
+    status: {satisfied: close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close}
+  - id: R5.5.1-8
+    source: capitals-text
+    level: MAY
+    quote: "An endpoint MAY delay sending a Close frame until its current message is sent (for instance, if the majority of a fragmented message is already sent, an endpoint MAY send the remaining fragments before sending a Close frame)."
+    span: {start: 2008, end: 2012}
+    status: {unsupported: "messages and fragmentation are not modelled: the close machine has no current message to finish"}
+  - id: R5.5.1-9
+    source: capitals-text
+    level: MUST
+    quote: "After both sending and receiving a Close message, an endpoint considers the WebSocket connection closed and MUST close the underlying TCP connection."
+    span: {start: 2023, end: 2025}
+    status: {satisfied: close.client.R5.5.1-9-R7.1.2-2-close-echoed}
+  - id: R5.5.1-10
+    source: capitals-text
+    level: MUST
+    quote: "The server MUST close the underlying TCP connection immediately; the client SHOULD wait for the server to close the connection but MAY close the connection at any time after sending and receiving a Close message, e.g., if it has not received a TCP Close from the server in a reasonable time period."
+    span: {start: 2025, end: 2029}
+    status: {satisfied: close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close}
+  - id: R5.5.2-1
+    source: capitals-text
+    level: MAY
+    quote: "A Ping frame MAY include \"Application data\"."
+    span: {start: 2040, end: 2040}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R5.5.2-2
+    source: capitals-text
+    level: MUST
+    quote: "Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a Close frame."
+    span: {start: 2042, end: 2043}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R5.5.2-3
+    source: capitals-text
+    level: SHOULD
+    quote: "It SHOULD respond with Pong frame as soon as is practical."
+    span: {start: 2043, end: 2044}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R5.5.2-4
+    source: capitals-text
+    level: MAY
+    quote: "An endpoint MAY send a Ping frame any time after the connection is established and before the connection is closed."
+    span: {start: 2047, end: 2048}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R5.5.3-1
+    source: capitals-text
+    level: MAY
+    quote: "If an endpoint receives a Ping frame and has not yet sent Pong frame(s) in response to previous Ping frame(s), the endpoint MAY elect to send a Pong frame for only the most recently processed Ping frame."
+    span: {start: 2064, end: 2067}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R5.5.3-2
+    source: capitals-text
+    level: MAY
+    quote: "A Pong frame MAY be sent unsolicited."
+    span: {start: 2079, end: 2079}
+    status: {unsupported: "Ping and Pong frames are not modelled by this profile's machines"}
+  - id: R7.1.1-1
+    source: capitals-text
+    level: SHOULD
+    quote: "An endpoint SHOULD use a method that cleanly closes the TCP connection, as well as the TLS session, if applicable, discarding any trailing bytes that may have been received."
+    span: {start: 2267, end: 2270}
+    status: {unsupported: "the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect"}
+  - id: R7.1.1-2
+    source: capitals-text
+    level: MAY
+    quote: "An endpoint MAY close the connection via any means available when necessary, such as when under attack."
+    span: {start: 2270, end: 2271}
+    status: {not-applicable: "an implementation's defence under attack, with no protocol exchange to model"}
+  - id: R7.1.1-3
+    source: capitals-text
+    level: SHOULD
+    quote: "The underlying TCP connection, in most normal cases, SHOULD be closed first by the server, so that it holds the TIME_WAIT state and not the client (as this would prevent it from re-opening the connection for 2 maximum segment lifetimes (2MSL), while there is no corresponding server impact as a TIME_WAIT connection is immediately reopened upon a new SYN with a higher seq number)."
+    span: {start: 2273, end: 2278}
+    status: {satisfied: close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close}
+  - id: R7.1.1-4
+    source: capitals-text
+    level: MAY
+    quote: "In abnormal cases (such as not having received a TCP Close from the server after a reasonable amount of time) a client MAY initiate the TCP Close."
+    span: {start: 2278, end: 2280}
+    status: {unsupported: "ess-gap G9: a client close while the server's Close frame may still be in flight is an outstanding obligation in protospec, while TCP discards it with the connection"}
+  - id: R7.1.1-5
+    source: capitals-text
+    level: SHOULD
+    quote: "As such, when a server is instructed to _Close the WebSocket Connection_ it SHOULD initiate a TCP Close immediately, and when a client is instructed to do the same, it SHOULD wait for a TCP Close from the server."
+    span: {start: 2280, end: 2283}
+    status: {satisfied: close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close}
+  - id: R7.1.2-1
+    source: capitals-text
+    level: MUST
+    quote: "To _Start the WebSocket Closing Handshake_ with a status code (Section 7.4) /code/ and an optional close reason (Section 7.1.6) /reason/, an endpoint MUST send a Close control frame, as described in Section 5.5.1, whose status code is set to /code/ and whose close reason is set to /reason/."
+    span: {start: 2305, end: 2309}
+    status: {satisfied: close.client.R7.1.2-1-start-closing-handshake}
+  - id: R7.1.2-2
+    source: capitals-text
+    level: SHOULD
+    quote: "Once an endpoint has both sent and received a Close control frame, that endpoint SHOULD _Close the WebSocket Connection_ as defined in Section 7.1.1."
+    span: {start: 2309, end: 2311}
+    status: {satisfied: close.client.R5.5.1-9-R7.1.2-2-close-echoed}
+  - id: R7.1.7-1
+    source: capitals-text
+    level: MUST
+    quote: "To do so, the client MUST _Close the WebSocket Connection_, and MAY report the problem to the user (which would be especially useful for developers) in an appropriate manner."
+    span: {start: 2386, end: 2388}
+    status: {unsupported: "ess-gap G9: the client close on the closing timeout is left out of the model, because protospec keeps a Close frame in flight to a closed client as an obligation, while TCP discards it with the connection"}
+  - id: R7.1.7-2
+    source: capitals-text
+    level: MUST
+    quote: "Similarly, to do so, the server MUST _Close the WebSocket Connection_, and SHOULD log the problem."
+    span: {start: 2389, end: 2390}
+    status: {unsupported: "failing the connection is not modelled for the server: no server transition fails"}
+  - id: R7.1.7-3
+    source: capitals-text
+    level: SHOULD
+    quote: "If _The WebSocket Connection is Established_ prior to the point where the endpoint is required to _Fail the WebSocket Connection_, the endpoint SHOULD send a Close frame with an appropriate status code (Section 7.4) before proceeding to _Close the WebSocket Connection_."
+    span: {start: 2392, end: 2395}
+    status: {unsupported: "failing the connection is modelled only for the closing timeout, after the Close frame was sent"}
+  - id: R7.1.7-4
+    source: capitals-text
+    level: MAY
+    quote: "An endpoint MAY omit sending a Close frame if it believes the other side is unlikely to be able to receive and process the Close frame, due to the nature of the error that led the WebSocket connection to fail in the first place."
+    span: {start: 2396, end: 2399}
+    status: {unsupported: "failing the connection is modelled only for the closing timeout, after the Close frame was sent"}
+  - id: R7.1.7-5
+    source: capitals-text
+    level: MUST NOT
+    quote: "An endpoint MUST NOT continue to attempt to process data (including a responding Close frame) from the remote endpoint after being instructed to _Fail the WebSocket Connection_."
+    span: {start: 2399, end: 2401}
+    status: {satisfied: close.client.R7.1.7-5-ignore-close-after-timeout}
+  - id: R7.1.7-6
+    source: capitals-text
+    level: SHOULD NOT
+    quote: "Except as indicated above or as specified by the application layer (e.g., a script using the WebSocket API), clients SHOULD NOT close the connection."
+    span: {start: 2403, end: 2405}
+    status: {satisfied: close.client.R5.5.1-9-R7.1.2-2-close-echoed}
+  - id: R7.2.1-1
+    source: capitals-text
+    level: MUST
+    quote: "To do so, the client MUST _Fail the WebSocket Connection_ as defined in Section 7.1.7."
+    span: {start: 2420, end: 2422}
+    status: {unsupported: "the opening handshake is outside this profile's machines"}
+  - id: R7.2.1-2
+    source: capitals-text
+    level: MUST
+    quote: "If at any point the underlying transport layer connection is unexpectedly lost, the client MUST _Fail the WebSocket Connection_."
+    span: {start: 2424, end: 2425}
+    status: {unsupported: "transport loss is not modelled: the tcp layer is reliable and its channels never fail"}
+  - id: R7.2.1-3
+    source: capitals-text
+    level: SHOULD NOT
+    quote: "Except as indicated above or as specified by the application layer (e.g., a script using the WebSocket API), clients SHOULD NOT close the connection."
+    span: {start: 2427, end: 2429}
+    status: {satisfied: close.client.R5.5.1-9-R7.1.2-2-close-echoed}
+  - id: R7.2.2-1
+    source: capitals-text
+    level: MUST
+    quote: "To do so, the server MUST simply _Close the WebSocket Connection_ (Section 7.1.1)."
+    span: {start: 2434, end: 2435}
+    status: {unsupported: "the opening handshake is outside this profile's machines"}
+  - id: R7.2.3-1
+    source: capitals-text
+    level: SHOULD
+    quote: "To prevent this, clients SHOULD use some form of backoff when trying to reconnect after abnormal closures as described in this section."
+    span: {start: 2450, end: 2451}
+    status: {unsupported: "reconnecting lies outside the lifetime of one connection, which the close machine models"}
+  - id: R7.2.3-2
+    source: capitals-text
+    level: SHOULD
+    quote: "The first reconnect attempt SHOULD be delayed by a random amount of time."
+    span: {start: 2453, end: 2454}
+    status: {unsupported: "reconnecting lies outside the lifetime of one connection, which the close machine models"}
+  - id: R7.2.3-3
+    source: capitals-text
+    level: MAY
+    quote: "The parameters by which this random delay is chosen are left to the client to decide; a value chosen randomly between 0 and 5 seconds is a reasonable initial delay though clients MAY choose a different interval from which to select a delay length based on implementation experience and particular application."
+    span: {start: 2454, end: 2458}
+    status: {unsupported: "reconnecting lies outside the lifetime of one connection, which the close machine models"}
+  - id: R7.2.3-4
+    source: capitals-text
+    level: SHOULD
+    quote: "Should the first reconnect attempt fail, subsequent reconnect attempts SHOULD be delayed by increasingly longer amounts of time, using a method such as truncated binary exponential backoff."
+    span: {start: 2460, end: 2462}
+    status: {unsupported: "reconnecting lies outside the lifetime of one connection, which the close machine models"}
+  - id: R7.3-1
+    source: capitals-text
+    level: MAY
+    quote: "Servers MAY close the WebSocket connection whenever desired."
+    span: {start: 2473, end: 2473}
+    status: {unsupported: "a server-initiated close is not modelled: the close machine starts closing from the client"}
+  - id: R7.3-2
+    source: capitals-text
+    level: SHOULD NOT
+    quote: "Clients SHOULD NOT close the WebSocket connection arbitrarily."
+    span: {start: 2473, end: 2474}
+    status: {satisfied: close.client.R7.1.2-1-start-closing-handshake}
+  - id: R7.4-1
+    source: capitals-text
+    level: MAY
+    quote: "When closing an established connection (e.g., when sending a Close frame, after the opening handshake has completed), an endpoint MAY indicate a reason for closure."
+    span: {start: 2480, end: 2482}
+    status: {satisfied: close.client.R7.1.2-1-start-closing-handshake}
+  - id: R7.4.1-1
+    source: capitals-text
+    level: MAY
+    quote: "Endpoints MAY use the following pre-defined status codes when sending a Close frame."
+    span: {start: 2492, end: 2493}
+    status: {satisfied: close.client.R7.1.2-1-start-closing-handshake}
+  - id: R7.4.1-2
+    source: capitals-text
+    level: MAY
+    quote: "1003 indicates that an endpoint is terminating the connection because it has received a type of data it cannot accept (e.g., an endpoint that understands only text data MAY send this if it receives a binary message)."
+    span: {start: 2512, end: 2515}
+    status: {unsupported: "data frames are not modelled: no endpoint of the close machine receives a binary message"}
+  - id: R7.4.1-3
+    source: capitals-text
+    level: MUST NOT
+    quote: "1005 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint."
+    span: {start: 2533, end: 2534}
+    status: {unsupported: "ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code"}
+  - id: R7.4.1-4
+    source: capitals-text
+    level: MUST NOT
+    quote: "1006 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint."
+    span: {start: 2540, end: 2541}
+    status: {unsupported: "ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code"}
+  - id: R7.4.1-5
+    source: capitals-text
+    level: SHOULD
+    quote: "The list of extensions that are needed SHOULD appear in the /reason/ part of the Close frame."
+    span: {start: 2572, end: 2583}
+    status: {not-applicable: "no extension is negotiated in this profile, so status code 1010 is never sent"}
+  - id: R7.4.1-6
+    source: capitals-text
+    level: MUST NOT
+    quote: "1015 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint."
+    span: {start: 2595, end: 2596}
+    status: {unsupported: "ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code"}
+layouts:
+  - name: frame-header
+    quote: 'Payload length:  7 bits, 7+16 bits, or 7+64 bits'
+    span: {start: 1604, end: 1604}
+    fields:
+      - {name: fin, bits: 1, signed: false, order: big-endian}
+      - {name: rsv1, bits: 1, signed: false, order: big-endian}
+      - {name: rsv2, bits: 1, signed: false, order: big-endian}
+      - {name: rsv3, bits: 1, signed: false, order: big-endian}
+      - {name: opcode, bits: 4, signed: false, order: big-endian}
+      - {name: mask, bits: 1, signed: false, order: big-endian}
+      - {name: payload-len, bits: 7, signed: false, order: big-endian}
+      - name: extended-payload-length-16
+        bits: 16
+        signed: false
+        order: big-endian
+        presence: {field: payload-len, equals: 126}
+        constraints:
+          - {range: [126, 65535]}
+      - name: extended-payload-length-64
+        bits: 64
+        signed: false
+        order: big-endian
+        presence: {field: payload-len, equals: 127}
+        constraints:
+          - {range: [65536, 9223372036854775807]}
+      - name: masking-key
+        bits: 32
+        signed: false
+        order: big-endian
+        presence: {field: mask, equals: 1}
+    length: [extended-payload-length-64, extended-payload-length-16, payload-len]
+machines:
+  - name: close
+    transport: tcp
+    bounds: {max_steps: 64, max_states: 1024, max_time_ms: 30000}
+    messages:
+      - {name: close-frame, fields: {code: Integer, masked: Boolean}}
+    participants:
+      - name: client
+        initial: open
+        states: [open, closing, closed]
+        inputs:
+          - {name: close, fields: {code: Integer}}
+        timers: [close-timeout]
+        transitions:
+          - implements: [R7.1.2-1]
+            label: start-closing-handshake
+            from: open
+            to: closing
+            on: {input: close}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}, masked: true}}}
+              - {arm: {timer: close-timeout, millis: 5000}}
+          - implements: [R5.5.1-9, R7.1.2-2]
+            label: close-echoed
+            from: closing
+            to: closed
+            on: {receive: close-frame}
+            effects:
+              - {cancel: close-timeout}
+              - {emit: connection-closed}
+              - {close: true}
+          - implements: [R7.1.7-1]
+            label: close-timeout
+            from: closing
+            to: closed
+            on: {timer: close-timeout}
+            effects:
+              - {emit: connection-failed}
+          - implements: [R7.1.7-5]
+            label: ignore-close-after-timeout
+            from: closed
+            to: closed
+            on: {receive: close-frame}
+      - name: server
+        initial: open
+        states: [open, closed]
+        transitions:
+          - implements: [R5.5.1-6, R5.5.1-7, R5.5.1-9, R5.5.1-10]
+            label: echo-close
+            from: open
+            to: closed
+            on: {receive: close-frame}
+            effects:
+              - {send: {message: close-frame, payload: {code: {input: code}, masked: false}}}
+              - {flush: true}
+              - {close: true}
+    properties:
+      - {name: server-flushes-close, flush_before_close: server}
+      - {name: closed-once, participant: client, event: connection-closed, max: 1}
+findings: []

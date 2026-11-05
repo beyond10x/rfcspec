@@ -1,5 +1,6 @@
 //! The profile rules `rfcspec check` adds to the overlay check: communication semantics against
-//! the overlay's machines (design section 6), and recorded runs against the current overlay.
+//! the overlay's machines (design section 6), every requirement in scope has a status (design
+//! section 5), and recorded runs against the current overlay.
 
 use std::{
     collections::BTreeSet,
@@ -8,7 +9,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use rfcspec_model::{OVERLAY_FILE, Overlay, Profile, RUNS_DIR, RunReport, sha256_hex};
+use rfcspec_model::{Catalogue, OVERLAY_FILE, Overlay, Profile, RUNS_DIR, RunReport, sha256_hex};
 
 /// Every directory under `dir`, by name.
 pub fn profiles(dir: &Path) -> Result<Vec<PathBuf>> {
@@ -74,6 +75,47 @@ pub fn semantics(dir: &Path, profile: &Profile, overlay: &Overlay) -> Vec<String
     problems
 }
 
+/// Whether a catalogue section is in a profile scope: it or a section it lies under is listed.
+pub fn in_scope(section: &str, scope: &[String]) -> bool {
+    scope.iter().any(|listed| {
+        section == listed
+            || section
+                .strip_prefix(listed.as_str())
+                .is_some_and(|rest| rest.starts_with('.'))
+    })
+}
+
+/// The scope problems of a profile (design section 5): every catalogue requirement, at every
+/// level, of a section in scope (a section `profile.yaml` lists, or a subsection of one) needs a
+/// status in the overlay. Each problem names the profile and the requirement.
+pub fn scope(profile: &Profile, overlay: &Overlay, catalogue: &Catalogue) -> Vec<String> {
+    let Some(rfc) = profile.rfcs.iter().find(|rfc| rfc.number == overlay.rfc) else {
+        return Vec::new();
+    };
+    let reviewed: BTreeSet<&str> = overlay.requirements.iter().map(|r| r.id.as_str()).collect();
+    catalogue
+        .requirements
+        .iter()
+        .filter(|requirement| {
+            rfc.sections.is_empty()
+                || requirement
+                    .section
+                    .as_deref()
+                    .is_some_and(|section| in_scope(section, &rfc.sections))
+        })
+        .filter(|requirement| !reviewed.contains(requirement.id.as_str()))
+        .map(|requirement| {
+            format!(
+                "profile {}: requirement {} ({}, section {}) is in scope but has no status in {OVERLAY_FILE}",
+                profile.name,
+                requirement.id,
+                requirement.keyword,
+                requirement.section.as_deref().unwrap_or("none"),
+            )
+        })
+        .collect()
+}
+
 /// Every `.json` file under the profile's `runs/`, by name.
 pub fn run_files(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = fs::read_dir(dir.join(RUNS_DIR))
@@ -117,4 +159,26 @@ pub fn runs(dir: &Path) -> Vec<String> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::in_scope;
+
+    #[test]
+    fn a_section_is_in_scope_with_its_subsections_only() {
+        let scope = ["5.2".to_string(), "7".to_string()];
+        for (section, expected) in [
+            ("5.2", true),
+            ("5.2.1", true),
+            ("7", true),
+            ("7.4.1", true),
+            ("5.20", false),
+            ("70", false),
+            ("5", false),
+            ("5.3", false),
+        ] {
+            assert_eq!(in_scope(section, &scope), expected, "{section}");
+        }
+    }
 }

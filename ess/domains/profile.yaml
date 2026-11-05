@@ -378,9 +378,10 @@ entities:
   - name: rfcspec.profile.Status
     naming:
       summary: >-
-        The status of one requirement in one profile, at most one per profile and requirement. A
-        MUST-level requirement in scope needs one; that rule spans every requirement of a profile
-        and is checked by rfcspec check, not here.
+        The status of one requirement in one profile, at most one per profile and requirement.
+        Every requirement in scope, at every level, needs one; that rule spans every requirement of
+        a profile and is checked by rfcspec check, not here. A requirement without one is
+        unreviewed.
     identity:
       name: key
       type: rfcspec.profile.StatusKey

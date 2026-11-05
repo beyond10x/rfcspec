@@ -1,16 +1,19 @@
-//! The overlay check: every quote occurs verbatim in the source at the span it names, and every id
-//! an overlay item refers to exists.
+//! The overlay check: every quote occurs verbatim in the source at the span it names, every id
+//! an overlay item refers to exists, and a requirement read mechanically (`capitals-text`,
+//! `abnf-comment`) keeps its catalogue id and lies within its catalogue span.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rfcspec_model::{
-    Catalogue, Effect, OVERLAY_FORMAT, Overlay, Span, Status, Trigger, collapse_whitespace,
+    ABNF_COMMENT, Bcp14Requirement, CAPITALS_TEXT, Catalogue, Constraint, Effect, OVERLAY_FORMAT,
+    Overlay, Property, Span, Status, Trigger, Value, collapse_whitespace,
 };
 
 /// Check an overlay against its catalogue and source. Returns one problem per line, each naming
 /// the item; an empty list means the overlay holds.
 pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<String> {
     let lines: Vec<&str> = source.lines().collect();
+    let furniture = rfcspec_doc::furniture_lines(source);
     let mut problems = Vec::new();
     if overlay.format != OVERLAY_FORMAT {
         problems.push(format!(
@@ -26,7 +29,7 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
     }
 
     let mut quote = |item: String, quote: &str, span: Span| {
-        if let Some(problem) = quote_problem(&lines, quote, span) {
+        if let Some(problem) = quote_problem(&lines, &furniture, quote, span) {
             problems.push(format!("{item}: {problem}"));
         }
     };
@@ -62,6 +65,34 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
     let mut elements = BTreeSet::new();
     for layout in &overlay.layouts {
         elements.insert(format!("layout.{}", layout.name));
+        let mut earlier = BTreeSet::new();
+        for field in &layout.fields {
+            let item = format!("layout {} field {}", layout.name, field.name);
+            if let Some(presence) = &field.presence
+                && !earlier.contains(presence.field.as_str())
+            {
+                problems.push(format!(
+                    "{item}: present when {}, which is no earlier field of the layout",
+                    presence.field
+                ));
+            }
+            if !(1..=64).contains(&field.bits) {
+                problems.push(format!("{item}: {} bits, not 1 to 64", field.bits));
+            } else {
+                let (low, high) = field.bounds();
+                for constraint in &field.constraints {
+                    if let Constraint::Range([from, to]) = constraint
+                        && !(low <= i128::from(*from) && from <= to && i128::from(*to) <= high)
+                    {
+                        problems.push(format!(
+                            "{item}: range {from} to {to} does not fit {} bits",
+                            field.bits
+                        ));
+                    }
+                }
+            }
+            earlier.insert(field.name.as_str());
+        }
     }
     let requirement_ids: BTreeSet<&str> =
         overlay.requirements.iter().map(|r| r.id.as_str()).collect();
@@ -91,17 +122,47 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                     }
                 }
                 let mut used = Vec::new();
-                match &transition.on {
-                    Trigger::Receive(message) => used.push(message),
-                    Trigger::Input(input) => {
-                        if !participant.inputs.contains(input) {
-                            problems.push(format!("{item}: unknown input {input}"));
-                        }
+                let mut timers = Vec::new();
+                let trigger_fields = match &transition.on {
+                    Trigger::Receive(message) => {
+                        used.push(message);
+                        machine
+                            .messages
+                            .iter()
+                            .find(|m| &m.name == message)
+                            .map(|m| m.fields.clone())
+                            .unwrap_or_default()
                     }
-                }
+                    Trigger::Input(input) => match participant.input(input) {
+                        Some(input) => input.fields(),
+                        None => {
+                            problems.push(format!("{item}: unknown input {input}"));
+                            BTreeMap::new()
+                        }
+                    },
+                    Trigger::Timer(timer) => {
+                        timers.push(timer);
+                        BTreeMap::new()
+                    }
+                };
                 for effect in &transition.effects {
-                    if let Effect::Send(send) = effect {
-                        used.push(&send.message);
+                    match effect {
+                        Effect::Send(send) => {
+                            used.push(&send.message);
+                            for (field, value) in &send.payload {
+                                if let Value::Field(source) = value
+                                    && !trigger_fields.contains_key(&source.input)
+                                {
+                                    problems.push(format!(
+                                        "{item}: payload {field} reads {}, which is no field of its trigger",
+                                        source.input
+                                    ));
+                                }
+                            }
+                        }
+                        Effect::Arm(arm) => timers.push(&arm.timer),
+                        Effect::Cancel(timer) => timers.push(timer),
+                        Effect::Emit(_) | Effect::Close(_) | Effect::Flush(_) => {}
                     }
                 }
                 for message in used {
@@ -109,7 +170,58 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         problems.push(format!("{item}: unknown message {message}"));
                     }
                 }
+                for timer in timers {
+                    if !participant.timers.contains(timer) {
+                        problems.push(format!("{item}: unknown timer {timer}"));
+                    }
+                }
             }
+        }
+        let participants: BTreeSet<&str> = machine
+            .participants
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        for property in &machine.properties {
+            let participant = match property {
+                Property::EventCount(count) => &count.participant,
+                Property::FlushBeforeClose(flush) => &flush.flush_before_close,
+            };
+            if !participants.contains(participant.as_str()) {
+                problems.push(format!(
+                    "property {}.{}: unknown participant {participant}",
+                    machine.name,
+                    property.name()
+                ));
+            }
+        }
+    }
+
+    let catalogued: BTreeMap<&str, &Bcp14Requirement> = catalogue
+        .requirements
+        .iter()
+        .map(|r| (r.id.as_str(), r))
+        .collect();
+    for requirement in overlay
+        .requirements
+        .iter()
+        .filter(|r| r.source == CAPITALS_TEXT || r.source == ABNF_COMMENT)
+    {
+        match catalogued.get(requirement.id.as_str()) {
+            None => problems.push(format!(
+                "requirement {}: source {}, but {} is no catalogue requirement",
+                requirement.id, requirement.source, requirement.id
+            )),
+            Some(found)
+                if found.span.start > requirement.span.start
+                    || requirement.span.end > found.span.end =>
+            {
+                problems.push(format!(
+                    "requirement {}: {} does not lie within the catalogue requirement's {}",
+                    requirement.id, requirement.span, found.span
+                ));
+            }
+            Some(_) => {}
         }
     }
     for requirement in &overlay.requirements {
@@ -142,7 +254,9 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
     problems
 }
 
-fn quote_problem(lines: &[&str], quote: &str, span: Span) -> Option<String> {
+/// Whether a quote occurs at its span; page-furniture lines inside the span are skipped, so a
+/// sentence continued across a page break is quoted as one.
+fn quote_problem(lines: &[&str], furniture: &[usize], quote: &str, span: Span) -> Option<String> {
     if span.start == 0 || span.start > span.end || span.end > lines.len() {
         return Some(format!(
             "{span} is outside the source ({} lines)",
@@ -153,7 +267,11 @@ fn quote_problem(lines: &[&str], quote: &str, span: Span) -> Option<String> {
     if quote.is_empty() {
         return Some("empty quote".into());
     }
-    let text = collapse_whitespace(&lines[span.start - 1..span.end].join("\n"));
+    let kept: Vec<&str> = (span.start..=span.end)
+        .filter(|line| !furniture.contains(line))
+        .map(|line| lines[line - 1])
+        .collect();
+    let text = collapse_whitespace(&kept.join("\n"));
     (!text.contains(&quote)).then(|| format!("quote {quote:?} does not occur at {span}"))
 }
 
@@ -161,10 +279,10 @@ fn quote_problem(lines: &[&str], quote: &str, span: Span) -> Option<String> {
 mod tests {
     use std::path::PathBuf;
 
-    use rfcspec_model::read_yaml;
+    use rfcspec_model::{Requirement, read_yaml};
 
     use super::*;
-    use crate::tests::{catalogue, source};
+    use crate::tests::{catalogue, catalogue_6455, source, source_6455};
 
     fn overlay() -> Overlay {
         read_yaml(
@@ -224,5 +342,91 @@ mod tests {
             .unwrap();
         assert_eq!(example.seconds, -1297728000);
         assert!(u32::try_from(example.seconds).is_err());
+    }
+
+    fn websocket_overlay(requirements: Vec<Requirement>) -> Overlay {
+        Overlay {
+            format: OVERLAY_FORMAT.into(),
+            rfc: 6455,
+            kind: None,
+            requirements,
+            layouts: vec![],
+            machines: vec![],
+            findings: vec![],
+        }
+    }
+
+    fn reviewed(id: &str, quote: &str, start: usize, end: usize) -> Requirement {
+        Requirement {
+            id: id.into(),
+            source: "capitals-text".into(),
+            level: "SHOULD".into(),
+            transports: vec![],
+            quote: quote.into(),
+            span: Span { start, end },
+            status: Status::NotApplicable("test".into()),
+            probe: None,
+        }
+    }
+
+    fn committed_websocket() -> Overlay {
+        read_yaml(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../profiles/websocket/overlay.yaml"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn the_committed_websocket_overlay_holds() {
+        assert_eq!(
+            check(&committed_websocket(), &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn an_unknown_timer_and_a_payload_field_its_trigger_lacks_are_named() {
+        let mut overlay = committed_websocket();
+        let client = &mut overlay.machines[0].participants[0];
+        client.timers.clear();
+        let Effect::Send(send) = &mut client.transitions[0].effects[0] else {
+            panic!("the first effect sends");
+        };
+        send.payload.insert(
+            "reason".into(),
+            Value::Field(rfcspec_model::FieldRef {
+                input: "reason".into(),
+            }),
+        );
+        let problems = check(&overlay, &catalogue_6455(), &source_6455());
+        let start = "transition close.client.R7.1.2-1-start-closing-handshake";
+        assert!(
+            problems.contains(&format!(
+                "{start}: payload reason reads reason, which is no field of its trigger"
+            )),
+            "{problems:#?}"
+        );
+        assert!(
+            problems.contains(&format!("{start}: unknown timer close-timeout")),
+            "{problems:#?}"
+        );
+    }
+
+    #[test]
+    fn a_quote_across_a_page_break_skips_the_furniture_inside_its_span() {
+        let quote = "The list of extensions that are needed SHOULD appear in the /reason/ part of the Close frame.";
+        let overlay = websocket_overlay(vec![reviewed("R7.4.1-5", quote, 2572, 2583)]);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
+        );
+        let glued = websocket_overlay(vec![reviewed(
+            "R7.4.1-5",
+            "The list of extensions that Fette & Melnikov",
+            2572,
+            2583,
+        )]);
+        assert_eq!(check(&glued, &catalogue_6455(), &source_6455()).len(), 1);
     }
 }

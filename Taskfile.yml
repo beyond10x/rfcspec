@@ -11,6 +11,7 @@ tasks:
       - task: spec
       - task: examples
       - task: time
+      - task: websocket
       - task: docs-check
       - cargo fmt --all --check
       - cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -46,6 +47,16 @@ tasks:
           --inputs profiles/time/witnesses/udp.inputs.json | grep -q '"verdict": "passed"'
       - cargo run -q --locked -p rfcspec-cli -- generate --check
       - cargo test -q --locked -p rfc868-time
+
+  websocket:
+    desc: Check the websocket profile's lowered closing model and its exploration, and its generated frame codec and tests.
+    cmds:
+      - cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/websocket --check
+      - cmd: >-
+          ess protocol explore --path profiles/websocket/generated/close.protospec.yaml
+          --inputs profiles/websocket/witnesses/close.inputs.json | grep -q '"verdict": "passed"'
+      - cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/websocket --check
+      - cargo test -q --locked -p rfc6455-websocket
 
   docs-generate:
     desc: Rewrite the generated pages under website/docs/.
