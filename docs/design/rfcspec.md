@@ -200,6 +200,7 @@ Proposed nouns (RFCspec's own ESS domain specifies them, D12):
 | `Layout` | rfc, name | a packet diagram parsed to fields with bit widths, dependent lengths, presence conditions, constraints |
 | `Registry` | IANA id | entries (value, name, reference, status), lowered to an enum with an open or closed policy |
 | `Limit` | rfc, name | a quantity the RFC leaves to the implementation, with any stated minimum or maximum (Ignite's `Limits`, `ignite:protocols.md` §3.6) |
+| `Reference` | citing rfc, ordinal | the citing section, the cited RFC's number (which may never have been read) and section, normative or informative; owned by the citing RFC and rebuilt when it is re-read; self-references and non-RFC references are counted, not stored (decided 2026-11-05, `decision-blocker:rfcxml-xref-reference`) |
 | `Machine` | profile, name | participants, states, triggers, transitions, timers, with a requirement link per transition |
 | `Profile` | name | RFCs and the sections and parties in scope, the communication semantics (section 6) |
 | `Status` | profile, requirement | one of `satisfied <element>`, `unsupported <reason>`, `not-applicable <reason>`; tests that verify a satisfied requirement are evidence attached to it, read by the conformance matrix (section 11), not a fourth status; MUST-level items in scope need one, as Ignite's E090 rule (`ignite:protocols.md` §3.2) |

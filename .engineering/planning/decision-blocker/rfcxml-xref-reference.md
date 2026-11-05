@@ -2,11 +2,13 @@
 format: aep.planning-md/3
 id: decision-blocker:rfcxml-xref-reference
 kind: decision-blocker
-status: open
+status: cleared
 title: 'Nobody has decided what an RFCXML xref becomes in the catalogue: an Rfc-to-Rfc edge, a reference from a section or requirement, and who owns it'
 relations:
 - blocks: epic:rfc-explorer
-revision: 3
+revision: 5
+transitions:
+- {from: "open", to: "cleared", at: "2026-11-05T17:37:05Z", actor: "human:timo", revision: 5}
 ---
 ## Question
 
@@ -45,3 +47,24 @@ repository rule (AGENTS.md: "A new noun gets its ESS declaration in `ess/` befor
 written around it") the answer is an `ess/domains/catalogue.yaml` change first. No such story is
 drafted. The reader story (`story:rfcxml-source-reader`) renders an xref into its text and nothing
 more, so it does not depend on the answer.
+
+## Decision (2026-11-05)
+
+Option A, decided by the session sys-mon. The basis it gave, quoted from its message: "Timo's delegation, typed 2026-11-04T23:24:57Z, verbatim: \"if the others have issues deciding something, then you are deciding too\", and his grant line in the workspace CLAUDE.md of 2026-11-05 (sys-mon's message quoting his words counts for decisions a session cannot make itself)."
+
+The decision as sys-mon's message gives it, verbatim:
+
+> option A, a new entity `rfcspec.catalogue.Reference` owned by the citing `Rfc`.
+> - Fields: citing rfc (required), citing section (optional), target rfc number as Integer (required; an unread RFC is allowed, as the update graph allows), target section as Text (optional), kind: normative or informative. One entity, one kind field.
+> - Excluded for now: self-references (target rfc equals citing rfc, the table of contents) and non-RFC references (I-Ds, W3C, a reference without an RFC seriesInfo); count them in the read summary, do not store them.
+> - Ownership: owned by the citing Rfc, rebuilt when that Rfc is re-read, deleted with it. A cited section going stale does not change the citing Reference.
+> Why not B or C: B loses the section and the kind the explorer needs; C makes the explorer parse RFCXML a second time.
+> Order: the ESS declaration in ess/domains/catalogue.yaml first (repository rule), then the extraction story, then epic:rfc-explorer; epic:wire-layer after it.
+
+Declared in `ess/domains/catalogue.yaml`:
+
+- entity `rfcspec.catalogue.Reference`, with fields `rfc`, `section_id` (optional), `target_rfc` (Integer), `target_section` (optional String) and `kind`, and a `section` relation to the citing section;
+- enum `rfcspec.catalogue.ReferenceKind`, with values `normative` and `informative`;
+- relation `references` on `rfcspec.catalogue.Rfc`, `owns`, many, via `rfc`.
+
+The extraction is `story:xref-reference-extract`.
