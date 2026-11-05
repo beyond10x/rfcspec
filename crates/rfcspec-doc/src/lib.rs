@@ -641,4 +641,128 @@ mod tests {
                 .contains("Must be zero in all queries and responses.")
         );
     }
+
+    fn rfc5905_text() -> String {
+        fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../profiles/ntp/sources/rfc5905.txt"),
+        )
+        .unwrap()
+    }
+
+    fn rfc5905() -> Document {
+        read(5905, "digest", &rfc5905_text())
+    }
+
+    #[test]
+    fn rfc5905_furniture_is_110_footers_110_form_feeds_and_109_headers() {
+        let text = rfc5905_text();
+        let lines: Vec<&str> = text.lines().collect();
+        let document = rfc5905();
+        let of = |matches: &dyn Fn(&str) -> bool| {
+            document
+                .furniture
+                .iter()
+                .filter(|&&line| matches(lines[line - 1]))
+                .count()
+        };
+        assert_eq!(
+            of(&|l| l.starts_with("Mills, et al. ") && l.trim_end().ends_with(']')),
+            110
+        );
+        assert_eq!(of(&|l| l.contains('\u{c}')), 110);
+        assert_eq!(
+            of(&|l| l.split_whitespace().collect::<Vec<_>>()
+                == ["RFC", "5905", "NTPv4", "Specification", "June", "2010"]),
+            109
+        );
+        assert_eq!(document.furniture.len(), 329);
+        let pages: Vec<usize> = document
+            .furniture
+            .iter()
+            .filter_map(|&line| {
+                let line = lines[line - 1].trim_end();
+                line.rsplit_once("[Page ")
+                    .and_then(|(_, n)| n.strip_suffix(']')?.parse().ok())
+            })
+            .collect();
+        assert_eq!(pages, (1..=110).collect::<Vec<_>>());
+        for block in &document.blocks {
+            assert!(!block.text().contains("[Page"), "{:?}", block.span);
+            assert!(!block.text().starts_with("RFC 5905 "), "{:?}", block.span);
+        }
+    }
+
+    #[test]
+    fn rfc5905_has_37_numbered_headings_and_every_block_carries_its_section() {
+        let text = rfc5905_text();
+        let document = rfc5905();
+        let headings: Vec<(usize, &str)> = text
+            .lines()
+            .enumerate()
+            .filter_map(|(index, line)| numbered_heading(line).map(|n| (index + 1, n)))
+            .collect();
+        assert_eq!(
+            headings.iter().map(|(_, n)| *n).collect::<Vec<_>>(),
+            [
+                "1", "1.1", "2", "3", "3.1", "4", "5", "6", "7", "7.1", "7.2", "7.3", "7.4", "7.5",
+                "8", "9", "9.1", "9.2", "10", "11", "11.1", "11.2", "11.2.1", "11.2.2", "11.2.3",
+                "11.3", "12", "13", "13.1", "13.2", "14", "15", "16", "17", "18", "18.1", "18.2"
+            ]
+        );
+        assert_eq!(headings.len(), 37);
+        assert_eq!(headings[0], (175, "1"));
+        assert_eq!(headings[36], (3295, "18.2"));
+        let line = |number: usize| text.lines().nth(number - 1).unwrap();
+        assert!(line(175).starts_with("1.  Introduction"));
+        assert!(line(3295).starts_with("18.2.  Informative References"));
+        for (number, section, title) in [
+            (889, "7.2", "7.2.  Global Parameters"),
+            (938, "7.3", "7.3.  Packet Header Variables"),
+            (1431, "8", "8.  On-Wire Protocol"),
+            (1804, "9.2", "9.2.  Peer Process Operations"),
+            (2829, "13", "13.  Poll Process"),
+        ] {
+            assert!(headings.contains(&(number, section)), "{number}");
+            assert_eq!(line(number).trim_end(), title);
+        }
+        assert!(
+            line(1061)
+                .trim()
+                .starts_with("Figure 8: Packet Header Format")
+        );
+        assert_eq!(numbered_heading(line(1061)), None);
+        assert_eq!(block_at(&document, 1061).section.as_deref(), Some("7.3"));
+        for block in &document.blocks {
+            let expected = headings
+                .iter()
+                .rev()
+                .find(|(line, _)| *line <= block.span.start)
+                .map(|(_, n)| n.to_string());
+            assert_eq!(block.section, expected, "{:?}", block.span);
+            if block.span.start < 175 {
+                assert_eq!(block.section, None);
+            }
+        }
+    }
+
+    #[test]
+    fn the_rfc5905_header_diagram_and_the_global_parameters_table_are_one_figure_each() {
+        let document = rfc5905();
+        for (start, end, section) in [(1015, 1059, "7.3"), (903, 915, "7.2")] {
+            let figure = block_at(&document, start);
+            assert_eq!(
+                (figure.kind, figure.span, figure.section.as_deref()),
+                (BlockKind::Figure, Span { start, end }, Some(section)),
+                "{start}"
+            );
+        }
+        let table = block_at(&document, 903).text();
+        for row in ["PORT", "123", "MINPOLL", "4", "MAXPOLL", "17"] {
+            assert!(
+                table.split_whitespace().any(|word| word == row),
+                "{row}: {table}"
+            );
+        }
+    }
 }

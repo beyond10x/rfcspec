@@ -1,0 +1,25 @@
+format: rfcspec-overlay/1
+rfc: 5905
+kind: K1
+requirements:
+  - id: R9.2-1
+    source: capitals-text
+    level: MAY
+    quote: The client MAY accept or reject the data in the message.
+    span: {start: 1889, end: 1890}
+    status: {unsupported: "the message is a crypto-NAK, the answer to a failed authentication, and the profile models neither the MAC nor authentication"}
+  - id: R9.2-2
+    source: capitals-text
+    level: MAY
+    quote: Implementations supporting public key authentication MAY run the Autokey or equivalent security protocol.
+    span: {start: 1924, end: 1925}
+    status: {unsupported: "applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only"}
+  - id: R9.2-3
+    source: capitals-text
+    level: SHOULD
+    quote: Implementations SHOULD set the association mode to 3 and run a short client/server exchange to determine the propagation delay.
+    span: {start: 1926, end: 1927}
+    status: {unsupported: "applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only"}
+layouts: []
+machines: []
+findings: []

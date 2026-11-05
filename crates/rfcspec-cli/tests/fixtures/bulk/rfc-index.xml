@@ -123,6 +123,59 @@
     <doi>10.17487/RFC1035</doi>
   </rfc-entry>
   <rfc-entry>
+    <doc-id>RFC5905</doc-id>
+    <title>Network Time Protocol Version 4: Protocol and Algorithms Specification</title>
+    <author>
+      <name>D. Mills</name>
+    </author>
+    <author>
+      <name>J. Martin</name>
+      <title>Editor</title>
+    </author>
+    <author>
+      <name>J. Burbank</name>
+    </author>
+    <author>
+      <name>W. Kasch</name>
+    </author>
+    <date>
+      <month>June</month>
+      <year>2010</year>
+    </date>
+    <format>
+      <file-format>TXT</file-format>
+      <file-format>HTML</file-format>
+    </format>
+    <page-count>110</page-count>
+    <keywords>
+      <kw>NTP</kw>
+      <kw>SNTP</kw>
+      <kw>Synchronization</kw>
+    </keywords>
+    <abstract>
+      <p>The Network Time Protocol (NTP) is widely used to synchronize computer clocks in the Internet.  This document describes NTP version 4 (NTPv4), which is backwards compatible with NTP version 3 (NTPv3), described in RFC 1305, as well as previous versions of the protocol.  NTPv4 includes a modified protocol header to accommodate the Internet Protocol version 6 address family.  NTPv4 includes fundamental improvements in the mitigation and discipline algorithms that extend the potential accuracy to the tens of microseconds with modern workstations and fast LANs.  It includes a dynamic server discovery scheme, so that in many cases, specific server configuration is not required.  It corrects certain errors in the NTPv3 design and implementation and includes an optional extension mechanism.</p>
+    </abstract>
+    <draft>draft-ietf-ntp-ntpv4-proto-13</draft>
+    <obsoletes>
+      <doc-id>RFC1305</doc-id>
+      <doc-id>RFC4330</doc-id>
+    </obsoletes>
+    <updated-by>
+      <doc-id>RFC7822</doc-id>
+      <doc-id>RFC8573</doc-id>
+      <doc-id>RFC9109</doc-id>
+      <doc-id>RFC9748</doc-id>
+      <doc-id>RFC9769</doc-id>
+    </updated-by>
+    <current-status>PROPOSED STANDARD</current-status>
+    <publication-status>PROPOSED STANDARD</publication-status>
+    <stream>IETF</stream>
+    <area>int</area>
+    <wg_acronym>ntp</wg_acronym>
+    <errata-url>https://www.rfc-editor.org/errata/rfc5905</errata-url>
+    <doi>10.17487/RFC5905</doi>
+  </rfc-entry>
+  <rfc-entry>
     <doc-id>RFC6455</doc-id>
     <title>The WebSocket Protocol</title>
     <author>

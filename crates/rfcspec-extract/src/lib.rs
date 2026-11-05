@@ -951,4 +951,121 @@ mod tests {
         let second = to_json(&catalogue_1035()).unwrap();
         assert_eq!(first.as_bytes(), second.as_bytes());
     }
+
+    fn source_5905() -> String {
+        fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../profiles/ntp/sources/rfc5905.txt"),
+        )
+        .unwrap()
+    }
+
+    fn document_5905() -> rfcspec_model::Document {
+        rfcspec_doc::read(5905, "digest", &source_5905())
+    }
+
+    fn catalogue_5905() -> Catalogue {
+        extract(&document_5905())
+    }
+
+    const NTP_SCOPE: [&str; 5] = ["7.2", "7.3", "8", "9.2", "13"];
+
+    fn in_ntp_scope(section: &str) -> bool {
+        NTP_SCOPE.iter().any(|listed| {
+            section == *listed
+                || section
+                    .strip_prefix(listed)
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+    }
+
+    #[test]
+    fn rfc5905_has_13_bcp14_requirements_three_of_them_in_scope_in_section_9_2() {
+        let catalogue = catalogue_5905();
+        assert_eq!(
+            catalogue
+                .requirements
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "R2-1",
+                "R2-2",
+                "R2-3",
+                "R7.4-1",
+                "R7.4-2",
+                "R7.4-3",
+                "R7.4-4",
+                "R7.4-5",
+                "R9.2-1",
+                "R9.2-2",
+                "R9.2-3",
+                "R11.2.3-1",
+                "R11.2.3-2"
+            ]
+        );
+        for requirement in &catalogue.requirements {
+            let section = requirement.section.as_deref().unwrap();
+            assert!(
+                requirement.id.starts_with(&format!("R{section}-")),
+                "{}",
+                requirement.id
+            );
+        }
+        let in_scope: Vec<(&str, &str, usize, usize)> = catalogue
+            .requirements
+            .iter()
+            .filter(|r| in_ntp_scope(r.section.as_deref().unwrap()))
+            .map(|r| (r.id.as_str(), r.keyword.as_str(), r.span.start, r.span.end))
+            .collect();
+        assert_eq!(
+            in_scope,
+            [
+                ("R9.2-1", "MAY", 1889, 1890),
+                ("R9.2-2", "MAY", 1924, 1925),
+                ("R9.2-3", "SHOULD", 1926, 1927)
+            ]
+        );
+    }
+
+    #[test]
+    fn rfc5905_scoped_prose_candidates_are_the_ten_the_reviewer_reads() {
+        let document = document_5905();
+        let catalogue = extract(&document);
+        let section_of = |line: usize| {
+            document
+                .blocks
+                .iter()
+                .find(|block| block.span.contains(line))
+                .and_then(|block| block.section.clone())
+        };
+        let scoped: Vec<(&str, &str, usize)> = catalogue
+            .prose_candidates
+            .iter()
+            .filter(|c| section_of(c.span.start).is_some_and(|s| in_ntp_scope(&s)))
+            .map(|c| (c.id.as_str(), c.keyword.as_str(), c.span.start))
+            .collect();
+        assert_eq!(
+            scoped,
+            [
+                ("P-14", "may", 932),
+                ("P-15", "should", 1265),
+                ("P-16", "should", 1283),
+                ("P-17", "should", 1440),
+                ("P-18", "may", 1451),
+                ("P-19", "must", 1613),
+                ("P-20", "should", 1639),
+                ("P-24", "must", 1816),
+                ("P-25", "must", 1866),
+                ("P-29", "must", 2958)
+            ]
+        );
+    }
+
+    #[test]
+    fn the_rfc5905_catalogue_is_byte_identical_across_two_runs() {
+        let first = to_json(&catalogue_5905()).unwrap();
+        let second = to_json(&catalogue_5905()).unwrap();
+        assert_eq!(first.as_bytes(), second.as_bytes());
+    }
 }
