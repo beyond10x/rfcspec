@@ -242,6 +242,53 @@ fn a_text_document_reads_byte_for_byte_as_before_and_has_no_format_key() {
     );
     let document: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(document.get("format").is_none());
+    assert!(document.get("references").is_none());
+    assert!(document.get("reference_counts").is_none());
+}
+
+#[test]
+fn read_lists_each_xref_to_another_rfc_as_a_reference_and_counts_the_others() {
+    let profile = fetched_profile();
+    let output = read(profile.path());
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let document: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        document["reference_counts"],
+        serde_json::json!({"self_references": 16, "non_rfc": 0, "unresolved": 0})
+    );
+    let references = document["references"].as_array().unwrap();
+    assert_eq!(references.len(), 19);
+    for reference in references {
+        let mut keys: Vec<&str> = reference
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        let expected: &[&str] = if reference.get("target_section").is_some() {
+            &["kind", "section", "target_rfc", "target_section"]
+        } else {
+            &["kind", "section", "target_rfc"]
+        };
+        assert_eq!(keys, expected, "{reference}");
+        assert_eq!(reference["kind"], "normative");
+    }
+    assert!(references.contains(&serde_json::json!({
+        "section": "introduction",
+        "target_rfc": 8441,
+        "kind": "normative"
+    })));
+    assert!(references.contains(&serde_json::json!({
+        "section": "websockets-upgrade-over-http3",
+        "target_rfc": 9110,
+        "target_section": "15.6.2",
+        "kind": "normative"
+    })));
 }
 
 fn extract(profile: &Path) -> Output {

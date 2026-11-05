@@ -575,6 +575,8 @@ mod tests {
             sha256: String::new(),
             format: Default::default(),
             furniture: vec![],
+            references: vec![],
+            reference_counts: None,
             blocks: vec![block],
         };
         let catalogue = extract(&document);

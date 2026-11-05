@@ -1,6 +1,6 @@
 //! Adversarial cases for the RFCXML v3 reader: markup the RFC 9220 fixture does not hold.
 
-use rfcspec_model::{Block, BlockKind, Document};
+use rfcspec_model::{Block, BlockKind, Document, Reference, ReferenceCounts, ReferenceKind};
 
 fn read(body: &str) -> Document {
     let source = format!(
@@ -125,6 +125,123 @@ fn an_external_entity_is_not_resolved() {
             document.blocks
         );
     }
+}
+
+/// An RFC citing itself through a `<reference>`, a document that is not an RFC, an RFC in an
+/// informative group nested in a references section, a reference group of one RFC, its own
+/// anchor and `pn`, and an anchor that names nothing.
+#[test]
+fn xrefs_resolve_through_their_reference_and_its_group() {
+    let source = "<rfc version=\"3\" number=\"7000\">
+<front><abstract pn=\"section-abstract\"><t>See <xref target=\"RFC1\"/>.</t></abstract></front>
+<middle>
+<section anchor=\"intro\" pn=\"section-1\">
+<name>Intro</name>
+<t><xref target=\"SELF\"/> <xref target=\"ID\"/> <xref target=\"RFC1\" section=\"2.1\"/>
+<xref target=\"BCP14\"/> <xref target=\"intro\"/> <xref target=\"section-1\"/> <xref target=\"missing\"/>
+<xref target=\"RFC2\" section=\"3\" sectionFormat=\"bare\"/></t>
+</section>
+</middle>
+<back>
+<references pn=\"section-2\">
+<name>References</name>
+<references pn=\"section-2.1\">
+<name>Normative References</name>
+<reference anchor=\"RFC2\"><front><title>Two</title></front><seriesInfo name=\"RFC\" value=\"2\"/></reference>
+<referencegroup anchor=\"BCP14\">
+<reference anchor=\"RFC2119\"><front><title>K</title></front><seriesInfo name=\"RFC\" value=\"2119\"/></reference>
+</referencegroup>
+</references>
+<references pn=\"section-2.2\">
+<name>Informative References</name>
+<reference anchor=\"RFC1\"><front><title>One</title></front><seriesInfo name=\"RFC\" value=\"1\"/><seriesInfo name=\"DOI\" value=\"10.17487/RFC0001\"/></reference>
+<reference anchor=\"SELF\"><front><title>Me</title></front><seriesInfo name=\"RFC\" value=\"7000\"/></reference>
+<reference anchor=\"ID\"><front><title>Draft</title></front><seriesInfo name=\"Internet-Draft\" value=\"draft-x-00\"/></reference>
+</references>
+</references>
+</back>
+</rfc>
+";
+    let document = rfcspec_doc::xml::read(7000, "d", source).unwrap();
+    let reference =
+        |section: &str, target_rfc: u32, target_section: Option<&str>, kind| Reference {
+            section: Some(section.to_string()),
+            target_rfc,
+            target_section: target_section.map(String::from),
+            kind,
+        };
+    assert_eq!(
+        document.references,
+        [
+            reference("section-abstract", 1, None, ReferenceKind::Informative),
+            reference("intro", 1, Some("2.1"), ReferenceKind::Informative),
+            reference("intro", 2119, None, ReferenceKind::Normative),
+            reference("intro", 2, Some("3"), ReferenceKind::Normative),
+        ]
+    );
+    assert_eq!(
+        document.reference_counts,
+        Some(ReferenceCounts {
+            self_references: 3,
+            non_rfc: 1,
+            unresolved: 1
+        })
+    );
+}
+
+/// An xref to a reference group of several members cites each member with an RFC number, without
+/// a target section, since the section of a group names no one member; a member that is no RFC
+/// counts once as non-RFC, a member naming the citing RFC once as a self-reference. RFC numbers
+/// come from a `seriesInfo name="RFC"` with an `RFC` prefix in any case, with or without a space,
+/// else from an RFC DOI.
+#[test]
+fn an_xref_to_a_group_of_several_members_cites_each_rfc_member() {
+    let source = "<rfc version=\"3\" number=\"7000\">
+<middle>
+<section anchor=\"intro\" pn=\"section-1\">
+<name>Intro</name>
+<t><xref target=\"BCP195\" section=\"4\"/> <xref target=\"PREFIXED\"/> <xref target=\"DOI\"/></t>
+</section>
+</middle>
+<back>
+<references pn=\"section-2\">
+<name>Informative References</name>
+<referencegroup anchor=\"BCP195\">
+<reference anchor=\"RFC8996\"><front><title>A</title></front><seriesInfo name=\"BCP\" value=\"195\"/><seriesInfo name=\"RFC\" value=\"8996\"/></reference>
+<reference anchor=\"RFC9325\"><front><title>B</title><seriesInfo name=\"RFC\" value=\"rfc 9325\"/></front></reference>
+<reference anchor=\"DRAFT\"><front><title>C</title></front><seriesInfo name=\"Internet-Draft\" value=\"draft-x-00\"/></reference>
+<reference anchor=\"ME\"><front><title>D</title></front><seriesInfo name=\"RFC\" value=\"RFC7000\"/></reference>
+</referencegroup>
+<reference anchor=\"PREFIXED\"><front><title>E</title></front><seriesInfo name=\"RFC\" value=\"RFC9785\"/></reference>
+<reference anchor=\"DOI\"><front><title>F</title></front><seriesInfo name=\"RFC\" value=\"pending\"/><seriesInfo name=\"DOI\" value=\"10.17487/RFC0791\"/></reference>
+</references>
+</back>
+</rfc>
+";
+    let document = rfcspec_doc::xml::read(7000, "d", source).unwrap();
+    let informative = |target_rfc| Reference {
+        section: Some("intro".to_string()),
+        target_rfc,
+        target_section: None,
+        kind: ReferenceKind::Informative,
+    };
+    assert_eq!(
+        document.references,
+        [
+            informative(8996),
+            informative(9325),
+            informative(9785),
+            informative(791)
+        ]
+    );
+    assert_eq!(
+        document.reference_counts,
+        Some(ReferenceCounts {
+            self_references: 1,
+            non_rfc: 1,
+            unresolved: 0
+        })
+    );
 }
 
 /// Six levels of tenfold entity expansion: a 600-byte source that expands to 3 MB of text. A

@@ -3,7 +3,9 @@
 
 use std::{fs, path::PathBuf};
 
-use rfcspec_model::{Block, BlockKind, Document, SourceFormat, Span};
+use rfcspec_model::{
+    Block, BlockKind, Document, Reference, ReferenceCounts, ReferenceKind, SourceFormat, Span,
+};
 
 const XML_SHA256: &str = "8a60d0b566bfb252ff18a3dc3df9fe94e90b201b807002a47d45386616b09aae";
 const TEXT_SHA256: &str = "4bac5e1368db199468345dbd2d31ebb4abb7509732b1ae08108cc4860e8967db";
@@ -412,4 +414,58 @@ fn a_document_that_is_not_rfcxml_v3_is_refused() {
     assert!(rfcspec_doc::xml::read(1, "d", "<rfc version=\"2\"/>").is_err());
     assert!(rfcspec_doc::xml::read(1, "d", "<html/>").is_err());
     assert!(rfcspec_doc::xml::read(1, "d", "not xml").is_err());
+}
+
+#[test]
+fn every_xref_to_another_rfc_is_a_reference_and_the_others_are_counted() {
+    let document = xml();
+    assert_eq!(fixture("rfc9220.xml").matches("<xref").count(), 35);
+    assert_eq!(
+        document.reference_counts,
+        Some(ReferenceCounts {
+            self_references: 16,
+            non_rfc: 0,
+            unresolved: 0
+        })
+    );
+    let normative = |section: &str, target_rfc: u32, target_section: Option<&str>| Reference {
+        section: Some(section.to_string()),
+        target_rfc,
+        target_section: target_section.map(String::from),
+        kind: ReferenceKind::Normative,
+    };
+    let introduction = "introduction";
+    let conventions = "conventions-and-definitions";
+    let upgrade = "websockets-upgrade-over-http3";
+    assert_eq!(
+        document.references,
+        [
+            normative(introduction, 8441, None),
+            normative(introduction, 8441, None),
+            normative(introduction, 9113, None),
+            normative(introduction, 9114, None),
+            normative(introduction, 9114, Some("A.3")),
+            normative(conventions, 2119, None),
+            normative(conventions, 8174, None),
+            normative(upgrade, 8441, None),
+            normative(upgrade, 6455, None),
+            normative(upgrade, 8441, None),
+            normative(upgrade, 9114, Some("A.3")),
+            normative(upgrade, 9110, Some("15.6.2")),
+            normative(upgrade, 7807, None),
+            normative(upgrade, 6455, None),
+            normative(upgrade, 9114, Some("4.4")),
+            normative(upgrade, 9114, Some("8")),
+            normative(upgrade, 9114, Some("8.1")),
+            normative("security-considerations", 8441, None),
+            normative("iana-considerations", 9114, Some("11.2.2")),
+        ]
+    );
+}
+
+#[test]
+fn a_text_document_has_no_references_and_no_reference_counts() {
+    let document = text();
+    assert!(document.references.is_empty());
+    assert_eq!(document.reference_counts, None);
 }
