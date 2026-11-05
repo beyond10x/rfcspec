@@ -23,11 +23,15 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 ## Communication semantics
 
-No communication semantics declared.
+One row per layer, as `profile.yaml` declares them ([communication semantics](/docs/concepts/communication-semantics)).
+
+| Layer | Unit | Delivery | Direction | Multiplexing | Exchange | Correlation | Lifetime | Over | Roles |
+|---|---|---|---|---|---|---|---|---|---|
+| udp (port 123) | datagrams | unordered, lossy, duplicates | half-duplex | single | request-response | by-id | association | not declared | client, server |
 
 ## Requirement matrix
 
-Reviewed: 4 requirements, by level 1 MUST, 1 SHOULD, 2 MAY; by status 1 satisfied, 3 unsupported, 0 not applicable.
+Reviewed: 9 requirements, by level 6 MUST, 1 SHOULD, 2 MAY; by status 5 satisfied, 4 unsupported, 0 not applicable.
 
 Unreviewed: 10 requirements of the mechanical catalogue of RFC 5905 have no status, by level 6 MUST, 1 MUST NOT, 2 SHOULD, 1 MAY. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
 
@@ -39,10 +43,19 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R9.2-2 | MAY | all | Implementations supporting public key authentication MAY run the Autokey or equivalent security protocol. | lines 1924-1925 | unsupported | applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only |
 | R9.2-3 | SHOULD | all | Implementations SHOULD set the association mode to 3 and run a short client/server exchange to determine the propagation delay. | lines 1926-1927 | unsupported | applies to a broadcast client association mobilized by a NEWBC packet, and the profile models client/server mode only |
 | R-VN-1 | MUST | all | Format checks require correct field length and alignment, acceptable version number (1-4) | lines 1812-1814 | satisfied | layout.header |
+| R8-BOGUS-1 | MUST | all | A packet is bogus if the origin timestamp t1 in the packet does not match the xmt state variable T1. | lines 1590-1591 | satisfied | exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first |
+| R8-REPLAY-1 | MUST | all | To protect against replay of the last transmitted packet, the xmt state variable is set to zero immediately after a successful bogus check. | lines 1593-1595 | satisfied | exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first |
+| R8-DUP-1 | MUST | all | a packet is duplicate or replay if the transmit timestamp t3 in the packet matches the org state variable T3. | lines 1588-1590 | unsupported | ess-gap G1: accepting requires the transmit timestamp t3 to differ from org, an inequality, and the server's xmt and rec are not modelled |
+| R8-LOSS-1 | MUST | all | It is inherently resistant to lost or duplicate packets. | lines 1434-1435 | satisfied | exchange.server.R8-LOSS-1-replay |
+| R9.2-FXMIT-1 | MUST | all | the server constructs a server (mode 4) packet and returns it to the client without retaining state. | lines 1862-1863 | satisfied | exchange.server.R9.2-FXMIT-1-answer |
 
 ## ESS gaps
 
-No ESS gap.
+Requirements marked unsupported because ESS cannot carry their rule yet, by gap of the [gaps table](/docs/design#7-lowering-to-ess-and-the-gaps).
+
+| Gap | Requirements |
+|---|---|
+| [G1](/docs/design#7-lowering-to-ess-and-the-gaps) | R8-DUP-1 |
 
 ### Unsupported, no ESS gap
 
@@ -62,5 +75,6 @@ The files under [`profiles/ntp/generated/`](https://github.com/beyond10x/rfcspec
 
 | File | What | Bytes | SHA-256 |
 |---|---|---|---|
+| [`exchange.protospec.yaml`](pathname:///rfcspec/downloads/ntp/exchange.protospec.yaml) | `ess-protospec/1` model of machine `exchange` | 5122 | `7b0262ff31e27ffd0f7f69155aed22091ecbce1256d56280efd3b5f1191f9c97` |
 | [`rust/Cargo.toml`](pathname:///rfcspec/downloads/ntp/rust/Cargo.toml) | generated Rust crate | 283 | `756bebe40266ee997aef8131a53e3ff90bf92ac85646c508f3b69de4d19330ef` |
 | [`rust/src/lib.rs`](pathname:///rfcspec/downloads/ntp/rust/src/lib.rs) | generated Rust crate | 10183 | `be1e88618fdf596cbcb4984d208bfb82d12e214fb77bfe88cc9975e99ea6c5c5` |

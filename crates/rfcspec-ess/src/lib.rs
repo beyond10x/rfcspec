@@ -1444,6 +1444,196 @@ mod tests {
         );
     }
 
+    fn ntp() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/ntp")
+    }
+
+    fn ntp_overlay() -> Overlay {
+        read_yaml(&ntp().join("overlay.yaml")).unwrap()
+    }
+
+    #[test]
+    fn the_committed_exchange_model_equals_a_fresh_lowering_and_explore_passes_it() {
+        let lowered = lower(&ntp_overlay(), "ntp").unwrap();
+        let files: Vec<&str> = lowered.iter().map(|g| g.file.as_str()).collect();
+        assert_eq!(files, ["exchange.protospec.yaml"]);
+        assert_eq!(
+            fs::read_to_string(ntp().join("generated/exchange.protospec.yaml")).unwrap(),
+            lowered[0].text
+        );
+        let model = parsed(&lowered[0]);
+        assert_eq!(model["name"], "rfc5905-ntp-exchange");
+        assert_eq!(
+            model["bounds"],
+            serde_json::json!({"max_steps": 64, "max_states": 2048, "max_time_ms": 60000})
+        );
+        for channel in model["channels"].as_array().unwrap() {
+            assert_eq!(channel["capacity"], 3, "{channel}");
+            assert_eq!(channel["loss"], true, "{channel}");
+        }
+        assert_eq!(
+            model["messages"],
+            serde_json::json!([
+                {"name": "request", "fields": [{"name": "xmt", "type": "Integer"}]},
+                {"name": "response", "fields": [{"name": "org", "type": "Integer"}]}
+            ])
+        );
+        let client = participant(&model, "client");
+        assert_eq!(
+            client["states"],
+            serde_json::json!(["idle", "first", "second", "ended"])
+        );
+        assert_eq!(
+            client["fields"],
+            serde_json::json!([{"name": "xmt", "type": "Integer", "initial": 0}])
+        );
+        assert_eq!(client["timers"], serde_json::json!(["poll"]));
+        assert_eq!(
+            client["inputs"],
+            serde_json::json!([{"name": "mobilize", "fields": []}])
+        );
+        let accepts: Vec<_> = transitions(&model, "client")
+            .into_iter()
+            .filter(|t| t["guards"].is_array())
+            .collect();
+        assert_eq!(accepts.len(), 2);
+        for (accept, (state, stamp)) in accepts.iter().zip([("first", 1), ("second", 2)]) {
+            assert_eq!(accept["from"], state);
+            assert_eq!(
+                accept["guards"],
+                serde_json::json!([
+                    {"left": {"kind": "input", "field": "org"}, "right": {"kind": "local", "field": "xmt"}},
+                    {"left": {"kind": "local", "field": "xmt"}, "right": {"kind": "literal", "value": stamp}}
+                ])
+            );
+            assert_eq!(
+                accept["effects"],
+                serde_json::json!([
+                    {"kind": "set", "field": "xmt", "value": {"kind": "literal", "value": 0}},
+                    {"kind": "emit", "name": "valid-packet"}
+                ])
+            );
+        }
+        let discards: Vec<&str> = transitions(&model, "client")
+            .into_iter()
+            .filter(|t| t["trigger"]["kind"] == "receive" && !t["guards"].is_array())
+            .map(|t| t["from"].as_str().unwrap())
+            .collect();
+        assert_eq!(discards, ["first", "second", "ended"]);
+        let polls: Vec<(&str, &str, Vec<String>)> = transitions(&model, "client")
+            .into_iter()
+            .filter(|t| t["trigger"]["kind"] != "receive")
+            .map(|t| {
+                (
+                    t["from"].as_str().unwrap(),
+                    t["to"].as_str().unwrap(),
+                    effect_kinds(t).into_iter().map(str::to_owned).collect(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            polls,
+            [
+                (
+                    "idle",
+                    "first",
+                    vec!["set".into(), "send".into(), "arm".into()]
+                ),
+                (
+                    "first",
+                    "second",
+                    vec!["set".into(), "send".into(), "arm".into()]
+                ),
+                ("second", "ended", vec![]),
+            ]
+        );
+        let server = participant(&model, "server");
+        assert_eq!(
+            server["states"],
+            serde_json::json!(["listening", "replayed"])
+        );
+        let replays: Vec<_> = transitions(&model, "server")
+            .into_iter()
+            .filter(|t| t["trigger"]["kind"] == "input")
+            .collect();
+        assert_eq!(replays.len(), 1);
+        assert_eq!(
+            (replays[0]["from"].as_str(), replays[0]["to"].as_str()),
+            (Some("listening"), Some("replayed"))
+        );
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([{"kind": "event_count", "name": "one-valid-packet-per-poll", "participant": "client", "event": "valid-packet", "max": 2}])
+        );
+        assert_eq!(
+            fs::read_to_string(ntp().join("witnesses/exchange.inputs.json")).unwrap(),
+            "[\n  {\"kind\":\"input\",\"participant\":\"server\",\"name\":\"replay\",\"payload\":{\"org\":1}},\n  {\"kind\":\"input\",\"participant\":\"server\",\"name\":\"replay\",\"payload\":{\"org\":2}}\n]\n"
+        );
+        let report = explore(
+            &ntp().join("generated/exchange.protospec.yaml"),
+            &ntp().join("witnesses/exchange.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    /// Lower the ntp overlay with `mutate` applied to its client and explore it with the
+    /// committed witness.
+    fn explore_mutant_exchange(
+        mutate: impl Fn(&mut rfcspec_model::Transition) -> bool,
+    ) -> serde_json::Value {
+        let mut overlay = ntp_overlay();
+        let client = overlay.machines[0]
+            .participants
+            .iter_mut()
+            .find(|p| p.name == "client")
+            .unwrap();
+        let mutated = client
+            .transitions
+            .iter_mut()
+            .map(|t| usize::from(mutate(t)))
+            .sum::<usize>();
+        assert_eq!(mutated, 2);
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "ntp").unwrap()).unwrap();
+        explore(
+            &out.path().join("exchange.protospec.yaml"),
+            &ntp().join("witnesses/exchange.inputs.json"),
+        )
+        .unwrap()
+    }
+
+    fn violates_one_valid_packet_per_poll(report: &serde_json::Value) {
+        assert_eq!(report["verdict"], "failed", "{report:#}");
+        let reason = report["reason"].as_str().unwrap();
+        assert!(
+            reason.contains("property violated") && reason.contains("one-valid-packet-per-poll"),
+            "{reason}"
+        );
+    }
+
+    #[test]
+    fn a_mutant_client_that_accepts_without_the_origin_guard_violates_one_valid_packet_per_poll() {
+        let report = explore_mutant_exchange(|transition| {
+            let guarded = !transition.guards.is_empty();
+            transition.guards.clear();
+            guarded
+        });
+        violates_one_valid_packet_per_poll(&report);
+    }
+
+    #[test]
+    fn a_mutant_client_that_keeps_xmt_after_the_check_violates_one_valid_packet_per_poll() {
+        let report = explore_mutant_exchange(|transition| {
+            let before = transition.effects.len();
+            transition
+                .effects
+                .retain(|e| !matches!(e, Effect::Set(set) if set.field == "xmt" && set.value == OverlayValue::Integer(0)));
+            before != transition.effects.len()
+        });
+        violates_one_valid_packet_per_poll(&report);
+    }
+
     /// An overlay of one synthetic two-participant machine, read from YAML.
     fn synthetic(machine: &str) -> Overlay {
         Overlay {

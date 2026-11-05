@@ -530,7 +530,10 @@ fn semantics(page: &mut String, entry: &Entry) {
     for layer in &entry.profile.semantics {
         page.push_str(&format!(
             "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |\n",
-            cell(&layer.layer),
+            match layer.port {
+                Some(port) => cell(&format!("{} (port {port})", layer.layer)),
+                None => cell(&layer.layer),
+            },
             wire(&layer.unit),
             layer.delivery.describe(),
             wire(&layer.direction),
@@ -944,6 +947,22 @@ mod tests {
             self::page(&fixture())
                 .contains("## Communication semantics\n\nNo communication semantics declared.\n")
         );
+    }
+
+    #[test]
+    fn a_declared_port_shows_in_its_layer_cell_and_an_absent_one_changes_nothing() {
+        let mut entry = time();
+        let before = page(&entry);
+        entry.profile.semantics[1].port = std::num::NonZeroU16::new(37);
+        assert_eq!(
+            rows(&page(&entry), "## Communication semantics"),
+            [
+                "| tcp | bytes | ordered, reliable, no duplicates | simplex | single | one-shot | none | connection | not declared | client, server |",
+                "| udp (port 37) | datagrams | unordered, lossy, duplicates | half-duplex | single | request-response | none | connectionless | not declared | client, server |",
+            ]
+        );
+        entry.profile.semantics[1].port = None;
+        assert_eq!(page(&entry), before);
     }
 
     #[test]
