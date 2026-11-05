@@ -206,7 +206,7 @@ fn summarise_writes_a_summary_check_accepts_with_the_locked_digests_and_extracte
     let lines = lines(&summary);
     let header: Value = serde_json::from_str(&lines[0]).unwrap();
     assert_eq!(header["format"], "rfcspec-bulk/1");
-    assert_eq!(header["extractor"], 1);
+    assert_eq!(header["extractor"], 2);
     assert_eq!(header["rows"], 5);
     assert_eq!(
         header["index_sha256"],

@@ -35,7 +35,7 @@ pub const LEVELS: &[&str] = &[
 
 /// The version of the extraction: raised whenever [`extract`] or `rfcspec_doc::read` changes the
 /// catalogue of some text, so a bulk summary records which extraction its counts came from.
-pub const EXTRACTOR_VERSION: u32 = 1;
+pub const EXTRACTOR_VERSION: u32 = 2;
 
 /// The number of a catalogue's BCP 14 requirements at each level that has any, keyed by the level
 /// as [`LEVELS`] spells it.

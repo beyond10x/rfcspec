@@ -12,14 +12,23 @@
 //!   block;
 //! - an indented group whose first line defines an ABNF rule (`name = ...`) or that draws a
 //!   diagram (a border line starting with `+-` or `+ -`) is a figure;
+//! - before the first section heading, an indented multi-line group that starts with a
+//!   table-of-contents entry (`5.2.  Title`, `A.1.  Title`, `Appendix A.  Title`), holds at least
+//!   two, and has no line ending in closing punctuation is a table of contents, read as a figure;
+//! - a one-line list item (a line starting with a mark `*`, `-`, `o` or `+` and two spaces) is a
+//!   paragraph;
 //! - a one-line group without closing punctuation is a heading;
 //! - a run of one-line groups indented deeper than the body text, each one blank line from the
 //!   next, is one figure (the dialogue lines and example lists of older RFCs); the body text's
 //!   indentation is the most common one among the lines of multi-line groups;
-//! - every other group is a paragraph.
+//! - every other group is a paragraph, split into one paragraph per list item and one for the
+//!   text before and after a list (not in a group opening or closing a C comment, whose `*`
+//!   lines continue it); a group of `|` lines is an aside, read without its bars, a line of only
+//!   `|` ending a paragraph.
 //!
-//! A numbered heading is an unindented line `N.  Title`, `N.M.  Title`, ...; every block from it to
-//! the next one carries its number.
+//! A section heading is an unindented line `N.  Title`, `N.M.  Title`, ... (a numbered heading),
+//! or `Appendix A.  Title`, `A.1.  Title`, ... (an appendix heading); every block from it to the
+//! next one carries its number.
 
 pub mod xml;
 
@@ -103,29 +112,30 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
     };
 
     let sections = sections(&lines, &is_furniture);
+    let contents = |(start, end): (usize, usize)| {
+        let first = lines[start];
+        start < end
+            && indented((start, end))
+            && sections[start].is_none()
+            && (start..=end)
+                .filter(|&index| !blank(index) && toc_entry(lines[index]))
+                .take(2)
+                .count()
+                == 2
+            && (start..=end).filter(|&index| !blank(index)).all(|index| {
+                !lines[index]
+                    .trim_end()
+                    .ends_with(['.', ',', ':', ';', '?', '!'])
+            })
+            && toc_entry(first)
+    };
     let mut blocks = Vec::new();
-    let mut next = 0;
-    while next < groups.len() {
-        let group = groups[next];
-        next += 1;
-        let (kind, start, end) = if drawn(group) {
-            (BlockKind::Figure, group.0, group.1)
-        } else if heading(group) {
-            (BlockKind::Heading, group.0, group.1)
-        } else if figure_line(group) {
-            let mut end = group.1;
-            while next < groups.len() && figure_line(groups[next]) && groups[next].0 == end + 2 {
-                end = groups[next].1;
-                next += 1;
-            }
-            (BlockKind::Figure, group.0, end)
-        } else {
-            (BlockKind::Paragraph, group.0, group.1)
-        };
+    let mut push = |kind: BlockKind, start: usize, end: usize, aside: bool| {
         let block_lines = (start..=end)
             .map(|index| match kind {
                 _ if is_furniture[index] => String::new(),
                 BlockKind::Figure => lines[index].trim_end().to_string(),
+                BlockKind::Paragraph if aside => aside_text(lines[index]).to_string(),
                 BlockKind::Heading | BlockKind::Paragraph => lines[index].trim().to_string(),
             })
             .collect();
@@ -142,6 +152,37 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
             bcp14: Vec::new(),
             entries: Vec::new(),
         });
+    };
+    let mut next = 0;
+    while next < groups.len() {
+        let group = groups[next];
+        next += 1;
+        let (kind, start, end) = if drawn(group) || contents(group) {
+            (BlockKind::Figure, group.0, group.1)
+        } else if group.0 == group.1 && bullet(lines[group.0]) {
+            (BlockKind::Paragraph, group.0, group.1)
+        } else if heading(group) {
+            (BlockKind::Heading, group.0, group.1)
+        } else if figure_line(group) {
+            let mut end = group.1;
+            while next < groups.len() && figure_line(groups[next]) && groups[next].0 == end + 2 {
+                end = groups[next].1;
+                next += 1;
+            }
+            (BlockKind::Figure, group.0, end)
+        } else {
+            (BlockKind::Paragraph, group.0, group.1)
+        };
+        if kind != BlockKind::Paragraph {
+            push(kind, start, end, false);
+            continue;
+        }
+        let aside = (start..=end)
+            .filter(|&index| !blank(index))
+            .all(|index| aside_line(lines[index]));
+        for (start, end) in paragraphs(&lines, &is_furniture, start, end, aside) {
+            push(BlockKind::Paragraph, start, end, aside);
+        }
     }
 
     Document {
@@ -194,7 +235,158 @@ pub fn numbered_heading(line: &str) -> Option<&str> {
     (numbered && !title.trim().is_empty()).then_some(number)
 }
 
-/// The section of every source line: the number of the last numbered heading at or before it.
+/// The number of an appendix heading, an unindented `Appendix A.  Title` (`A`) or `A.1.  Title`
+/// (`A.1`): one capital letter, then, without the `Appendix` prefix, at least one numeric part.
+pub fn appendix_heading(line: &str) -> Option<&str> {
+    if line.starts_with([' ', '\t']) {
+        return None;
+    }
+    let (prefixed, rest) = match line.strip_prefix("Appendix ") {
+        Some(rest) => (true, rest),
+        None => (false, line),
+    };
+    let (number, title) = rest.split_once(". ")?;
+    let mut parts = number.split('.');
+    let letter = parts.next()?;
+    let mut digits = 0;
+    for part in parts {
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        digits += 1;
+    }
+    let numbered = letter.len() == 1
+        && letter.bytes().all(|b| b.is_ascii_uppercase())
+        && (prefixed || digits > 0);
+    (numbered && !title.trim().is_empty()).then_some(number)
+}
+
+/// The number of a section heading: a [`numbered_heading`] or an [`appendix_heading`].
+pub fn section_heading(line: &str) -> Option<&str> {
+    numbered_heading(line).or_else(|| appendix_heading(line))
+}
+
+/// Whether a line is an indented table-of-contents entry: `5.2.  Title`, `A.1.  Title` or
+/// `Appendix A.  Title`, the title not ending a sentence.
+fn toc_entry(line: &str) -> bool {
+    if !line.starts_with([' ', '\t']) {
+        return false;
+    }
+    let line = line.trim();
+    let line = line.strip_prefix("Appendix ").unwrap_or(line);
+    let Some((number, title)) = line.split_once(char::is_whitespace) else {
+        return false;
+    };
+    let Some(number) = number.strip_suffix('.') else {
+        return false;
+    };
+    let mut parts = number.split('.');
+    let first = parts.next().unwrap_or_default();
+    let first_ok = (!first.is_empty() && first.bytes().all(|b| b.is_ascii_digit()))
+        || (first.len() == 1 && first.bytes().all(|b| b.is_ascii_uppercase()));
+    first_ok
+        && parts.all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+        && !title.trim().is_empty()
+}
+
+/// Whether a line belongs to an aside as plain text renders it: `|` alone, or `|` then text that
+/// does not end in `|` as a table row does.
+fn aside_line(line: &str) -> bool {
+    let line = line.trim();
+    line == "|" || (line.starts_with("| ") && !line.ends_with('|'))
+}
+
+/// An aside line's text without its `|` mark.
+fn aside_text(line: &str) -> &str {
+    let line = line.trim();
+    line.strip_prefix('|').unwrap_or(line).trim()
+}
+
+/// Whether a line starts a list item as RFCXML renders one: a mark (`*`, then `-`, `o` and `+`
+/// for nested lists), two spaces, then text.
+fn bullet(line: &str) -> bool {
+    ["*  ", "-  ", "o  ", "+  "].iter().any(|mark| {
+        line.trim_start()
+            .strip_prefix(mark)
+            .is_some_and(|text| !text.is_empty() && !text.starts_with([' ', '\t']))
+    })
+}
+
+/// Whether a line opens or closes a C comment, which makes its group code, whose `*` lines
+/// continue the comment rather than start list items.
+fn comment_mark(line: &str) -> bool {
+    let line = line.trim();
+    line.starts_with("/*") || line.starts_with("*/") || line.ends_with("*/")
+}
+
+/// Whether a line ends a sentence or clause: its last character, after closing quotes and
+/// brackets, is `.`, `!`, `?`, `:` or `;`.
+fn sentence_end(line: &str) -> bool {
+    line.trim_end()
+        .trim_end_matches(['"', '\'', ')', ']'])
+        .ends_with(['.', '!', '?', ':', ';'])
+}
+
+/// The paragraphs of one paragraph group, lines `start..=end`: each list item (a [`bullet`]
+/// line, with the lines after it that are indented deeper than its mark, or that sit at or left
+/// of its mark while the item's last line does not end a sentence, as a wrapped line does in
+/// RFC 3995 or RFC 2639) is its own paragraph,
+/// and so is the text before and after a list, unless the group is code (a [`comment_mark`]
+/// line); in an aside a line holding only `|` ends a paragraph. Leading and trailing furniture
+/// and blank lines are left out of each.
+fn paragraphs(
+    lines: &[&str],
+    is_furniture: &[bool],
+    start: usize,
+    end: usize,
+    aside: bool,
+) -> Vec<(usize, usize)> {
+    let skip = |index: usize| is_furniture[index] || lines[index].trim().is_empty();
+    let indent = |line: &str| line.len() - line.trim_start().len();
+    let mut found = Vec::new();
+    let mut piece: Option<(usize, usize)> = None;
+    let mut item: Option<usize> = None;
+    let mut close = |piece: &mut Option<(usize, usize)>| {
+        if let Some(done) = piece.take() {
+            found.push(done);
+        }
+    };
+    let code = (start..=end).any(|index| !skip(index) && comment_mark(lines[index]));
+    for (index, &line) in lines.iter().enumerate().take(end + 1).skip(start) {
+        if skip(index) {
+            continue;
+        }
+        if aside {
+            if aside_text(line).is_empty() {
+                close(&mut piece);
+            } else {
+                piece = Some((piece.map_or(index, |p| p.0), index));
+            }
+            continue;
+        }
+        let breaks = if code {
+            false
+        } else if bullet(line) {
+            item = Some(indent(line));
+            true
+        } else if item.is_some_and(|mark| indent(line) <= mark)
+            && piece.is_none_or(|(_, last)| sentence_end(lines[last]))
+        {
+            item = None;
+            true
+        } else {
+            false
+        };
+        if breaks {
+            close(&mut piece);
+        }
+        piece = Some((piece.map_or(index, |p| p.0), index));
+    }
+    close(&mut piece);
+    found
+}
+
+/// The section of every source line: the number of the last section heading at or before it.
 fn sections(lines: &[&str], is_furniture: &[bool]) -> Vec<Option<String>> {
     let mut current: Option<String> = None;
     lines
@@ -202,7 +394,7 @@ fn sections(lines: &[&str], is_furniture: &[bool]) -> Vec<Option<String>> {
         .enumerate()
         .map(|(index, line)| {
             if !is_furniture[index]
-                && let Some(number) = numbered_heading(line)
+                && let Some(number) = section_heading(line)
             {
                 current = Some(number.to_string());
             }
@@ -717,7 +909,7 @@ mod tests {
     }
 
     #[test]
-    fn rfc5905_has_37_numbered_headings_and_every_block_carries_its_section() {
+    fn rfc5905_has_37_numbered_and_31_appendix_headings_and_every_block_carries_its_section() {
         let text = rfc5905_text();
         let document = rfc5905();
         let headings: Vec<(usize, &str)> = text
@@ -756,8 +948,29 @@ mod tests {
         );
         assert_eq!(numbered_heading(line(1061)), None);
         assert_eq!(block_at(&document, 1061).section.as_deref(), Some("7.3"));
+        let all: Vec<(usize, &str)> = text
+            .lines()
+            .enumerate()
+            .filter_map(|(index, line)| section_heading(line).map(|n| (index + 1, n)))
+            .collect();
+        let appendix: Vec<(usize, &str)> = all
+            .iter()
+            .copied()
+            .filter(|heading| !headings.contains(heading))
+            .collect();
+        assert_eq!(all.len(), 37 + appendix.len());
+        assert_eq!(&all[..37], &headings[..]);
+        assert_eq!(appendix.first(), Some(&(3367, "A")));
+        assert!(line(3367).starts_with("Appendix A.  Code Skeleton"));
+        assert_eq!(appendix.last(), Some(&(6015, "A.5.7.3")));
+        assert!(
+            appendix.iter().all(|(_, n)| n.starts_with('A')),
+            "{appendix:?}"
+        );
+        assert_eq!(appendix.len(), 31);
+        assert_eq!(block_at(&document, 3394).section.as_deref(), Some("A.1"));
         for block in &document.blocks {
-            let expected = headings
+            let expected = all
                 .iter()
                 .rev()
                 .find(|(line, _)| *line <= block.span.start)

@@ -96,7 +96,7 @@ fn extract_lists_the_13_bcp14_requirements_with_their_sections() {
 }
 
 #[test]
-fn read_reports_329_furniture_lines_and_blocks_carry_the_37_headings_sections() {
+fn read_reports_329_furniture_lines_and_blocks_carry_the_37_numbered_and_31_appendix_sections() {
     let document = json(&["read", "--profile", PROFILE, "--rfc", "5905"]);
     assert_eq!(document["furniture"].as_array().unwrap().len(), 329);
     let blocks = document["blocks"].as_array().unwrap();
@@ -105,11 +105,17 @@ fn read_reports_329_furniture_lines_and_blocks_carry_the_37_headings_sections() 
         .filter_map(|block| block["section"].as_str())
         .collect();
     sections.dedup();
-    assert_eq!(sections.len(), 37, "{sections:?}");
+    assert_eq!(sections.len(), 37 + 31, "{sections:?}");
     assert_eq!((sections[0], sections[36]), ("1", "18.2"));
+    assert_eq!((sections[37], sections[67]), ("A", "A.5.7.3"));
     for section in &sections {
         let opens = blocks.iter().find(|block| block["section"] == *section);
         let first = opens.unwrap()["lines"][0].as_str().unwrap();
+        let first = if *section == "A" {
+            first.strip_prefix("Appendix ").unwrap()
+        } else {
+            first
+        };
         assert!(first.starts_with(&format!("{section}. ")), "{first}");
     }
     let at = |line: u64| {
