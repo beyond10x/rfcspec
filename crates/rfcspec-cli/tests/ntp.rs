@@ -172,7 +172,7 @@ fn dns_time_and_websocket_still_check_lower_and_generate_without_change() {
 }
 
 #[test]
-fn the_profile_names_rfc_5905_with_five_sections_and_no_semantics() {
+fn the_profile_names_rfc_5905_with_five_sections() {
     let profile: serde_json::Value = rfcspec_model::from_yaml(
         &fs::read_to_string(repository().join(PROFILE).join("profile.yaml")).unwrap(),
     )
@@ -197,19 +197,60 @@ fn the_profile_names_rfc_5905_with_five_sections_and_no_semantics() {
         .map(|s| s.as_str().unwrap())
         .collect();
     assert_eq!(sections, ["7.2", "7.3", "8", "9.2", "13"]);
+}
+
+/// Design section 6.2, NTP row; the port is Figure 6's `PORT`, line 906.
+#[test]
+fn the_profile_declares_one_udp_layer_on_port_123_and_the_page_shows_it() {
+    let text = fs::read_to_string(repository().join(PROFILE).join("sources/rfc5905.txt")).unwrap();
     assert!(
-        profile
-            .get("semantics")
-            .is_none_or(|s| s.as_array().is_some_and(Vec::is_empty)),
-        "{profile:?}"
+        text.lines()
+            .nth(905)
+            .unwrap()
+            .contains("| PORT      | 123   | NTP port number"),
+        "{}",
+        text.lines().nth(905).unwrap()
     );
+    let profile: rfcspec_model::Profile =
+        rfcspec_model::read_yaml(&repository().join(PROFILE).join("profile.yaml")).unwrap();
+    assert_eq!(profile.semantics.len(), 1);
+    assert_eq!(
+        rfcspec_model::to_yaml(&profile.semantics[0]).unwrap(),
+        "layer: udp\nunit: datagrams\ndelivery:\n  ordered: false\n  reliable: false\n  duplicates: true\ndirection: half-duplex\nmultiplexing: single\nexchange: request-response\ncorrelation: by-id\nlifetime: association\nport: 123\nroles:\n- client\n- server\n"
+    );
+    let outputs = catalog::outputs(&repository()).unwrap();
+    let page = &outputs["website/docs/catalog/ntp.md"];
+    let section = page
+        .split_once("## Communication semantics")
+        .unwrap()
+        .1
+        .split("\n## ")
+        .next()
+        .unwrap();
+    let rows: Vec<&str> = section
+        .lines()
+        .filter(|line| line.starts_with("| ") && !line.starts_with("| Layer"))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            "| udp (port 123) | datagrams | unordered, lossy, duplicates | half-duplex | single | request-response | by-id | association | not declared | client, server |"
+        ],
+        "{section}"
+    );
+    for other in ["dns", "time", "websocket"] {
+        let page = &outputs[format!("website/docs/catalog/{other}.md").as_str()];
+        assert!(!page.contains("(port "), "{other}");
+    }
 }
 
 /// `rfcspec check` requires a status for every catalogue requirement in a scoped section, so
 /// the three BCP 14 requirements of section 9.2 are settled; the prose requirement `R-VN-1`
-/// (the version range of section 9.2) is satisfied by the `header` layout.
+/// (the version range of section 9.2) is satisfied by the `header` layout, and the five prose
+/// requirements of the on-wire exchange (sections 8 and 9.2) by the `exchange` machine.
 #[test]
-fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_and_four_reviewed_requirements() {
+fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_the_exchange_machine_and_nine_reviewed_requirements()
+ {
     let overlay: serde_json::Value = rfcspec_model::from_yaml(
         &fs::read_to_string(repository().join(PROFILE).join("overlay.yaml")).unwrap(),
     )
@@ -218,14 +259,24 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_and_four_reviewed_requi
     assert_eq!(overlay["rfc"], 5905);
     assert_eq!(overlay["kind"], "K1");
     assert_eq!(overlay["layouts"][0]["name"], "header");
-    for absent in ["machines", "findings"] {
-        assert!(
-            overlay
-                .get(absent)
-                .is_none_or(|s| s.as_array().is_some_and(Vec::is_empty)),
-            "{absent}: {overlay:?}"
-        );
-    }
+    assert!(
+        overlay
+            .get("findings")
+            .is_none_or(|s| s.as_array().is_some_and(Vec::is_empty)),
+        "{overlay:?}"
+    );
+    let machines: Vec<(&str, &str)> = overlay["machines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| {
+            (
+                m["name"].as_str().unwrap(),
+                m["transport"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(machines, [("exchange", "udp")]);
     let settled: Vec<(&str, &str, &str, u64, u64)> = overlay["requirements"]
         .as_array()
         .unwrap()
@@ -246,7 +297,12 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_and_four_reviewed_requi
             ("R9.2-1", "capitals-text", "MAY", 1889, 1890),
             ("R9.2-2", "capitals-text", "MAY", 1924, 1925),
             ("R9.2-3", "capitals-text", "SHOULD", 1926, 1927),
-            ("R-VN-1", "prose", "MUST", 1812, 1814)
+            ("R-VN-1", "prose", "MUST", 1812, 1814),
+            ("R8-BOGUS-1", "prose", "MUST", 1590, 1591),
+            ("R8-REPLAY-1", "prose", "MUST", 1593, 1595),
+            ("R8-DUP-1", "prose", "MUST", 1588, 1590),
+            ("R8-LOSS-1", "prose", "MUST", 1434, 1435),
+            ("R9.2-FXMIT-1", "prose", "MUST", 1862, 1863),
         ]
     );
     let satisfied: Vec<(&str, &str)> = overlay["requirements"]
@@ -255,7 +311,125 @@ fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_and_four_reviewed_requi
         .iter()
         .filter_map(|r| Some((r["id"].as_str()?, r["status"]["satisfied"].as_str()?)))
         .collect();
-    assert_eq!(satisfied, [("R-VN-1", "layout.header")]);
+    assert_eq!(
+        satisfied,
+        [
+            ("R-VN-1", "layout.header"),
+            (
+                "R8-BOGUS-1",
+                "exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first"
+            ),
+            (
+                "R8-REPLAY-1",
+                "exchange.client.R8-BOGUS-1-R8-REPLAY-1-accept-first"
+            ),
+            ("R8-LOSS-1", "exchange.server.R8-LOSS-1-replay"),
+            ("R9.2-FXMIT-1", "exchange.server.R9.2-FXMIT-1-answer"),
+        ]
+    );
+    let quotes: Vec<(&str, &str)> = overlay["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .skip(4)
+        .map(|r| (r["id"].as_str().unwrap(), r["quote"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        quotes,
+        [
+            (
+                "R8-BOGUS-1",
+                "A packet is bogus if the origin timestamp t1 in the packet does not match the xmt state variable T1."
+            ),
+            (
+                "R8-REPLAY-1",
+                "To protect against replay of the last transmitted packet, the xmt state variable is set to zero immediately after a successful bogus check."
+            ),
+            (
+                "R8-DUP-1",
+                "a packet is duplicate or replay if the transmit timestamp t3 in the packet matches the org state variable T3."
+            ),
+            (
+                "R8-LOSS-1",
+                "It is inherently resistant to lost or duplicate packets."
+            ),
+            (
+                "R9.2-FXMIT-1",
+                "the server constructs a server (mode 4) packet and returns it to the client without retaining state."
+            ),
+        ]
+    );
+    let dup = &overlay["requirements"][6];
+    assert!(
+        dup["status"]["unsupported"]
+            .as_str()
+            .unwrap()
+            .contains("ess-gap G1"),
+        "{dup}"
+    );
+    let ids: std::collections::BTreeSet<&str> = overlay["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect();
+    for participant in overlay["machines"][0]["participants"].as_array().unwrap() {
+        for transition in participant["transitions"].as_array().unwrap() {
+            let implements = transition["implements"].as_array().unwrap();
+            assert!(!implements.is_empty(), "{transition}");
+            for id in implements {
+                assert!(ids.contains(id.as_str().unwrap()), "{transition}");
+            }
+        }
+    }
+}
+
+#[test]
+fn lower_writes_the_exchange_model_and_its_check_fails_without_it() {
+    succeeded(&rfcspec(&["lower", "--profile", PROFILE, "--check"]));
+    let (_temp, profile) = scratch("lower");
+    let from = repository().join(PROFILE);
+    for file in catalog::files(&from).unwrap() {
+        fs::create_dir_all(profile.join(&file).parent().unwrap()).unwrap();
+        fs::copy(from.join(&file), profile.join(&file)).unwrap();
+    }
+    let model = profile.join("generated/exchange.protospec.yaml");
+    fs::remove_file(&model).unwrap();
+    let output = rfcspec(&["lower", "--profile", profile.to_str().unwrap(), "--check"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("exchange.protospec.yaml is missing"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    succeeded(&rfcspec(&["lower", "--profile", profile.to_str().unwrap()]));
+    assert_eq!(
+        fs::read(&model).unwrap(),
+        fs::read(from.join("generated/exchange.protospec.yaml")).unwrap()
+    );
+    fs::remove_dir_all(profile).unwrap();
+}
+
+#[test]
+fn the_ntp_page_lists_the_exchange_model_and_the_five_exchange_requirements() {
+    let outputs = catalog::outputs(&repository()).unwrap();
+    let page = &outputs["website/docs/catalog/ntp.md"];
+    assert!(
+        page.contains(
+            "| [`exchange.protospec.yaml`](pathname:///rfcspec/downloads/ntp/exchange.protospec.yaml) | `ess-protospec/1` model of machine `exchange` |"
+        ),
+        "{page}"
+    );
+    assert!(outputs.contains_key("website/static/downloads/ntp/exchange.protospec.yaml"));
+    for row in [
+        "| R8-BOGUS-1 | MUST | all | A packet is bogus if the origin timestamp t1 in the packet does not match the xmt state variable T1. | lines 1590-1591 | satisfied |",
+        "| R8-REPLAY-1 | MUST | all | To protect against replay of the last transmitted packet, the xmt state variable is set to zero immediately after a successful bogus check. | lines 1593-1595 | satisfied |",
+        "| R8-DUP-1 | MUST | all | a packet is duplicate or replay if the transmit timestamp t3 in the packet matches the org state variable T3. | lines 1588-1590 | unsupported |",
+        "| R8-LOSS-1 | MUST | all | It is inherently resistant to lost or duplicate packets. | lines 1434-1435 | satisfied |",
+        "| R9.2-FXMIT-1 | MUST | all | the server constructs a server (mode 4) packet and returns it to the client without retaining state. | lines 1862-1863 | satisfied |",
+    ] {
+        assert!(page.contains(row), "{row} not in\n{page}");
+    }
 }
 
 #[test]
@@ -314,7 +488,7 @@ fn fetch_of_rfc_5905_twice_from_a_local_server_writes_the_committed_lock_and_cha
 }
 
 #[test]
-fn the_catalogue_lists_ntp_at_stage_s6_with_its_four_reviewed_requirements_and_writes_its_page() {
+fn the_catalogue_lists_ntp_at_stage_s6_with_its_nine_reviewed_requirements_and_writes_its_page() {
     let outputs = catalog::outputs(&repository()).unwrap();
     let index = &outputs["website/docs/catalog/index.md"];
     let row = index
@@ -323,7 +497,7 @@ fn the_catalogue_lists_ntp_at_stage_s6_with_its_four_reviewed_requirements_and_w
         .unwrap_or_else(|| panic!("{index}"));
     assert_eq!(
         row,
-        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 1 MUST, 1 SHOULD, 2 MAY | 1 | 3 | 0 | 10 | no recorded run |"
+        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 6 MUST, 1 SHOULD, 2 MAY | 5 | 4 | 0 | 10 | no recorded run |"
     );
     assert!(outputs.contains_key("website/docs/catalog/ntp.md"));
     for (path, text) in [
@@ -342,11 +516,12 @@ fn the_catalogue_lists_ntp_at_stage_s6_with_its_four_reviewed_requirements_and_w
 }
 
 #[test]
-fn check_reports_the_ntp_overlay_with_four_requirements_and_the_header_layout() {
+fn check_reports_the_ntp_overlay_with_nine_requirements_the_header_layout_and_the_exchange_machine()
+{
     let stdout = succeeded(&rfcspec(&["check", "--profile", PROFILE]));
     assert!(
         stdout.contains(
-            "profiles/ntp: overlay holds (4 requirements, 1 layouts, 0 machines, 0 findings, 0 layers, 0 recorded runs)"
+            "profiles/ntp: overlay holds (9 requirements, 1 layouts, 1 machines, 0 findings, 1 layers, 0 recorded runs)"
         ),
         "{stdout}"
     );
@@ -408,6 +583,8 @@ fn the_ntp_codec_is_a_workspace_member_and_task_check_runs_the_ntp_task() {
     assert_eq!(
         ntp,
         [
+            "cargo run -q --locked -p rfcspec-cli -- lower --profile profiles/ntp --check",
+            "ess protocol explore --path profiles/ntp/generated/exchange.protospec.yaml --inputs profiles/ntp/witnesses/exchange.inputs.json | grep -q '\"verdict\": \"passed\"'",
             "cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/ntp --check",
             "cargo test -q --locked -p rfc5905-ntp",
         ]

@@ -3,3 +3,14 @@ rfcs:
   - number: 5905
     title: "Network Time Protocol Version 4: Protocol and Algorithms Specification"
     sections: ["7.2", "7.3", "8", "9.2", "13"]
+semantics:
+  - layer: udp
+    unit: datagrams
+    delivery: {ordered: false, reliable: false, duplicates: true}
+    direction: half-duplex
+    multiplexing: single
+    exchange: request-response
+    correlation: by-id
+    lifetime: association
+    port: 123
+    roles: [client, server]
