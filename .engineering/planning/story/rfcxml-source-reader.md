@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:rfcxml-source-reader
 kind: story
-status: active
+status: implemented
 title: Lock RFC 9220's RFCXML v3 source and read it into the normalized document, with section anchors and bcp14 marks
 relations:
 - decomposes: epic:rfcxml-reader
@@ -24,10 +24,11 @@ scope:
   path: crates/rfcspec-model/src/lib.rs
 - confidence: inferred
   path: crates/rfcspec-source/src/lib.rs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T15:46:56Z", actor: "human:timo", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-05T15:46:57Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-05T16:17:34Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Story
 
