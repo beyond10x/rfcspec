@@ -1101,6 +1101,7 @@ name = "rfcspec-abnf"
 version = "0.1.0"
 dependencies = [
  "rfcspec-doc",
+ "rfcspec-model",
 ]
 
 [[package]]
