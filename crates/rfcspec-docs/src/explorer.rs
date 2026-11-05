@@ -22,12 +22,40 @@ use rfcspec_explorer_types::{
     ExplorerRfc, ExplorerSection, ExplorerShard, LevelCount, ReferenceKind, RfcNumber,
     SourceFormat, YearMonth,
 };
-use rfcspec_model::{BulkHeader, BulkRow, SECTIONS_FORMAT, SectionsRow};
+use rfcspec_model::{
+    BulkHeader, BulkRow, Constraint, Decision, DecisionKind, Layout, Machine, Requirement,
+    SECTIONS_FORMAT, SectionsRow, Status, sha256_hex,
+};
 use serde_json::Number;
+
+/// The generated types of `rfcspec.profile.ExplorerProfile` and the view rows it holds, by the
+/// last segment of their qualified names.
+mod profile_types {
+    pub use rfcspec_explorer_profile_types::{
+        EssPresence, RfcspecCatalogueConstraintKind as ConstraintKind,
+        RfcspecCatalogueDigest as Digest, RfcspecCatalogueFieldConstraint as FieldConstraint,
+        RfcspecCatalogueItemId as ItemId, RfcspecCatalogueLayoutField as LayoutField,
+        RfcspecCatalogueLayoutState as LayoutState, RfcspecCatalogueLevelCount as LevelCount,
+        RfcspecCataloguePresence as Presence, RfcspecCatalogueRfcNumber as RfcNumber,
+        RfcspecProfileExplorerDecision as ExplorerDecision,
+        RfcspecProfileExplorerDecisionRow as ExplorerDecisionRow,
+        RfcspecProfileExplorerLayout as ExplorerLayout,
+        RfcspecProfileExplorerLayoutRow as ExplorerLayoutRow,
+        RfcspecProfileExplorerMachine as ExplorerMachine,
+        RfcspecProfileExplorerProfile as ExplorerProfile,
+        RfcspecProfileExplorerRequirement as ExplorerRequirement,
+        RfcspecProfileExplorerStatus as ExplorerStatus, RfcspecProfileMachineKey as MachineKey,
+        RfcspecProfileMachineState as MachineState, RfcspecProfileProfileName as ProfileName,
+        RfcspecProfileStatusKey as StatusKey, RfcspecProfileStatusKind as StatusKind,
+        RfcspecProfileStatusState as StatusState, RfcspecReviewDecisionKey as DecisionKey,
+        RfcspecReviewDecisionKind as DecisionKind, RfcspecReviewDecisionState as DecisionState,
+        RfcspecReviewModelId as ModelId, RfcspecReviewProposalId as ProposalId,
+    };
+}
 
 use crate::{
     bulk::{SUMMARY, Summary, locked},
-    catalog::rank,
+    catalog::{Entry, rank},
     page::BASE_URL,
 };
 
@@ -320,6 +348,300 @@ pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
     .with_context(|| format!("reading {SECTIONS}"))?;
     let mut out = render(&summary, &sidecar)?;
     out.insert(INDEX.to_owned(), index(&summary, &locked(root)?)?);
+    Ok(out)
+}
+
+/// Where the profile files land, relative to the repository root.
+pub const PROFILES_DIR: &str = "website/static/data/profiles";
+/// The profile file format.
+pub const PROFILE_FORMAT: &str = "rfcspec-explorer-profile/1";
+
+/// The path of a profile's file, by its name.
+pub fn profile_path(name: &str) -> String {
+    format!("{PROFILES_DIR}/{name}.json")
+}
+
+fn absent_or<T, U>(value: Option<T>, f: impl FnOnce(T) -> U) -> profile_types::EssPresence<U> {
+    value.map_or(profile_types::EssPresence::Absent, |value| {
+        profile_types::EssPresence::Present(f(value))
+    })
+}
+
+/// A JSON number of a count or line.
+fn count(n: usize) -> Number {
+    Number::from(n as u64)
+}
+
+/// The status row of one overlay requirement, `rfcspec.profile.Statuses` field for field.
+fn status_row(name: &str, rfc: u32, requirement: &Requirement) -> profile_types::ExplorerStatus {
+    let id = profile_types::ItemId(format!("rfc{rfc}/{}", requirement.id));
+    let (kind, element, reason) = match &requirement.status {
+        Status::Satisfied(element) => (profile_types::StatusKind::Satisfied, Some(element), None),
+        Status::Unsupported(reason) => (profile_types::StatusKind::Unsupported, None, Some(reason)),
+        Status::NotApplicable(reason) => {
+            (profile_types::StatusKind::NotApplicable, None, Some(reason))
+        }
+    };
+    profile_types::ExplorerStatus {
+        key: profile_types::StatusKey {
+            profile: profile_types::ProfileName(name.to_owned()),
+            requirement: id.clone(),
+        },
+        state: profile_types::StatusState::Recorded,
+        profile: profile_types::ProfileName(name.to_owned()),
+        requirement_id: id,
+        kind,
+        element: absent_or(element, Clone::clone),
+        reason: absent_or(reason, Clone::clone),
+        evidence: profile_types::EssPresence::Absent,
+    }
+}
+
+fn requirement(
+    name: &str,
+    rfc: u32,
+    requirement: &Requirement,
+) -> profile_types::ExplorerRequirement {
+    let gap = match &requirement.status {
+        Status::Unsupported(reason) => crate::catalog::gap(reason),
+        _ => None,
+    };
+    profile_types::ExplorerRequirement {
+        status: status_row(name, rfc, requirement),
+        level: requirement.level.clone(),
+        transports: requirement.transports.clone(),
+        quote: requirement.quote.clone(),
+        start_line: count(requirement.span.start),
+        end_line: count(requirement.span.end),
+        gap: absent_or(gap, Number::from),
+    }
+}
+
+/// One decision with the proposal it decided: its file and the model id the file records.
+/// Refused when the file is missing or records another id; `rfcspec check` refuses the same.
+fn decision(
+    root: &Path,
+    entry: &Entry,
+    decision: &Decision,
+) -> Result<profile_types::ExplorerDecision> {
+    let (model_id, proposal_path) = match &decision.proposal_id {
+        None => (None, None),
+        Some(id) => {
+            let path = format!("{}/proposals/{id}.json", entry.path);
+            let file: serde_json::Value = serde_json::from_str(
+                &fs::read_to_string(root.join(&path)).with_context(|| format!("reading {path}"))?,
+            )
+            .with_context(|| format!("reading {path}"))?;
+            ensure!(
+                file["proposal_id"] == id.as_str(),
+                "{path} records another proposal id"
+            );
+            let model = file["model_id"]
+                .as_str()
+                .with_context(|| format!("{path} records no model id"))?
+                .to_owned();
+            (Some(model), Some(path))
+        }
+    };
+    let name = || profile_types::ProfileName(entry.name.clone());
+    Ok(profile_types::ExplorerDecision {
+        row: profile_types::ExplorerDecisionRow {
+            key: profile_types::DecisionKey {
+                profile: name(),
+                item: profile_types::ItemId(decision.item.clone()),
+                text_digest: profile_types::Digest(decision.text_digest.clone()),
+            },
+            state: profile_types::DecisionState::Current,
+            profile: name(),
+            kind: match decision.kind {
+                DecisionKind::Accept => profile_types::DecisionKind::Accept,
+                DecisionKind::Edit => profile_types::DecisionKind::Edit,
+                DecisionKind::Reject => profile_types::DecisionKind::Reject,
+            },
+            proposal_id: absent_or(decision.proposal_id.as_ref(), |id| {
+                profile_types::ProposalId(id.clone())
+            }),
+            edit: profile_types::EssPresence::Absent,
+            errata_id: profile_types::EssPresence::Absent,
+            errata_status: profile_types::EssPresence::Absent,
+            corrected_text: profile_types::EssPresence::Absent,
+            reason: absent_or(decision.reason.as_ref(), Clone::clone),
+            confirms: profile_types::EssPresence::Absent,
+        },
+        model_id: absent_or(model_id, profile_types::ModelId),
+        proposal_path: absent_or(proposal_path, |path| path),
+    })
+}
+
+fn machine(
+    root: &Path,
+    entry: &Entry,
+    machine: &Machine,
+) -> Result<profile_types::ExplorerMachine> {
+    let file = format!("{}.protospec.yaml", machine.name);
+    let protospec_path = format!("{}/generated/{file}", entry.path);
+    let lowered = fs::read(root.join(&protospec_path))
+        .with_context(|| format!("reading {protospec_path}"))?;
+    let witness = format!("{}/witnesses/{}.inputs.json", entry.path, machine.name);
+    ensure!(
+        root.join(&witness).is_file(),
+        "machine {} of {} has no witness {witness}",
+        machine.name,
+        entry.path
+    );
+    Ok(profile_types::ExplorerMachine {
+        key: profile_types::MachineKey {
+            profile: profile_types::ProfileName(entry.name.clone()),
+            slug: machine.name.clone(),
+        },
+        state: profile_types::MachineState::Recorded,
+        name: machine.name.clone(),
+        protospec_path,
+        protospec_digest: profile_types::Digest(sha256_hex(&lowered)),
+        transport: machine.transport.clone(),
+        download: format!("downloads/{}/{file}", entry.name),
+        witness,
+    })
+}
+
+fn layout(rfc: u32, layout: &Layout) -> profile_types::ExplorerLayout {
+    profile_types::ExplorerLayout {
+        row: profile_types::ExplorerLayoutRow {
+            layout_id: profile_types::ItemId(format!("rfc{rfc}/layout/{}", layout.name)),
+            state: profile_types::LayoutState::Read,
+            rfc: profile_types::RfcNumber(Number::from(rfc)),
+            name: layout.name.clone(),
+        },
+        fields: layout
+            .fields
+            .iter()
+            .map(|field| profile_types::LayoutField {
+                name: field.name.clone(),
+                bits: profile_types::EssPresence::Present(Number::from(field.bits)),
+                length: profile_types::EssPresence::Absent,
+                presence: absent_or(field.presence.as_ref(), |p| profile_types::Presence {
+                    field: p.field.clone(),
+                    equals: Number::from(p.equals),
+                }),
+                constraints: field
+                    .constraints
+                    .iter()
+                    .map(|c| profile_types::FieldConstraint {
+                        kind: match c {
+                            Constraint::Equals(_) => profile_types::ConstraintKind::Equals,
+                            Constraint::Range(_) => profile_types::ConstraintKind::Range,
+                            Constraint::OneOf(_) => profile_types::ConstraintKind::OneOf,
+                        },
+                        values: c.values().into_iter().map(Number::from).collect(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
+/// The unreviewed requirements of the entry's catalogue counted by level, as its page counts
+/// them; none when the catalogue cannot be read.
+fn unreviewed(entry: &Entry) -> Result<Option<Vec<profile_types::LevelCount>>> {
+    let Some(found) = entry.unreviewed() else {
+        return Ok(None);
+    };
+    let mut counts: BTreeMap<String, u64> = BTreeMap::new();
+    for requirement in found {
+        *counts.entry(requirement.keyword.clone()).or_default() += 1;
+    }
+    let mut ranked: Vec<(usize, String, u64)> = counts
+        .into_iter()
+        .map(|(level, n)| (rank(&level), level, n))
+        .collect();
+    ranked.sort_unstable();
+    ranked
+        .into_iter()
+        .map(|(_, level, n)| {
+            Ok(profile_types::LevelCount {
+                level: serde_json::from_value(level.as_str().into())
+                    .with_context(|| format!("{level:?} is not a BCP 14 level"))?,
+                count: Number::from(n),
+            })
+        })
+        .collect::<Result<_>>()
+        .map(Some)
+}
+
+/// Write the elements of the list member `list`, serialised empty in `text`, one per line, so a
+/// changed requirement or decision changes one line; an empty list stays `[]`.
+fn per_line<T: serde::Serialize>(text: &mut String, list: &str, items: &[T]) -> Result<()> {
+    let empty = format!("\"{list}\":[]");
+    ensure!(
+        text.matches(&empty).count() == 1,
+        "{list} is not one member"
+    );
+    if !items.is_empty() {
+        let rows = items
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<serde_json::Result<Vec<_>>>()?;
+        *text = text.replacen(&empty, &format!("\"{list}\":[\n{}\n]", rows.join(",\n")), 1);
+    }
+    Ok(())
+}
+
+/// The reviewed layer of one profile as the explorer reads it; none without an overlay.
+pub fn profile(root: &Path, entry: &Entry) -> Result<Option<String>> {
+    let Some(overlay) = &entry.overlay else {
+        return Ok(None);
+    };
+    let document = profile_types::ExplorerProfile {
+        format: PROFILE_FORMAT.into(),
+        profile: profile_types::ProfileName(entry.name.clone()),
+        path: entry.path.clone(),
+        rfc: profile_types::RfcNumber(Number::from(overlay.rfc)),
+        unreviewed: absent_or(unreviewed(entry)?, |counts| counts),
+        requirements: overlay
+            .requirements
+            .iter()
+            .map(|r| requirement(&entry.name, overlay.rfc, r))
+            .collect(),
+        decisions: overlay
+            .decisions
+            .iter()
+            .map(|d| decision(root, entry, d))
+            .collect::<Result<_>>()?,
+        machines: overlay
+            .machines
+            .iter()
+            .map(|m| machine(root, entry, m))
+            .collect::<Result<_>>()?,
+        layouts: overlay
+            .layouts
+            .iter()
+            .map(|l| layout(overlay.rfc, l))
+            .collect(),
+    };
+    let head = profile_types::ExplorerProfile {
+        requirements: Vec::new(),
+        decisions: Vec::new(),
+        machines: Vec::new(),
+        layouts: Vec::new(),
+        ..document.clone()
+    };
+    let mut text = serde_json::to_string(&head)?;
+    per_line(&mut text, "requirements", &document.requirements)?;
+    per_line(&mut text, "decisions", &document.decisions)?;
+    per_line(&mut text, "machines", &document.machines)?;
+    per_line(&mut text, "layouts", &document.layouts)?;
+    text.push('\n');
+    Ok(Some(text))
+}
+
+/// The file of every profile with an overlay, by path relative to the repository root.
+pub fn profiles(root: &Path, entries: &[Entry]) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    for entry in entries {
+        if let Some(text) = profile(root, entry)? {
+            out.insert(profile_path(&entry.name), text);
+        }
+    }
     Ok(out)
 }
 
@@ -703,3 +1025,7 @@ mod tests {
         assert!(!absent.contains(&Number::from(8441u32)));
     }
 }
+
+#[cfg(test)]
+#[path = "explorer_profile_tests.rs"]
+mod profile_tests;

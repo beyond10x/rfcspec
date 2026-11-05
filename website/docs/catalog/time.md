@@ -17,9 +17,9 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 ## RFCs
 
-| RFC | Title | Sections in scope | Kind |
-|---|---|---|---|
-| [RFC 868](https://www.rfc-editor.org/rfc/rfc868) | Time Protocol | Time Protocol; The Time | K1 wire protocol |
+| RFC | Title | Sections in scope | Kind | Explorer |
+|---|---|---|---|---|
+| [RFC 868](https://www.rfc-editor.org/rfc/rfc868) | Time Protocol | Time Protocol; The Time | K1 wire protocol | [RFC 868 in the explorer](pathname:///rfcspec/explorer/?rfc=868) |
 
 ## Communication semantics
 

@@ -1139,11 +1139,13 @@ dependencies = [
  "anyhow",
  "clap",
  "rfcspec-doc",
+ "rfcspec-explorer-profile-types",
  "rfcspec-explorer-types",
  "rfcspec-extract",
  "rfcspec-model",
  "rfcspec-propose",
  "rfcspec-source",
+ "serde",
  "serde_json",
 ]
 
@@ -1156,6 +1158,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "rfcspec-explorer-profile-types"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -17,9 +17,9 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 ## RFCs
 
-| RFC | Title | Sections in scope | Kind |
-|---|---|---|---|
-| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol |
+| RFC | Title | Sections in scope | Kind | Explorer |
+|---|---|---|---|---|
+| [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455) | The WebSocket Protocol | 5.2; 5.4; 5.5; 5.6; 7 | K1 wire protocol | [RFC 6455 in the explorer](pathname:///rfcspec/explorer/?rfc=6455) |
 
 ## Communication semantics
 

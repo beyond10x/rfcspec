@@ -73,7 +73,7 @@ describe('App', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('fetches the shard of the hundred ?rfc= names and shows the RFC', async () => {
+  it('fetches the shard of the hundred ?rfc= names and the index for its profile marks, and shows the RFC', async () => {
     window.history.replaceState(null, '', '/rfcspec/explorer/?rfc=9220');
     const fetched: string[] = [];
     vi.stubGlobal('fetch', async (url: URL | string) => {
@@ -82,7 +82,10 @@ describe('App', () => {
     });
     const wrapper = mount(App);
     await flushPromises();
-    expect(fetched).toEqual(['http://localhost:3000/rfcspec/data/rfcs/09200.json']);
+    expect(fetched.sort()).toEqual([
+      'http://localhost:3000/rfcspec/data/rfc-index.json',
+      'http://localhost:3000/rfcspec/data/rfcs/09200.json',
+    ]);
     expect(wrapper.text()).toContain('Bootstrapping WebSockets with HTTP/3');
   });
 

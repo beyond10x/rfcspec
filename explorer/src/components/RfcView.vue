@@ -3,8 +3,20 @@ import { computed } from 'vue';
 import type { ExplorerShard } from '../generated/types.ts';
 import { counted, findRfc, isIndexed, sectionHref } from '../lib/shard.ts';
 import RfcNumbers from './RfcNumbers.vue';
+import ProfileLayer from './ProfileLayer.vue';
+import type { RfcspecProfileExplorerProfile as Profile } from '../generated-profile/types.ts';
+import type { ProfileNote } from '../lib/profile.ts';
 
-const props = defineProps<{ shard: ExplorerShard | null; rfc: number }>();
+const props = withDefaults(
+  defineProps<{
+    shard: ExplorerShard | null;
+    rfc: number;
+    profiles?: Profile[];
+    notes?: ProfileNote[];
+    layerError?: string | null;
+  }>(),
+  { profiles: () => [], notes: () => [], layerError: null },
+);
 
 const entry = computed(() => (props.shard === null ? null : findRfc(props.shard, props.rfc)));
 
@@ -101,4 +113,16 @@ const graph = computed(() => {
       </table>
     </template>
   </article>
+
+  <p v-if="layerError !== null" class="missing">The reviewed layer could not be loaded: {{ layerError }}</p>
+  <p
+    v-for="note in notes"
+    :key="note.profile"
+    data-test="profile-note"
+    :data-profile="note.profile"
+    class="note"
+  >
+    {{ note.text }}
+  </p>
+  <ProfileLayer v-for="profile in profiles" :key="profile.profile" :profile="profile" />
 </template>

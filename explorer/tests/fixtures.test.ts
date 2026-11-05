@@ -6,6 +6,9 @@ import generated09200 from '../../website/static/data/rfcs/09200.json';
 import generated06400 from '../../website/static/data/rfcs/06400.json';
 import index from './fixtures/rfc-index.json';
 import generatedIndex from '../../website/static/data/rfc-index.json';
+import type { RfcspecProfileExplorerProfile as Profile } from '../src/generated-profile/types.ts';
+import websocketProfile from './fixtures/profiles/websocket.json';
+import generatedWebsocketProfile from '../../website/static/data/profiles/websocket.json';
 
 /** The generated shard narrowed to one RFC, as a fixture holds it. */
 function narrowed(shard: ExplorerShard, rfc: number): ExplorerShard {
@@ -26,5 +29,19 @@ describe('the fixtures', () => {
     expect(numbers).toEqual([1, 868, 1035, 2119, 5905, 6455, 7540, 8441, 8763, 9220, 9915, 9962]);
     const generated = generatedIndex as ExplorerIndex;
     expect(fixture).toEqual({ ...generated, rfcs: generated.rfcs.filter((row) => numbers.includes(row.rfc)) });
+  });
+
+  it('hold the generated websocket profile narrowed to three requirements and two decisions, so a shape change fails here', () => {
+    const fixture = websocketProfile as Profile;
+    const requirements = ['rfc6455/R5.1-1', 'rfc6455/R5.2-1', 'rfc6455/R5.5-1'];
+    const decisions = ['rfc6455/R5.1-1', 'rfc6455/R5.1-4'];
+    const generated = generatedWebsocketProfile as Profile;
+    expect(fixture).toEqual({
+      ...generated,
+      requirements: generated.requirements.filter((r) => requirements.includes(r.status.requirement_id)),
+      decisions: generated.decisions.filter((d) => decisions.includes(d.row.key.item)),
+    });
+    expect(fixture.requirements).toHaveLength(3);
+    expect(fixture.decisions.map((d) => d.row.kind)).toEqual(['accept', 'reject']);
   });
 });
