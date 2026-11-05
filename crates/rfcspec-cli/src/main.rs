@@ -218,6 +218,23 @@ enum BulkCommand {
         #[arg(long, value_name = "FILE")]
         sections: Option<PathBuf>,
     },
+    /// Compare the plain-text path with the RFCXML path offline: for every RFC the cache holds
+    /// as both `<cache>/txt/rfc<N>.txt` and `<cache>/xml/rfc<N>.xml` (or only the RFCs of
+    /// `--rfcs`, each refused unless held in both), extract both and compare their requirement
+    /// (id, level) lists. Prints `rfc<N>: <k> ids differ` per RFC whose lists differ, `<k>` the
+    /// ids whose level differs or that only one path gives, then `differing: <d> of <n>`. Exits 1
+    /// when `<d>` exceeds `--max-differing`. Reads only the cache.
+    Compare {
+        /// Default `$XDG_CACHE_HOME/rfcspec/bulk`, else `$HOME/.cache/rfcspec/bulk`.
+        #[arg(long, value_name = "DIR")]
+        cache: Option<PathBuf>,
+        /// Compare only these RFCs, by number, comma-separated.
+        #[arg(long, value_name = "N,...", value_delimiter = ',')]
+        rfcs: Vec<u32>,
+        /// The most differing RFCs that still exit 0; without it, any number does.
+        #[arg(long, value_name = "N")]
+        max_differing: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -516,6 +533,26 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 return Ok(ExitCode::FAILURE);
             }
             println!("rfcspec bulk: {} holds", summary.display());
+        }
+        Command::Bulk {
+            command:
+                BulkCommand::Compare {
+                    cache,
+                    rfcs,
+                    max_differing,
+                },
+        } => {
+            use rfcspec_source::corpus::{TEXT_DIR, XML_DIR, default_cache};
+            let cache = cache.map_or_else(default_cache, Ok)?;
+            let (differing, compared) =
+                bulk::compare(&cache.join(TEXT_DIR), &cache.join(XML_DIR), &rfcs)?;
+            for (rfc, ids) in &differing {
+                println!("rfc{rfc}: {ids} ids differ");
+            }
+            println!("differing: {} of {compared}", differing.len());
+            if max_differing.is_some_and(|max| differing.len() > max) {
+                return Ok(ExitCode::FAILURE);
+            }
         }
         Command::Check { profile, all } => {
             let profiles = match (profile, all) {
