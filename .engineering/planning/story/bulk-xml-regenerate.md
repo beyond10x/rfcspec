@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:bulk-xml-regenerate
 kind: story
-status: active
+status: implemented
 title: Regenerate the committed bulk summary from RFCXML where it exists and show each row's source on the RFC index pages
 relations:
 - decomposes: epic:rfcxml-reader
@@ -20,10 +20,11 @@ scope:
   path: crates/rfcspec-docs/src/bulk.rs
 - confidence: inferred
   path: website/docs/catalog/rfcs
-revision: 8
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T15:46:57Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":4}}}
 - {from: "proposed", to: "active", at: "2026-11-05T17:09:14Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "active", to: "implemented", at: "2026-11-05T17:32:07Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"test_result":1,"review_outcome":5}}}
 ---
 ## Story
 
@@ -45,14 +46,14 @@ Before this story no row of the committed summary carries `format` and the RFC i
 column (`XML` or `text`) for every row, on a clean checkout without network `task check` exits 0,
 and the committed `bulk/rfc-summary.jsonl`
 has one row per index entry with a `TXT` or `XML` format (9,847 for the index whose SHA-256 is
-`dd963eda48804cfe9f2b225016c01e8ed9a7b60699d47f4c24fe0b8f4f3fe04c`), of which the 1,390 with an
+`891d504b74051f8091ec6ccfba30170357899f07ee1f81d7824ba1657416ffc1`), of which the 1,390 with an
 `XML` format carry `"format":"xml"`, the RFC 9220 row among them with SHA-256
 `8a60d0b566bfb252ff18a3dc3df9fe94e90b201b807002a47d45386616b09aae`.
 
-Counts read on 2026-11-05 from `https://www.rfc-editor.org/rfc-index.xml` (SHA-256 as above, the
+Counts read on 2026-11-05 from `https://www.rfc-editor.org/rfc-index.xml` (SHA-256 `dd963eda48804cfe9f2b225016c01e8ed9a7b60699d47f4c24fe0b8f4f3fe04c`, the
 same index the committed summary records): 9,847 entries with `TXT`, 1,390 with `XML`, none with
 `XML` and no `TXT`. If the index has changed when the story runs, the commit names the new SHA-256
-and counts and the values here are re-read.
+and counts and the values here are re-read. Re-read on 2026-11-05 at 17:12Z: the index had SHA-256 `891d504b74051f8091ec6ccfba30170357899f07ee1f81d7824ba1657416ffc1` with the same counts (9,847, 1,390 and 8,457), and every text row was unchanged.
 
 - Regenerate. `task bulk-regenerate` (networked, never run by `task check`) writes the summary; the
   commit message names the index SHA-256, the row count, the XML row count and the time of the
