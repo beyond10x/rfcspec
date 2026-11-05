@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dev-dependencies]
 rfcspec-doc = { path = "../rfcspec-doc" }
+rfcspec-model = { path = "../rfcspec-model" }
 
 [lints]
 workspace = true
