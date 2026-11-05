@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:bulk-xml-regenerate
 kind: story
-status: proposed
+status: active
 title: Regenerate the committed bulk summary from RFCXML where it exists and show each row's source on the RFC index pages
 relations:
 - decomposes: epic:rfcxml-reader
@@ -20,9 +20,10 @@ scope:
   path: crates/rfcspec-docs/src/bulk.rs
 - confidence: inferred
   path: website/docs/catalog/rfcs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T15:46:57Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":4}}}
+- {from: "proposed", to: "active", at: "2026-11-05T17:09:14Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"review_outcome":4}}}
 ---
 ## Story
 
