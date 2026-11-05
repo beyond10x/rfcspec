@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T21:38:38Z",
+  "actor": "human:timo",
+  "artifact": "story:wire-scaffold",
+  "kind": "story",
+  "revision": 9,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-model -p rfcspec-abnf -p rfcspec-wire -p rfcspec-extract -p rfcspec-gen -p rfcspec-cli (333 passed, 4 ignored); cargo fmt --all --check; cargo clippy --workspace --all-targets --locked -D warnings"
+  }
+}

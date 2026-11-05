@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:wire-scaffold
 kind: story
-status: active
+status: implemented
 title: 'Scaffold the wire layer: rfcspec-abnf and rfcspec-wire crates, catalogue and overlay wire fields, empty collectors'
 relations:
 - decomposes: epic:wire-layer
@@ -31,10 +31,11 @@ scope:
   path: crates/rfcspec-wire/src/grammars.rs
 - confidence: inferred
   path: crates/rfcspec-wire/src/lib.rs
-revision: 9
+revision: 10
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:30Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T21:24:56Z", actor: "human:timo", revision: 9, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T21:38:38Z", actor: "human:timo", revision: 10, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 

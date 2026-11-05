@@ -2,17 +2,18 @@
 format: aep.planning-md/3
 id: story:send-payload-type-check
 kind: story
-status: active
+status: implemented
 title: Refuse a send payload typed differently from its message field
 relations:
 - decomposes: epic:hardening-follow-ups
 scope:
 - confidence: cited
   path: crates/rfcspec-extract/src/check.rs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:30Z", actor: "human:timo", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T21:24:57Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T21:35:59Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 

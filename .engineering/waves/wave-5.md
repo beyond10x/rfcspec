@@ -1,14 +1,14 @@
 # Wave 5 of the [plan of 2026-11-05](plan-2026-11-05.md)
 
-Stage: 2, approved by the operator on 2026-11-05 (approval-record:wave-5-approval); units dispatched.
+Stage: 2, approved by the operator on 2026-11-05 (approval-record:wave-5-approval); all three units merged into `wave-5` and implemented.
 
 ## Units
 
 | story | objective | scope | branch | worktree | build dir | stage |
 |---|---|---|---|---|---|---|
-| story:wire-scaffold | the `rfcspec-abnf` and `rfcspec-wire` crates, workspace manifests, `Dialect` enum, model types and collect stubs; nothing under `crates/rfcspec-extract/src/` | inferred | wave5-wire-scaffold | trees/b10x/rfcspec/wave5-wire-scaffold | that tree's `target/` | proposed |
-| story:send-payload-type-check | `rfcspec check` refuses a `send` payload typed differently from its message field | cited | wave5-send-payload | trees/b10x/rfcspec/wave5-send-payload | that tree's `target/` | proposed |
-| story:text-reader-structure | the text reader recognises appendix headings, lists, asides and table-of-contents lines; `rfcspec bulk compare`; `EXTRACTOR_VERSION` 2; bulk files regenerated offline | inferred | wave5-text-reader | trees/b10x/rfcspec/wave5-text-reader | that tree's `target/` | proposed |
+| story:wire-scaffold | the `rfcspec-abnf` and `rfcspec-wire` crates, workspace manifests, `Dialect` enum, model types and collect stubs; nothing under `crates/rfcspec-extract/src/` | inferred | wave5-wire-scaffold | trees/b10x/rfcspec/wave5-wire-scaffold | that tree's `target/` | implemented |
+| story:send-payload-type-check | `rfcspec check` refuses a `send` payload typed differently from its message field | cited | wave5-send-payload | trees/b10x/rfcspec/wave5-send-payload | that tree's `target/` | implemented |
+| story:text-reader-structure | the text reader recognises appendix headings, lists, asides and table-of-contents lines; `rfcspec bulk compare`; `EXTRACTOR_VERSION` 2; bulk files regenerated offline | inferred | wave5-text-reader | trees/b10x/rfcspec/wave5-text-reader | that tree's `target/` | implemented |
 
 Integration branch: `wave-5`, from `a8d86ab` (main `96d7c2d` plus the planning commit).
 

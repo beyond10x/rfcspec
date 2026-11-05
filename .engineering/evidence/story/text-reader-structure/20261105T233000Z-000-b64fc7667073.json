@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T23:30:00Z",
+  "actor": "human:timo",
+  "artifact": "story:text-reader-structure",
+  "kind": "story",
+  "revision": 11,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-doc -p rfcspec-extract -p rfcspec-cli; cargo fmt --check; cargo clippy --all-targets -D warnings; rfcspec-docs generate --check (b3a686d)"
+  }
+}
