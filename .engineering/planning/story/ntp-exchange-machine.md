@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:ntp-exchange-machine
 kind: story
-status: active
+status: implemented
 title: 'Review and lower the RFC 5905 on-wire exchange: accept by origin timestamp, zero xmt after the check, udp layer on port 123'
 relations:
 - decomposes: epic:ntp-profile
@@ -35,10 +35,11 @@ scope:
   path: website/docs/catalog/ntp.md
 - confidence: cited
   path: website/static/downloads/ntp
-revision: 4
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:23Z", actor: "human:timo", revision: 3}
 - {from: "proposed", to: "active", at: "2026-11-05T14:28:27Z", actor: "human:timo", revision: 4}
+- {from: "active", to: "implemented", at: "2026-11-05T14:42:02Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Story
 

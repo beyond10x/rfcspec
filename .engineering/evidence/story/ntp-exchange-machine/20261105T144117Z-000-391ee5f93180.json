@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T14:41:17Z",
+  "actor": "human:timo",
+  "artifact": "story:ntp-exchange-machine",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-ess -p rfcspec-model -p rfcspec-docs -p rfcspec-cli (all targets ok); rfcspec lower --check, check --all, docs generate --check; ess protocol explore passed 938 states; fmt; clippy -D warnings"
+  }
+}
