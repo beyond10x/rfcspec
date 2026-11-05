@@ -2,14 +2,15 @@
 format: aep.planning-md/3
 id: story:explorer-search
 kind: story
-status: proposed
+status: active
 title: Search and filter the whole RFC index in the explorer by number, title, status, stream, area, source format and requirement levels
 relations:
 - decomposes: epic:rfc-explorer
 - depends_on: story:explorer-rfc-view
-revision: 4
+revision: 5
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-05T18:45:54Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 ---
 ## Story
 

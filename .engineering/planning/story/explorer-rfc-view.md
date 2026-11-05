@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: story:explorer-rfc-view
 kind: story
-status: active
+status: implemented
 title: 'Open any RFC of the index in the RFC explorer: metadata, requirements by section and level, update graph and references as links'
 relations:
 - decomposes: epic:rfc-explorer
 - depends_on: story:xref-reference-extract
-revision: 5
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T18:04:21Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T18:45:54Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 
@@ -18,10 +19,11 @@ Any RFC of the index opens in the RFC explorer at `/rfcspec/explorer/?rfc=<n>`: 
 
 ## Decision: per-range JSON read by one Vue page, not 9,847 generated pages
 
-Decided at decomposition, 2026-11-05. Per-RFC data is generated JSON, one file per thousand RFC numbers (the ranges the RFC index pages use, 11 files), read by one browser page. No Markdown page per RFC. Reasons:
+Decided at decomposition, 2026-11-05. Per-RFC data is generated JSON, one file per hundred RFC numbers (99 files, `00000.json` to `09800.json`; revised in wave 2, see below), read by one browser page. No Markdown page per RFC. Reasons:
 
 - 9,847 MDX pages would each pass through the Docusaurus build, and `website/sidebars.ts` autogenerates the `catalog` directory, so each would also enter the sidebar shipped with every page. The Pages job has `timeout-minutes: 15` (`.github/workflows/pages.yml:20`); its last five runs took 2 to 3 minutes (`gh run list --workflow pages.yml`, 2026-11-05). The build time of 9,847 pages was not measured.
-- One file per RFC would be 9,847 committed generated files rewritten by every bulk regeneration. One per range keeps the boundary of the range pages and their size test.
+- One file per RFC would be 9,847 committed generated files rewritten by every bulk regeneration. One per hundred numbers keeps the file count under 100 and each file under the cap.
+- Revised 2026-11-05 in wave 2, measured by the implementor with `rfcspec-docs generate` on the index `891d504b`: per-thousand shards were 16,055,892 bytes together, and shard 08000 was 2,521,780 bytes and shard 09000 4,929,206 bytes, both over the 2 MiB cap. References are 3,125,585 bytes of shard 09000, and 500-number shards are still over it (9000-9499: 2,502,029 bytes). The cap stays; the shards become per hundred, which keeps the References exact. The sidecar lists only sections that hold at least one requirement (10,036,778 bytes, 9,847 rows); the view shows those sections.
 - Search and filter (`story:explorer-search`) need code in the browser anyway, so the RFC view is one more route of the same app.
 - Browser code is Vue 3 with TypeScript, Vite and pnpm (workspace rule); the documentation site stays Docusaurus. The explorer is a standalone Vite app, as `website/static/pitch/` is a standalone page. It is built into `website/static/explorer/` (ignored by Git) before the Docusaurus build and linked with `pathname:///rfcspec/explorer/...`, the link form the downloads use. CI installs pnpm with `corepack enable`, the version pinned by `packageManager` in `explorer/package.json`.
 
@@ -47,10 +49,10 @@ Before: `/rfcspec/explorer/?rfc=9220` does not exist and the RFC index pages lin
 
 Checked by:
 
-- `task docs-check` drift-checks 11 range files under `website/static/data/rfcs/` that hold every row of `bulk/rfc-summary.jsonl` once.
+- `task docs-check` drift-checks the per-hundred files under `website/static/data/rfcs/` that hold every row of `bulk/rfc-summary.jsonl` once.
 - `?rfc=6455` shows updated-by 7936, 8307 and 8441 as links.
 - The types drift check fails when the generated Rust or TypeScript types differ from what `ess/domains/catalogue.yaml` determines.
-- `cargo test -p rfcspec-docs`: 11 shards, every summary row once in number order; the RFC 9220 references equal those `rfcspec read` gives on `crates/rfcspec-doc/tests/fixtures/rfc9220.xml`; every shard under 2 MiB and all together under 16 MiB.
+- `cargo test -p rfcspec-docs`: one shard per hundred numbers that hold a row, every summary row once in number order; the RFC 9220 references equal those `rfcspec read` gives on `crates/rfcspec-doc/tests/fixtures/rfc9220.xml`; every shard under 2 MiB and all together under 16 MiB.
 - `rfcspec bulk check` refuses a sidecar whose header disagrees with its rows or whose RFC numbers differ from the summary.
 - `task explorer`: `vue-tsc`, `vitest` (the RFC view renders a fixture shard; an unknown number reads "not in the index"), `vite build`.
 - The range-page test still holds with its 4 MiB cap, with an explorer link added to each RFC cell (about 50 bytes a row, about 0.5 MB on the 2.5 MB of today).
