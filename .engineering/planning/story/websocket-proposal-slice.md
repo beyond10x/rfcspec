@@ -2,13 +2,15 @@
 format: aep.planning-md/3
 id: story:websocket-proposal-slice
 kind: story
-status: active
+status: implemented
 title: Propose and review statuses for RFC 6455 sections 5.1 and 5.3, replayed in the gate
 relations:
 - decomposes: epic:ai-proposals
 - depends_on: story:proposal-review
 - depends_on: story:websocket-fragments-machine
 - depends_on: story:proposal-machine-layout
+- depends_on: story:reject-decision-reason
+- depends_on: story:bulk-site-index
 scope:
 - confidence: cited
   path: AGENTS.md
@@ -28,14 +30,15 @@ scope:
   path: website/docs/catalog/index.md
 - confidence: cited
   path: website/docs/catalog/websocket.md
-revision: 6
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T08:01:52Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-05T08:01:52Z", actor: "human:timo", revision: 6, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-05T11:29:49Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 
-The first real proposal set. Timo runs `rfcspec propose` live once over the catalogue requirements
+The first real proposal set. The session runs `rfcspec propose` live once, against a model served on the local GPU (Ollama on loopback, protocol `chat-completions`, auth `anonymous`: no credential and no spend), over the catalogue requirements
 of RFC 6455 sections 5.1 (Overview) and 5.3 (Client-to-Server Masking), none of which has an overlay
 status today; the recordings are committed under `profiles/websocket/proposals/`; each proposal is
 reviewed into `profiles/websocket/overlay.yaml` with `rfcspec review`; and the gate replays the set
@@ -79,14 +82,13 @@ and:
   --replay` gate step; `README.md` gains a short "propose and review" section linking the design
   section 9 contract.
 
-## To try (Timo, the live run)
+## The live run
 
-1. Write an `llm.routes/1` file outside the repository with one route whose secret is
-   `env:<VARIABLE>`, and export that variable.
+1. Write an `llm.routes/1` file outside the repository with one `chat-completions` endpoint at
+   `http://127.0.0.1:11434/v1`, auth `anonymous`, and one route to the served model.
 2. `rfcspec propose --profile profiles/websocket --task status --section 5.1 --section 5.3
    --routes <file> --route <name>`.
-3. Hand the new `profiles/websocket/proposals/*.json` back to the session, which reviews and
-   commits them. Until the recordings exist, the rest of this story cannot start.
+3. Review the new `profiles/websocket/proposals/*.json` with `rfcspec review` and commit them.
 
 ## Domain relations
 

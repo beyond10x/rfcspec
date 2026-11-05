@@ -21,8 +21,10 @@ fn repository() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// A fresh copy of every file of `profiles/websocket`, in a temporary directory under the
-/// workspace's build directory that is removed when the returned guard drops.
+/// A fresh copy of `profiles/websocket` as it stood before its section 5.1 and 5.3 proposals
+/// were reviewed (without `proposals/`, the decisions, or the requirement entries of those two
+/// sections), in a temporary directory under the workspace's build directory that is removed
+/// when the returned guard drops.
 fn websocket(name: &str) -> (TempDir, PathBuf) {
     let scratch = repository().join("target/rfcspec-cli");
     fs::create_dir_all(&scratch).unwrap();
@@ -33,9 +35,15 @@ fn websocket(name: &str) -> (TempDir, PathBuf) {
     let dir = temp.path().join("websocket");
     let from = repository().join("profiles/websocket");
     for file in catalog::files(&from).unwrap() {
+        if file.starts_with("proposals/") {
+            continue;
+        }
         fs::create_dir_all(dir.join(&file).parent().unwrap()).unwrap();
         fs::copy(from.join(&file), dir.join(&file)).unwrap();
     }
+    let path = dir.join(OVERLAY_FILE);
+    let text = fs::read_to_string(&path).unwrap();
+    fs::write(&path, before_the_slice(&text)).unwrap();
     (temp, dir)
 }
 
@@ -240,7 +248,9 @@ fn a_requirement_from_prose_replays_and_its_entry_passes_check() {
 
 #[test]
 fn a_profile_without_proposals_replays_nothing_and_passes() {
-    let output = replay(&repository().join("profiles/websocket"));
+    let (_temp, profile) = websocket("none");
+    assert!(!profile.join("proposals").exists());
+    let output = replay(&profile);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
 }
 
@@ -288,4 +298,22 @@ fn a_routes_file_whose_env_secret_is_unset_is_refused_before_any_request_naming_
         "no request reached the endpoint"
     );
     assert!(!profile.join("proposals").exists());
+}
+
+/// The text of the websocket overlay without its decisions and without the requirement entries
+/// of sections 5.1 and 5.3, every other line as written.
+fn before_the_slice(overlay: &str) -> String {
+    let overlay = overlay.split("\ndecisions:\n").next().unwrap();
+    let mut out = String::new();
+    let mut skipping = false;
+    for line in overlay.lines() {
+        if line.starts_with("  - ") || !line.starts_with("    ") {
+            skipping = line.starts_with("  - id: R5.1-") || line.starts_with("  - id: R5.3-");
+        }
+        if !skipping {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
 }

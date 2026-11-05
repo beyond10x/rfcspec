@@ -31,14 +31,19 @@ One row per layer, as `profile.yaml` declares them ([communication semantics](/d
 
 ## Requirement matrix
 
-Reviewed: 70 requirements, by level 26 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 18 MAY; by status 29 satisfied, 33 unsupported, 8 not applicable.
+Reviewed: 77 requirements, by level 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY; by status 29 satisfied, 40 unsupported, 8 not applicable.
 
-Unreviewed: 126 requirements of the mechanical catalogue of RFC 6455 have no status, by level 82 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 24 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
+Unreviewed: 119 requirements of the mechanical catalogue of RFC 6455 have no status, by level 77 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 22 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
 
 One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec/blob/main/profiles/websocket/overlay.yaml), in its order. The source is the line span in RFC 6455.
 
 | Id | Level | Transports | Quote | Source | Status | Element or reason |
 |---|---|---|---|---|---|---|
+| R5.1-1 | MUST | all | To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). | lines 1490-1493 | unsupported | The protocol profile's model does not implement frame masking as required. |
+| R5.1-2 | MUST | all | (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. | lines 1493-1496 | unsupported | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
+| R5.1-5 | MUST | all | A client MUST close a connection if it detects a masked frame. | lines 1499-1500 | unsupported | The model does not enforce closing the connection when a masked frame is detected. |
+| R5.1-6 | MAY | all | In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1. | lines 1500-1501 | unsupported | The model does not implement the optional use of status code 1002 as specified. |
+| R5.1-7 | MAY | all | A data frame MAY be transmitted by either the client or the server at any time after opening handshake completion and before that endpoint has sent a Close frame (Section 5.5.1). | lines 1519-1521 | unsupported | data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake |
 | R5.2-1 | MAY | all | The first fragment MAY also be the final fragment. | lines 1556-1557 | satisfied | layout.frame-header |
 | R5.2-2 | MUST | all | MUST be 0 unless an extension is negotiated that defines meanings for non-zero values. | lines 1561-1562 | unsupported | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-3 | MUST | all | If a nonzero value is received and none of the negotiated extensions defines the meaning of such a nonzero value, the receiving endpoint MUST _Fail the WebSocket Connection_. | lines 1562-1565 | unsupported | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
@@ -49,6 +54,8 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R5.2-8 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1706-1706 | unsupported | the layout leaves RSV1 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-9 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1710-1710 | unsupported | the layout leaves RSV2 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-10 | MUST | all | 1 bit in length, MUST be 0 unless | lines 1714-1714 | unsupported | the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
+| R5.3-2 | MUST | all | When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values. | lines 1805-1806 | unsupported | the model does not generate a fresh masking key as required |
+| R5.3-3 | MUST | all | The masking key needs to be unpredictable; thus, the masking key MUST be derived from a strong source of entropy, and the masking key for a given frame MUST NOT make it simple for a server/proxy to predict the masking key for a subsequent frame. | lines 1806-1810 | unsupported | The protocol profile's model does not implement masking key derivation from a strong entropy source. |
 | R5.4-1 | MAY | all | Control frames (see Section 5.5) MAY be injected in the middle of a fragmented message. | lines 1894-1895 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
 | R5.4-2 | MUST NOT | all | Control frames themselves MUST NOT be fragmented. | lines 1895-1896 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
 | R5.4-3 | MUST | all | Message fragments MUST be delivered to the recipient in the order sent by the sender. | lines 1898-1899 | unsupported | delivery order is the tcp layer's ordered delivery, not an element of the fragments machine |
@@ -126,12 +133,19 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 
 | Requirement | Reason |
 |---|---|
+| R5.1-1 | The protocol profile's model does not implement frame masking as required. |
+| R5.1-2 | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
+| R5.1-5 | The model does not enforce closing the connection when a masked frame is detected. |
+| R5.1-6 | The model does not implement the optional use of status code 1002 as specified. |
+| R5.1-7 | data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake |
 | R5.2-2 | the layout leaves RSV1 to RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-3 | the reserved bits are not modelled: the data frames of the fragments machine carry only opcode and fin, and whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-4 | the opcode registry is not modelled: the fragments machine sends only opcodes 0 and 1, and no transition fails on an unknown opcode |
 | R5.2-8 | the layout leaves RSV1 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-9 | the layout leaves RSV2 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
 | R5.2-10 | the layout leaves RSV3 unconstrained: whether an extension is negotiated is state of the opening handshake, which this profile does not model |
+| R5.3-2 | the model does not generate a fresh masking key as required |
+| R5.3-3 | The protocol profile's model does not implement masking key derivation from a strong entropy source. |
 | R5.4-3 | delivery order is the tcp layer's ordered delivery, not an element of the fragments machine |
 | R5.4-7 | only the server receives data frames in the fragments machine; the client receives no message |
 | R7.1.1-1 | the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect |
@@ -147,6 +161,16 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R7.2.3-4 | reconnecting lies outside the lifetime of one connection, which the close machine models |
 | R7.3-1 | a server-initiated close is not modelled: the close machine starts closing from the client |
 | R7.4.1-2 | binary messages are not modelled: the fragments machine carries text messages only, so no endpoint receives a binary message |
+
+## Rejected proposals
+
+Proposals a reviewer rejected, from the decisions in [`profiles/websocket/overlay.yaml`](https://github.com/beyond10x/rfcspec/blob/main/profiles/websocket/overlay.yaml); each item stays unreviewed and is not proposed again.
+
+| Item | Proposal | Reason |
+|---|---|---|
+| rfc6455/R5.1-4 | `8710bb6d53914b1171d509e48b6d8bc2bb7c6c787fac0a7771ca2be3a14e9817` | the profile models both peers, so a server requirement is not outside the model; it stays unreviewed |
+| rfc6455/R5.1-3 | `fa96a298641aedf3fb409b5259134cce779c43a2db3097b260a3f9e0ee5f8a3b` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R5.3-1 | `d8b7d4f4d8d737eac015d3ceba6b7a096f913639ca5b747d2c03a24935795a75` | the frame-header layout carries the mask bit, so this is a layout review for satisfied, not unsupported |
 
 ## Conformance
 

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1499,
+      "start": 1498
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "37f5adf2851725e73ba515e93d904391d7fc75a7697ff78e2545a5c56edce928",
+  "inputs": {
+    "item": "rfc6455/R5.1-4",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "5.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1499,
+      "start": 1498
+    },
+    "text": "A server MUST NOT mask any frames that it sends to the client."
+  },
+  "item": "rfc6455/R5.1-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "8710bb6d53914b1171d509e48b6d8bc2bb7c6c787fac0a7771ca2be3a14e9817",
+  "response": {
+    "id": "R5.1-4",
+    "level": "MUST NOT",
+    "quote": "A server MUST NOT mask any frames that it sends to the client.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1499,
+      "start": 1498
+    },
+    "status": {
+      "not-applicable": "The model represents a client, not a server; this requirement applies only to servers sending frames to clients."
+    }
+  },
+  "task": "status"
+}

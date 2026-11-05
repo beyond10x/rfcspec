@@ -9,6 +9,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -937,6 +938,18 @@ pub struct Routed {
 /// The model `route` reaches in the routes document `text`. Its credentials are references the
 /// operator injects (`env:`, `file:`); building reads none of them, and an unset or missing one
 /// is refused at the first turn, by the endpoint's name, before any request is sent.
+/// The transport bounds for a proposal call. A model served on one local GPU answers a forced tool
+/// call without streaming, so its response headers arrive only after the whole answer: the
+/// default 60 s header bound refuses a thinking model before it has answered once.
+#[must_use]
+pub fn limits() -> Limits {
+    Limits {
+        response_headers: Duration::from_secs(900),
+        idle: Duration::from_secs(900),
+        total: Duration::from_secs(1200),
+    }
+}
+
 pub fn routed(text: &str, route: &str) -> Result<Routed> {
     let routes = Routes::parse(text).map_err(|error| anyhow!("routes: {error}"))?;
     let mut sources = SecretSources::new();
@@ -946,7 +959,7 @@ pub fn routed(text: &str, route: &str) -> Result<Routed> {
     let resolvers = routes
         .resolvers(&sources)
         .map_err(|error| anyhow!("routes: {error}"))?;
-    let http = HttpClient::new(Limits::default()).map_err(|error| anyhow!("{error}"))?;
+    let http = HttpClient::new(limits()).map_err(|error| anyhow!("{error}"))?;
     let model = routes
         .port(route, http, &resolvers)
         .map_err(|error| anyhow!("route {route}: {error}"))?;

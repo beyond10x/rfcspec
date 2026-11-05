@@ -1,7 +1,11 @@
 #![forbid(unsafe_code)]
 //! S0: fetch an RFC's plain text into a profile's `sources/` and lock it by SHA-256, and read a
 //! locked source back, refusing one whose bytes no longer match the lock. This is the only RFCspec
-//! crate that reaches the network, and only [`fetch`] does.
+//! crate that reaches the network, and only [`fetch`] and [`corpus::fetch_corpus`] do; [`index`]
+//! parses a copy of `rfc-index.xml` and reads nothing else.
+
+pub mod corpus;
+pub mod index;
 
 use std::{fs, path::Path, time::Duration};
 
@@ -40,20 +44,29 @@ pub struct Fetched {
 /// or lock whose bytes would not change is not rewritten.
 pub fn fetch(profile: &Path, rfc: u32, base: &str) -> Result<Fetched> {
     let url = format!("{base}rfc{rfc}.txt");
-    let agent: ureq::Agent = ureq::Agent::config_builder()
+    let bytes = get(&agent(), &url, MAX_SOURCE)?;
+    store(profile, rfc, &bytes)
+}
+
+/// An HTTP agent with a 60 s timeout per request.
+fn agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(60)))
         .build()
-        .into();
-    let bytes = agent
-        .get(&url)
+        .into()
+}
+
+/// The body of `GET url`, refused above `limit` bytes; errors name the URL.
+fn get(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Vec<u8>> {
+    agent
+        .get(url)
         .call()
         .with_context(|| format!("fetching {url}"))?
         .body_mut()
         .with_config()
-        .limit(MAX_SOURCE)
+        .limit(limit)
         .read_to_vec()
-        .with_context(|| format!("reading {url}"))?;
-    store(profile, rfc, &bytes)
+        .with_context(|| format!("reading {url}"))
 }
 
 /// Store fetched bytes as an RFC's source and lock them.

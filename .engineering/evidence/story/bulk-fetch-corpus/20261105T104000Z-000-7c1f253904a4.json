@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T10:40:00Z",
+  "actor": "human:timo",
+  "artifact": "story:bulk-fetch-corpus",
+  "kind": "story",
+  "revision": 12,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-source (7) -p rfcspec-cli (bulk 24) exit 0; task bulk holds; docs-check; clippy --workspace; fetch 9847 texts 09:59-10:36Z"
+  }
+}

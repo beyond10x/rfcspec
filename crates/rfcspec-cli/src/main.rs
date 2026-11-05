@@ -2,6 +2,7 @@
 //! `rfcspec`: RFCs as executable specifications. Each subcommand is one pipeline stage
 //! (`docs/design/rfcspec.md` section 4) over one profile directory.
 
+mod bulk;
 mod checks;
 
 use std::{
@@ -95,7 +96,8 @@ enum Command {
     /// communication semantics against the overlay's machines, that every catalogue requirement
     /// in the profile's scope has a status, every recorded run under `runs/` against the current
     /// overlay, that every recorded proposal under `proposals/` replays byte for byte, and that
-    /// every overlay decision names a recorded proposal and judges its item's current text.
+    /// every overlay decision names a recorded proposal and judges its item's current text, a
+    /// reject with a non-blank reason.
     Check {
         #[arg(long, required_unless_present = "all", conflicts_with = "all")]
         profile: Option<PathBuf>,
@@ -146,6 +148,56 @@ enum Command {
         #[arg(long, value_name = "PATH")]
         report: Option<PathBuf>,
     },
+    /// S2 in bulk: the `rfcspec-bulk/1` summary of every RFC the index publishes as plain text.
+    Bulk {
+        #[command(subcommand)]
+        command: BulkCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum BulkCommand {
+    /// Download `rfc-index.xml` to `<cache>/rfc-index.xml` and, one at a time, the plain text of
+    /// every RFC it lists with a TXT format to `<cache>/txt/rfc<N>.txt`, skipping a text already
+    /// cached unless `--refresh`. Refuses a cache inside a Git working tree. Exits 1 at the first
+    /// failed download, naming the RFC and its URL; a rerun resumes.
+    Fetch {
+        /// Default `$XDG_CACHE_HOME/rfcspec/bulk`, else `$HOME/.cache/rfcspec/bulk`.
+        #[arg(long, value_name = "DIR")]
+        cache: Option<PathBuf>,
+        #[arg(long, default_value = rfcspec_source::corpus::RFC_INDEX)]
+        index_url: String,
+        /// Where `rfc<N>.txt` is downloaded from.
+        #[arg(long, default_value = rfcspec_source::RFC_EDITOR)]
+        base_url: String,
+        /// Download every text again, even one already cached.
+        #[arg(long)]
+        refresh: bool,
+    },
+    /// Write the summary of a copy of `rfc-index.xml` and a directory of RFC plain texts: per
+    /// index entry with a TXT format, its index metadata, the SHA-256 of `<texts>/rfc<N>.txt` and
+    /// its catalogue requirements counted by BCP 14 level. Reads `<cache>/rfc-index.xml` and
+    /// `<cache>/txt/` (the cache `bulk fetch` writes, by default its default) unless `--index`
+    /// and `--texts` are given. Exits 1, writing nothing, naming each RFC whose text is missing.
+    /// Reads no network.
+    Summarise {
+        #[arg(long, value_name = "DIR", conflicts_with_all = ["index", "texts"])]
+        cache: Option<PathBuf>,
+        #[arg(long, value_name = "FILE", requires = "texts")]
+        index: Option<PathBuf>,
+        #[arg(long, value_name = "DIR", requires = "index")]
+        texts: Option<PathBuf>,
+        #[arg(long, value_name = "FILE")]
+        out: PathBuf,
+    },
+    /// Check a summary offline: its header, row order, digests and counts, and every RFC locked in
+    /// `<profiles>/*/rfcspec.lock` against its locked source. Exits 1 naming each line that fails.
+    Check {
+        #[arg(long, value_name = "FILE")]
+        summary: PathBuf,
+        #[arg(long, value_name = "DIR")]
+        profiles: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -162,7 +214,8 @@ enum ReviewVerdict {
     /// Add a decision of kind reject and no element; the item stays unreviewed and is not
     /// proposed again.
     Reject {
-        /// Why; printed, not recorded, since `rfcspec.review.Decision` has no reason field.
+        /// Why; recorded as the decision's reason and printed. An empty or blank reason is
+        /// refused as `DecisionIncomplete`.
         #[arg(long)]
         reason: String,
     },
@@ -330,6 +383,70 @@ fn run(cli: Cli) -> Result<ExitCode> {
             proposal,
             verdict,
         } => return review(&profile, &proposal, verdict),
+        Command::Bulk {
+            command:
+                BulkCommand::Fetch {
+                    cache,
+                    index_url,
+                    base_url,
+                    refresh,
+                },
+        } => {
+            use rfcspec_source::corpus::{default_cache, fetch_corpus};
+            let cache = cache.map_or_else(default_cache, Ok)?;
+            let corpus = fetch_corpus(&cache, &index_url, &base_url, refresh, |rfc| {
+                eprintln!("rfcspec bulk: fetched RFC {rfc}");
+            })?;
+            println!(
+                "rfcspec bulk: {}: index sha256 {}, {} texts, {} downloaded, {} already cached",
+                cache.display(),
+                corpus.index_sha256,
+                corpus.texts,
+                corpus.downloaded,
+                corpus.texts - corpus.downloaded
+            );
+        }
+        Command::Bulk {
+            command:
+                BulkCommand::Summarise {
+                    cache,
+                    index,
+                    texts,
+                    out,
+                },
+        } => {
+            use rfcspec_source::corpus::{INDEX_FILE, TEXT_DIR, default_cache};
+            let (index, texts) = match (index, texts) {
+                (Some(index), Some(texts)) => (index, texts),
+                _ => {
+                    let cache = cache.map_or_else(default_cache, Ok)?;
+                    (cache.join(INDEX_FILE), cache.join(TEXT_DIR))
+                }
+            };
+            let summary = bulk::summarise(&index, &texts)?;
+            if let Some(parent) = out.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("creating {}", parent.display()))?;
+            }
+            std::fs::write(&out, &summary).with_context(|| format!("writing {}", out.display()))?;
+            println!(
+                "rfcspec bulk: wrote {} ({} rows)",
+                out.display(),
+                summary.lines().count() - 1
+            );
+        }
+        Command::Bulk {
+            command: BulkCommand::Check { summary, profiles },
+        } => {
+            let problems = bulk::check(&summary, &profiles)?;
+            for problem in &problems {
+                eprintln!("rfcspec bulk: {}: {problem}", summary.display());
+            }
+            if !problems.is_empty() {
+                return Ok(ExitCode::FAILURE);
+            }
+            println!("rfcspec bulk: {} holds", summary.display());
+        }
         Command::Check { profile, all } => {
             let profiles = match (profile, all) {
                 (Some(profile), _) => vec![profile],
@@ -402,18 +519,15 @@ fn check(profile: &Path) -> bool {
 /// profile checks find no problem on the result that the overlay did not already have.
 fn review(profile: &Path, proposal: &str, verdict: ReviewVerdict) -> Result<ExitCode> {
     use rfcspec_propose::review::{ReviewError, Verdict, decide, write};
-    let (verdict, reason) = match verdict {
-        ReviewVerdict::Accept => (Verdict::Accept, None),
-        ReviewVerdict::Edit { entry } => (
-            Verdict::Edit(
-                entry
-                    .as_deref()
-                    .map(read_yaml::<rfcspec_model::Edit>)
-                    .transpose()?,
-            ),
-            None,
+    let verdict = match verdict {
+        ReviewVerdict::Accept => Verdict::Accept,
+        ReviewVerdict::Edit { entry } => Verdict::Edit(
+            entry
+                .as_deref()
+                .map(read_yaml::<rfcspec_model::Edit>)
+                .transpose()?,
         ),
-        ReviewVerdict::Reject { reason } => (Verdict::Reject, Some(reason)),
+        ReviewVerdict::Reject { reason } => Verdict::Reject(reason),
     };
     let reviewed = match decide(profile, proposal, verdict) {
         Ok(reviewed) => reviewed,
@@ -453,7 +567,9 @@ fn review(profile: &Path, proposal: &str, verdict: ReviewVerdict) -> Result<Exit
         decision.item,
         decision.kind,
         profile.join(OVERLAY_FILE).display(),
-        reason
+        decision
+            .reason
+            .as_deref()
             .map(|reason| format!(" ({reason})"))
             .unwrap_or_default()
     );

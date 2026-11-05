@@ -1,8 +1,9 @@
 //! S4 over recorded proposals (ESS `rfcspec.review.DecideProposal` and
 //! `rfcspec.review.RecordDecision`): settle one proposal with accept, edit or reject by a decision
 //! in the profile's overlay. Accept and edit also add the proposed or edited element (a
-//! requirement entry, a layout or a machine); reject adds only the decision. The proposal file is
-//! never rewritten, so its state is read from the decision that names it.
+//! requirement entry, a layout or a machine); reject adds only the decision, which holds the
+//! reviewer's reason. The proposal file is never rewritten, so its state is read from the
+//! decision that names it.
 
 use std::{fs, path::Path};
 
@@ -23,8 +24,10 @@ pub enum Verdict {
     /// Take this element instead, of the kind the proposal proposes; `None` is refused as
     /// [`ReviewError::DecisionIncomplete`].
     Edit(Option<Edit>),
-    /// Record only the decision; the item stays unreviewed and is not proposed again.
-    Reject,
+    /// Record only the decision, holding this reason; the item stays unreviewed and is not
+    /// proposed again. An empty or blank reason is refused as
+    /// [`ReviewError::DecisionIncomplete`].
+    Reject(String),
 }
 
 impl Verdict {
@@ -32,7 +35,7 @@ impl Verdict {
         match self {
             Self::Accept => DecisionKind::Accept,
             Self::Edit(_) => DecisionKind::Edit,
-            Self::Reject => DecisionKind::Reject,
+            Self::Reject(_) => DecisionKind::Reject,
         }
     }
 }
@@ -51,8 +54,9 @@ pub enum ReviewError {
     /// accept or edit would add a layout or machine of a name the overlay holds or a
     /// requirement another overlay requirement already quotes (`rfcspec.review.AlreadyExists`).
     AlreadyExists { item: String, reason: String },
-    /// An edit without its replacement entry (`rfcspec.review.DecisionIncomplete`).
-    DecisionIncomplete { item: String },
+    /// An edit without its replacement entry or a reject without a reason
+    /// (`rfcspec.review.DecisionIncomplete`); `missing` says which.
+    DecisionIncomplete { item: String, missing: &'static str },
     /// The proposal does not replay, the edit fails its checks, or the overlay with the
     /// decision fails its check: one problem per entry.
     Refused(Vec<String>),
@@ -72,10 +76,9 @@ impl std::fmt::Display for ReviewError {
                 "ProposalStateConflict: proposal {proposal_id} is already {state}"
             ),
             Self::AlreadyExists { item, reason } => write!(f, "AlreadyExists: {item}: {reason}"),
-            Self::DecisionIncomplete { item } => write!(
-                f,
-                "DecisionIncomplete: {item}: an edit names no replacement entry"
-            ),
+            Self::DecisionIncomplete { item, missing } => {
+                write!(f, "DecisionIncomplete: {item}: {missing}")
+            }
             Self::Refused(problems) => write!(f, "{}", problems.join("\n")),
             Self::Other(error) => write!(f, "{error:#}"),
         }
@@ -237,9 +240,20 @@ pub fn decide(dir: &Path, proposal_id: &str, verdict: Verdict) -> Result<Reviewe
     }
 
     let kind = verdict.kind();
-    let (element, edit) = match verdict {
-        Verdict::Accept => (replayed.checked.element.clone(), None),
-        Verdict::Edit(None) => return Err(ReviewError::DecisionIncomplete { item }),
+    let (element, edit, reason) = match verdict {
+        Verdict::Accept => (replayed.checked.element.clone(), None, None),
+        Verdict::Edit(None) => {
+            return Err(ReviewError::DecisionIncomplete {
+                item,
+                missing: "an edit names no replacement entry",
+            });
+        }
+        Verdict::Reject(reason) if reason.trim().is_empty() => {
+            return Err(ReviewError::DecisionIncomplete {
+                item,
+                missing: "a reject names no reason",
+            });
+        }
         Verdict::Edit(Some(edit)) => {
             if edit.kind() != task.element() {
                 return Err(ReviewError::Refused(vec![format!(
@@ -255,9 +269,9 @@ pub fn decide(dir: &Path, proposal_id: &str, verdict: Verdict) -> Result<Reviewe
                     .check(task, subject, &value)
                     .map_err(|reason| ReviewError::Refused(vec![format!("{item}: {reason}")]))?;
             }
-            (edit.clone(), Some(edit))
+            (edit.clone(), Some(edit), None)
         }
-        Verdict::Reject => (replayed.checked.element.clone(), None),
+        Verdict::Reject(reason) => (replayed.checked.element.clone(), None, Some(reason)),
     };
     let held =
         match &element {
@@ -293,6 +307,7 @@ pub fn decide(dir: &Path, proposal_id: &str, verdict: Verdict) -> Result<Reviewe
         kind,
         proposal_id: Some(proposal_id.to_owned()),
         edit,
+        reason,
     };
     let mut changed = overlay.clone();
     let insert = if kind == DecisionKind::Reject {

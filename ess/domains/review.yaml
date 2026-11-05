@@ -218,6 +218,9 @@ entities:
       - name: corrected_text
         type: Optional<String>
         summary: The corrected text of an erratum; text_digest is the digest of the original text.
+      - name: reason
+        type: Optional<String>
+        summary: Why the reviewer rejected the item; required for a reject and absent for every other kind.
       - name: confirms
         type: Optional<rfcspec.review.DecisionKey>
         summary: The stale decision this one confirms against the changed text.
@@ -226,6 +229,8 @@ entities:
       - any: [kind != Erratum, defined(errata_id)]
       - any: [kind != Erratum, defined(corrected_text)]
       - any: [kind != Erratum, errata_status == Verified]
+      - any: [kind != Reject, defined(reason)]
+      - any: [kind == Reject, not defined(reason)]
     relations:
       - name: profile
         kind: references
@@ -314,7 +319,7 @@ errors:
         type: rfcspec.review.ProposalId
 
   - name: rfcspec.review.DecisionIncomplete
-    summary: An edit names no replacement item, or an erratum no errata id or corrected text, and nothing was recorded.
+    summary: An edit names no replacement item, an erratum no errata id or corrected text, or a reject no reason, and nothing was recorded.
     fields:
       - name: item
         type: rfcspec.catalogue.ItemId
@@ -518,6 +523,8 @@ commands:
         type: Optional<rfcspec.review.ErrataStatus>
       - name: corrected_text
         type: Optional<String>
+      - name: reason
+        type: Optional<String>
     outcomes:
       - name: incomplete
         when:
@@ -526,6 +533,7 @@ commands:
             - all: [kind == Erratum, not defined(errata_id)]
             - all: [kind == Erratum, not defined(corrected_text)]
             - all: [kind == Erratum, not defined(errata_status)]
+            - all: [kind == Reject, not defined(reason)]
         error: rfcspec.review.DecisionIncomplete
         payload:
           rfcspec.review.DecisionIncomplete:
@@ -539,6 +547,14 @@ commands:
           rfcspec.review.ErratumNotVerified:
             item: input.key.item
         summary: Only a verified erratum enters the overlay.
+      - name: stray-reason
+        when:
+          all: [kind != Reject, defined(reason)]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.key.item
+        summary: Only a reject carries a reason, and nothing was recorded.
       - name: already-exists
         existing_instance: true
         error: rfcspec.review.AlreadyExists
@@ -562,6 +578,7 @@ commands:
           errata_id: input.errata_id
           errata_status: input.errata_status
           corrected_text: input.corrected_text
+          reason: input.reason
         summary: The decision is in the profile's overlay and applied.
 
   - name: rfcspec.review.MarkDecisionStale
@@ -617,6 +634,8 @@ commands:
         type: Optional<rfcspec.review.ErrataStatus>
       - name: corrected_text
         type: Optional<String>
+      - name: reason
+        type: Optional<String>
     outcomes:
       - name: incomplete
         when:
@@ -625,6 +644,7 @@ commands:
             - all: [kind == Erratum, not defined(errata_id)]
             - all: [kind == Erratum, not defined(corrected_text)]
             - all: [kind == Erratum, not defined(errata_status)]
+            - all: [kind == Reject, not defined(reason)]
         error: rfcspec.review.DecisionIncomplete
         payload:
           rfcspec.review.DecisionIncomplete:
@@ -638,6 +658,14 @@ commands:
           rfcspec.review.ErratumNotVerified:
             item: input.key.item
         summary: Only a verified erratum enters the overlay.
+      - name: stray-reason
+        when:
+          all: [kind != Reject, defined(reason)]
+        error: rfcspec.review.DecisionMismatch
+        payload:
+          rfcspec.review.DecisionMismatch:
+            item: input.key.item
+        summary: Only a reject carries a reason, and nothing was recorded.
       - name: already-exists
         existing_instance: true
         error: rfcspec.review.AlreadyExists
@@ -690,6 +718,7 @@ commands:
           errata_id: input.errata_id
           errata_status: input.errata_status
           corrected_text: input.corrected_text
+          reason: input.reason
           confirms: input.confirms
         summary: A new Current decision applies under the new digest.
 
@@ -780,6 +809,8 @@ views:
       - name: errata_status
         type: Optional<rfcspec.review.ErrataStatus>
       - name: corrected_text
+        type: Optional<String>
+      - name: reason
         type: Optional<String>
       - name: confirms
         type: Optional<rfcspec.review.DecisionKey>

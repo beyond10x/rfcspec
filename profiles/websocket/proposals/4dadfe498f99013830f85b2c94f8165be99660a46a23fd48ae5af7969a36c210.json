@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1501,
+      "start": 1500
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "4f392d092e9d79a85be58f1d47a528a25c27b1c628e459812932f60e55a0245d",
+  "inputs": {
+    "item": "rfc6455/R5.1-6",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "5.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1501,
+      "start": 1500
+    },
+    "text": "In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1."
+  },
+  "item": "rfc6455/R5.1-6",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4dadfe498f99013830f85b2c94f8165be99660a46a23fd48ae5af7969a36c210",
+  "response": {
+    "id": "R5.1-6",
+    "level": "MAY",
+    "quote": "In this case, it MAY use the status code 1002 (protocol error) as defined in Section 7.4.1.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1501,
+      "start": 1500
+    },
+    "status": {
+      "unsupported": "The model does not implement the optional use of status code 1002 as specified."
+    }
+  },
+  "task": "status"
+}

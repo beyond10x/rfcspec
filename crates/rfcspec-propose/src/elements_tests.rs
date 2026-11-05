@@ -519,11 +519,16 @@ fn a_layout_or_machine_whose_name_the_overlay_holds_can_be_rejected_but_not_acce
             }
             other => panic!("{held}: {other:?}"),
         }
-        let reviewed = review::decide(&dir, &id, review::Verdict::Reject)
+        let reviewed = review::decide(&dir, &id, review::Verdict::Reject("a duplicate".into()))
             .unwrap_or_else(|error| panic!("{held}: {error}"));
         assert_eq!(
             reviewed.decision.kind,
             rfcspec_model::DecisionKind::Reject,
+            "{held}"
+        );
+        assert_eq!(
+            reviewed.decision.reason.as_deref(),
+            Some("a duplicate"),
             "{held}"
         );
         assert_eq!(reviewed.overlay.layouts, overlay.layouts, "{held}");

@@ -1,7 +1,7 @@
 //! The `websocket` profile (RFC 6455) as a user runs `rfcspec` on it: fetch, extract and check.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     io::{Read, Write},
     net::TcpListener,
@@ -165,6 +165,147 @@ fn task_check_explores_every_websocket_model_with_its_witness() {
             "{expected} not in\n{websocket}"
         );
     }
+    let replay =
+        format!("cargo run -q --locked -p rfcspec-cli -- propose --profile {PROFILE} --replay");
+    assert!(
+        websocket.lines().any(|line| line == replay),
+        "{replay} not in\n{websocket}"
+    );
+}
+
+/// The ids of the catalogue requirements `rfcspec extract` lists in sections 5.1 and 5.3.
+fn slice_ids() -> BTreeSet<String> {
+    catalogue()["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| matches!(r["section"].as_str(), Some("5.1" | "5.3")))
+        .map(|r| r["id"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// Every recorded proposal of the profile, `(file stem, document)`.
+fn recorded_proposals() -> Vec<(String, serde_json::Value)> {
+    let dir = repository().join(PROFILE).join("proposals");
+    let mut out: Vec<(String, serde_json::Value)> = fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            assert_eq!(
+                path.extension().and_then(|e| e.to_str()),
+                Some("json"),
+                "{}",
+                path.display()
+            );
+            let stem = path.file_stem().unwrap().to_str().unwrap().to_owned();
+            (
+                stem,
+                serde_json::from_slice(&fs::read(&path).unwrap()).unwrap(),
+            )
+        })
+        .collect();
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+#[test]
+fn the_recorded_proposals_are_one_status_proposal_per_catalogue_requirement_of_5_1_and_5_3() {
+    let ids = slice_ids();
+    assert_eq!(ids.len(), 10, "{ids:?}");
+    let proposals = recorded_proposals();
+    let mut items = BTreeSet::new();
+    for (stem, proposal) in &proposals {
+        assert_eq!(proposal["format"], "rfcspec-proposal/1", "{stem}");
+        assert_eq!(proposal["proposal_id"], stem.as_str(), "{stem}");
+        assert_eq!(proposal["task"], "status", "{stem}");
+        assert_eq!(proposal["profile"], "websocket", "{stem}");
+        assert_eq!(proposal["model_id"], "local/qwen3:14b", "{stem}");
+        let item = proposal["item"].as_str().unwrap();
+        let id = item
+            .strip_prefix("rfc6455/")
+            .unwrap_or_else(|| panic!("{item}"));
+        assert!(items.insert(id.to_owned()), "{item} proposed twice");
+    }
+    assert_eq!(items, ids);
+}
+
+#[test]
+fn every_recorded_proposal_has_one_decision_and_a_reject_its_reason() {
+    let overlay: rfcspec_model::Overlay =
+        rfcspec_model::read_yaml(&repository().join(PROFILE).join("overlay.yaml")).unwrap();
+    let proposals: BTreeMap<String, String> = recorded_proposals()
+        .into_iter()
+        .map(|(stem, p)| (stem, p["item"].as_str().unwrap().to_owned()))
+        .collect();
+    let decided: BTreeMap<&str, &rfcspec_model::Decision> = overlay
+        .decisions
+        .iter()
+        .map(|d| (d.proposal_id.as_deref().unwrap(), d))
+        .collect();
+    assert_eq!(
+        decided.keys().copied().collect::<BTreeSet<_>>(),
+        proposals
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>()
+    );
+    assert_eq!(overlay.decisions.len(), proposals.len());
+    for (id, decision) in &decided {
+        assert_eq!(decision.item, proposals[*id], "{id}");
+        let entry = overlay
+            .requirements
+            .iter()
+            .find(|r| format!("rfc6455/{}", r.id) == decision.item);
+        match decision.kind {
+            rfcspec_model::DecisionKind::Reject => {
+                assert!(
+                    decision
+                        .reason
+                        .as_deref()
+                        .is_some_and(|r| !r.trim().is_empty()),
+                    "{id}"
+                );
+                assert!(
+                    entry.is_none(),
+                    "{} is rejected yet has a status",
+                    decision.item
+                );
+            }
+            _ => assert!(entry.is_some(), "{} has no status", decision.item),
+        }
+    }
+}
+
+#[test]
+fn replay_of_the_recorded_proposals_exits_0_and_changes_no_byte() {
+    let root = scratch("replay");
+    let profile = root.join("websocket");
+    copy_websocket(&profile);
+    let before = recorded_proposals();
+    let output = rfcspec(&[
+        "propose",
+        "--profile",
+        profile.to_str().unwrap(),
+        "--replay",
+    ]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let from = repository().join(PROFILE).join("proposals");
+    let to = profile.join("proposals");
+    assert_eq!(fs::read_dir(&to).unwrap().count(), before.len());
+    for (stem, _) in &before {
+        let file = format!("{stem}.json");
+        assert_eq!(
+            fs::read(to.join(&file)).unwrap(),
+            fs::read(from.join(&file)).unwrap(),
+            "{file}"
+        );
+    }
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -529,11 +670,19 @@ fn check_refuses_an_in_scope_requirement_without_a_status_at_any_level() {
 }
 
 #[test]
-fn every_in_scope_requirement_has_a_status_and_those_outside_need_none() {
+fn every_in_scope_requirement_has_a_status_and_one_outside_only_by_an_accept_or_edit() {
     let catalogue = catalogue();
     let overlay: rfcspec_model::Overlay =
         rfcspec_model::read_yaml(&repository().join(PROFILE).join("overlay.yaml")).unwrap();
     let reviewed: Vec<&str> = overlay.requirements.iter().map(|r| r.id.as_str()).collect();
+    let accepted: BTreeSet<&str> = overlay
+        .decisions
+        .iter()
+        .filter(|d| d.kind != rfcspec_model::DecisionKind::Reject)
+        .map(|d| d.item.strip_prefix("rfc6455/").unwrap())
+        .collect();
+    assert_eq!(accepted.len(), 7, "{accepted:?}");
+    let mut outside_reviewed = BTreeSet::new();
     let scoped = |section: &str| {
         ["5.2", "5.4", "5.5", "5.6", "7"]
             .iter()
@@ -553,10 +702,13 @@ fn every_in_scope_requirement_has_a_status_and_those_outside_need_none() {
             musts_in += found.iter().filter(|k| k.starts_with("MUST")).count();
         } else {
             outside += 1;
-            assert!(!reviewed.contains(&id), "{id} is outside the scope");
+            if reviewed.contains(&id) {
+                outside_reviewed.insert(id);
+            }
         }
     }
-    assert_eq!(in_scope, overlay.requirements.len());
+    assert_eq!(outside_reviewed, accepted);
+    assert_eq!(in_scope + accepted.len(), overlay.requirements.len());
     assert_eq!((keywords_in, musts_in), (78, 40));
     assert!(outside > 0);
     let unsupported_g1: Vec<&str> = overlay

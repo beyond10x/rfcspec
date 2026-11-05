@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1806,
+      "start": 1805
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c38056dca78cc1795b12addb0ed4e2ac564b7addb202ed574b112ef20550f5ed",
+  "inputs": {
+    "item": "rfc6455/R5.3-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "5.3",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1806,
+      "start": 1805
+    },
+    "text": "When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values."
+  },
+  "item": "rfc6455/R5.3-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "e8e06863e9008e96dd407d22f0cf1046eae2a909c9789fcb4e5a6f3c78842561",
+  "response": {
+    "id": "R5.3-2",
+    "level": "MUST",
+    "quote": "When preparing a masked frame, the client MUST pick a fresh masking key from the set of allowed 32-bit values.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1806,
+      "start": 1805
+    },
+    "status": {
+      "unsupported": "the model does not generate a fresh masking key as required"
+    }
+  },
+  "task": "status"
+}

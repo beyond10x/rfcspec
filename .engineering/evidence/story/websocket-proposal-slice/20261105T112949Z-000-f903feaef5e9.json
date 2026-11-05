@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T11:29:49Z",
+  "actor": "human:timo",
+  "artifact": "story:websocket-proposal-slice",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "live run local/qwen3:14b 10 proposals; 10 review decisions; cargo test -p rfcspec-cli (websocket 22) -p rfcspec-docs -p rfcspec-propose exit 0; task websocket replays; check 77 requirements; scans clean"
+  }
+}

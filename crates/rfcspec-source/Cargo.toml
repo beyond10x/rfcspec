@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 anyhow = "1"
 rfcspec-model = { path = "../rfcspec-model" }
+roxmltree = "0.21"
 sha2 = "0.10"
 ureq = { version = "3.4", default-features = false, features = ["rustls"] }
 

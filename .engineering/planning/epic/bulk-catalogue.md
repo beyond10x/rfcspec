@@ -2,14 +2,15 @@
 format: aep.planning-md/3
 id: epic:bulk-catalogue
 kind: epic
-status: active
+status: implemented
 title: Mechanical catalogue of every BCP 14 RFC
 relations:
 - depends_on: epic:websocket-profile
-revision: 3
+revision: 4
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T08:01:47Z", actor: "human:timo", revision: 2}
 - {from: "proposed", to: "active", at: "2026-11-05T08:01:47Z", actor: "human:timo", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-05T11:29:54Z", actor: "human:timo", revision: 4}
 ---
 ## Outcome
 

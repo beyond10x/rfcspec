@@ -2,13 +2,12 @@
 format: aep.planning-md/3
 id: story:bulk-summary-format
 kind: story
-status: active
+status: implemented
 title: Summarise rfc-index.xml and RFC texts into the rfcspec-bulk/1 summary and check it offline
 relations:
 - decomposes: epic:bulk-catalogue
 - depends_on: story:websocket-review-matrix
 - depends_on: story:proposal-machine-layout
-- depends_on: story:websocket-proposal-slice
 scope:
 - confidence: cited
   path: Cargo.lock
@@ -28,10 +27,11 @@ scope:
   path: crates/rfcspec-source
 - confidence: cited
   path: ess/domains/catalogue.yaml
-revision: 15
+revision: 16
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T08:01:52Z", actor: "human:timo", revision: 14, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-05T08:01:52Z", actor: "human:timo", revision: 15, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "active", to: "implemented", at: "2026-11-05T09:49:24Z", actor: "human:timo", revision: 16, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Story
 
