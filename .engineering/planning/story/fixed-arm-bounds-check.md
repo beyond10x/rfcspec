@@ -2,17 +2,18 @@
 format: aep.planning-md/3
 id: story:fixed-arm-bounds-check
 kind: story
-status: active
+status: implemented
 title: Refuse a fixed timer arm of 0 ms or above max_time_ms
 relations:
 - depends_on: story:send-payload-type-check
 scope:
 - confidence: cited
   path: crates/rfcspec-extract/src/check.rs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
 - {from: "proposed", to: "active", at: "2026-11-05T23:08:42Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-05T23:34:17Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Outcome
 

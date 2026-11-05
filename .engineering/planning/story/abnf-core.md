@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:abnf-core
 kind: story
-status: active
+status: implemented
 title: rfcspec-abnf parses RFC 5234 and RFC 7405 ABNF, resolves references and core rules, and matches input
 relations:
 - decomposes: epic:wire-layer
@@ -22,10 +22,11 @@ scope:
   path: crates/rfcspec-abnf/src/rfc2616.rs
 - confidence: inferred
   path: crates/rfcspec-abnf/tests/rfc6455_core.rs
-revision: 7
+revision: 8
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
 - {from: "proposed", to: "active", at: "2026-11-05T23:08:41Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T23:38:20Z", actor: "human:timo", revision: 8, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Story
 

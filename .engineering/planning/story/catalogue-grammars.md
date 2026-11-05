@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:catalogue-grammars
 kind: story
-status: active
+status: implemented
 title: S2 collects the ABNF figures of each section into a catalogue grammar, from text and RFCXML
 relations:
 - decomposes: epic:wire-layer
@@ -11,6 +11,8 @@ relations:
 scope:
 - confidence: cited
   path: crates/rfcspec-extract/src/lib.rs
+- confidence: cited
+  path: crates/rfcspec-extract/tests/locked_profiles.rs
 - confidence: cited
   path: crates/rfcspec-model/src/lib.rs
 - confidence: inferred
@@ -23,10 +25,11 @@ scope:
   path: ess/ess-inputs.yaml
 - confidence: inferred
   path: ess/scenarios/extract-grammar-already-exists.yaml
-revision: 13
+revision: 15
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 8}
 - {from: "proposed", to: "active", at: "2026-11-05T23:08:41Z", actor: "human:timo", revision: 13, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "active", to: "implemented", at: "2026-11-05T23:37:29Z", actor: "human:timo", revision: 15, decided_on: {"recorded":{"test_result":1,"review_outcome":3}}}
 ---
 ## Story
 
