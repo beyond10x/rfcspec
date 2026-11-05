@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 //! S2 and the S4 check. [`extract`] finds what can be found mechanically in a normalized document:
-//! sentences with a BCP 14 keyword in capitals, sentences with a lowercase `must`, `should` or
+//! sentences with a BCP 14 keyword in capitals (in a document read from RFCXML, sentences
+//! containing a `<bcp14>` element), sentences with a lowercase `must`, `should` or
 //! `may` (prose candidates for review), dialogue steps (`S: ...`, `U: ...`) in figures, and
 //! numeric examples (`N corresponds to DATE`). [`check`] verifies a reviewer's overlay against the
 //! catalogue and the source text.
@@ -8,11 +9,12 @@
 mod check;
 
 pub use check::{check, layout_problems, quote_problem};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Range};
 
 use rfcspec_model::{
-    ABNF_COMMENT, Bcp14Requirement, BlockKind, CAPITALS_TEXT, CATALOGUE_FORMAT, Catalogue,
-    DialogueStep, Document, NumericExample, OctetExample, ProseCandidate, Span,
+    ABNF_COMMENT, BCP14_XML, Bcp14Requirement, BlockKind, CAPITALS_TEXT, CATALOGUE_FORMAT,
+    Catalogue, DialogueStep, Document, NumericExample, OctetExample, ProseCandidate, SourceFormat,
+    Span,
 };
 
 /// The eleven BCP 14 keywords, the levels a requirement is extracted at, longest first so `MUST
@@ -126,11 +128,37 @@ fn comment(line: &str) -> Option<(&str, &str)> {
 
 /// Extract the mechanical catalogue of a document.
 pub fn extract(document: &Document) -> Catalogue {
+    extract_reporting(document).0
+}
+
+/// Extract the mechanical catalogue of a document, with one problem for each `<bcp14>` element
+/// of an RFCXML document whose content is none of the [`LEVELS`], naming its source line.
+///
+/// A plain-text document takes a requirement from every sentence with a BCP 14 keyword in
+/// capitals (`capitals-text`). An RFCXML document takes one from every sentence containing a
+/// `<bcp14>` element instead (`bcp14-xml`), at the level the first such element holds; a
+/// capitals keyword outside the markup is none, except in a figure: a figure carries no markup,
+/// so an RFCXML figure that is neither ABNF nor a drawing (a line starting `+-` or `+ -`) gives
+/// its capitals sentences as `capitals-text`, as the plain-text reader's paragraphs give the same
+/// lines (a blank line ending a sentence, as it ends a paragraph). A figure is ABNF by its `type`
+/// when it has one (`abnf`), else when a line defines a rule; its comments give `abnf-comment`
+/// on both paths. The entries of an RFCXML `<dl>` (`Block::entries`) are sentence boundaries.
+pub fn extract_reporting(document: &Document) -> (Catalogue, Vec<String>) {
+    let xml = document.format == SourceFormat::Xml;
+    let mut problems = Vec::new();
     let mut found: Vec<(&'static str, String, Span, &'static str, Option<String>)> = Vec::new();
     let mut prose_candidates = Vec::new();
     for block in &document.blocks {
-        if block.kind == BlockKind::Figure && block.lines.iter().any(|l| rfcspec_doc::abnf_rule(l))
-        {
+        let abnf = block.kind == BlockKind::Figure
+            && match block.figure_type.as_deref() {
+                Some(kind) => kind == "abnf",
+                None => block.lines.iter().any(|l| rfcspec_doc::abnf_rule(l)),
+            };
+        let drawn = block.lines.iter().any(|line| {
+            let line = line.trim();
+            line.starts_with("+-") || line.starts_with("+ -")
+        });
+        if abnf {
             for (lines, first) in abnf_comments(&block.lines, block.span.start) {
                 for (text, span) in sentences(&lines, first) {
                     if let Some(level) = keywords(&text).first() {
@@ -138,20 +166,41 @@ pub fn extract(document: &Document) -> Catalogue {
                     }
                 }
             }
+        } else if xml && block.kind == BlockKind::Figure && !drawn {
+            let lines: Vec<String> = block.lines.iter().map(|l| l.trim().to_string()).collect();
+            let mut start = 0;
+            for group in lines.split(String::is_empty) {
+                for (text, span) in sentences(group, block.span.start + start) {
+                    if let Some(level) = keywords(&text).first() {
+                        found.push((level, text, span, CAPITALS_TEXT, block.section.clone()));
+                    }
+                }
+                start += group.len() + 1;
+            }
         }
         if block.kind != BlockKind::Paragraph {
             continue;
         }
         let skip = boilerplate(&block.text());
-        for (text, span) in sentences(&block.lines, block.span.start) {
-            if let Some(level) = keywords(&text).first().filter(|_| !skip) {
-                found.push((
-                    level,
-                    text.clone(),
-                    span,
-                    CAPITALS_TEXT,
-                    block.section.clone(),
+        let (_, line_of) = joined(&block.lines, block.span.start);
+        if xml {
+            for mark in block.bcp14.iter().filter(|m| level(&m.keyword).is_none()) {
+                problems.push(format!(
+                    "line {}: <bcp14>{}</bcp14> holds no BCP 14 level and does not set its sentence's level",
+                    line_of.get(mark.offset).copied().unwrap_or(block.span.start),
+                    mark.keyword
                 ));
+            }
+        }
+        for (text, span, range) in sentences_at(&block.lines, block.span.start, &block.entries) {
+            let (level, source) = if xml {
+                let first = block.bcp14.iter().find(|m| range.contains(&m.offset));
+                (first.and_then(|m| level(&m.keyword)), BCP14_XML)
+            } else {
+                (keywords(&text).first().copied(), CAPITALS_TEXT)
+            };
+            if let Some(level) = level.filter(|_| !skip) {
+                found.push((level, text.clone(), span, source, block.section.clone()));
             }
             let keywords: Vec<&str> = PROSE
                 .iter()
@@ -225,7 +274,7 @@ pub fn extract(document: &Document) -> Catalogue {
         }
     }
 
-    Catalogue {
+    let catalogue = Catalogue {
         format: CATALOGUE_FORMAT.into(),
         rfc: document.rfc,
         sha256: document.sha256.clone(),
@@ -234,7 +283,14 @@ pub fn extract(document: &Document) -> Catalogue {
         dialogue_steps: dialogue_steps.into_iter().flatten().collect(),
         examples,
         octet_examples: octet_examples(document),
-    }
+    };
+    (catalogue, problems)
+}
+
+/// The level a `<bcp14>` element's whitespace-collapsed content names, if it is one of the
+/// [`LEVELS`].
+fn level(content: &str) -> Option<&'static str> {
+    LEVELS.iter().copied().find(|level| *level == content)
 }
 
 /// The octet examples of a document: a bulleted line (`*`, `o` or `-`) whose text starts with a
@@ -307,6 +363,15 @@ fn octets(text: &str) -> Option<(Vec<u8>, u64)> {
 
 /// Split a paragraph's lines into sentences, each with the source lines it spans.
 fn sentences(lines: &[String], first: usize) -> Vec<(String, Span)> {
+    sentences_at(lines, first, &[])
+        .into_iter()
+        .map(|(text, span, _)| (text, span))
+        .collect()
+}
+
+/// A paragraph's lines joined as [`rfcspec_model::Block::text`] joins them, with the source line
+/// of every byte of the result.
+fn joined(lines: &[String], first: usize) -> (String, Vec<usize>) {
     let mut text = String::new();
     let mut line_of = Vec::new();
     for (offset, line) in lines.iter().enumerate() {
@@ -320,6 +385,18 @@ fn sentences(lines: &[String], first: usize) -> Vec<(String, Span)> {
         text.push_str(line);
         line_of.extend(std::iter::repeat_n(first + offset, line.len()));
     }
+    (text, line_of)
+}
+
+/// [`sentences`], each also with the byte range it covers in the joined text, the range the
+/// offsets of a block's `<bcp14>` marks are measured in. A sentence also ends before each offset
+/// of `breaks` (the entries of a `<dl>`).
+fn sentences_at(
+    lines: &[String],
+    first: usize,
+    breaks: &[usize],
+) -> Vec<(String, Span, Range<usize>)> {
+    let (text, line_of) = joined(lines, first);
     let bytes = text.as_bytes();
     let mut found = Vec::new();
     let mut start = 0;
@@ -330,9 +407,11 @@ fn sentences(lines: &[String], first: usize) -> Vec<(String, Span)> {
         while next < bytes.len() && bytes[next] == b' ' {
             next += 1;
         }
-        let boundary = end_mark
+        let boundary = (end_mark
             && (next == bytes.len()
-                || (next > index + 1 && (bytes[next].is_ascii_uppercase() || bytes[next] == b'(')));
+                || (next > index + 1
+                    && (bytes[next].is_ascii_uppercase() || bytes[next] == b'('))))
+            || (bytes[index] != b' ' && next > index + 1 && breaks.contains(&next));
         if boundary {
             let sentence = text[start..=index].trim();
             if !sentence.is_empty() {
@@ -343,6 +422,7 @@ fn sentences(lines: &[String], first: usize) -> Vec<(String, Span)> {
                         start: line_of[lead],
                         end: line_of[index],
                     },
+                    lead..index + 1,
                 ));
             }
             start = next;
@@ -359,6 +439,7 @@ fn sentences(lines: &[String], first: usize) -> Vec<(String, Span)> {
                 start: line_of[start],
                 end: line_of[text.len() - 1],
             },
+            start..text.len(),
         ));
     }
     found
@@ -487,6 +568,7 @@ mod tests {
             anchor: None,
             figure_type: None,
             bcp14: vec![],
+            entries: vec![],
         };
         let document = Document {
             rfc: 1,
@@ -1071,5 +1153,246 @@ mod tests {
         let first = to_json(&catalogue_5905()).unwrap();
         let second = to_json(&catalogue_5905()).unwrap();
         assert_eq!(first.as_bytes(), second.as_bytes());
+    }
+
+    /// An RFCXML v3 document whose section 1 holds `body`, starting on source line 5.
+    fn xml_document(body: &str) -> Document {
+        let text = format!(
+            "<rfc version=\"3\">\n<middle>\n<section pn=\"section-1\">\n<name>Intro</name>\n{body}\n</section>\n</middle>\n</rfc>\n"
+        );
+        rfcspec_doc::xml::read(1, "digest", &text).unwrap()
+    }
+
+    fn levels(catalogue: &Catalogue) -> Vec<(&str, &str, &str)> {
+        catalogue
+            .requirements
+            .iter()
+            .map(|r| (r.id.as_str(), r.keyword.as_str(), r.source.as_str()))
+            .collect()
+    }
+
+    #[test]
+    fn an_xml_sentence_with_bcp14_must_not_is_a_requirement_at_must_not() {
+        let (catalogue, problems) = extract_reporting(&xml_document(
+            "<t>The client <bcp14>MUST NOT</bcp14> send data. Nothing else.</t>",
+        ));
+        assert_eq!(levels(&catalogue), [("R1-1", "MUST NOT", BCP14_XML)]);
+        assert_eq!(
+            catalogue.requirements[0].text,
+            "The client MUST NOT send data."
+        );
+        assert_eq!(catalogue.requirements[0].span, Span { start: 5, end: 5 });
+        assert!(problems.is_empty(), "{problems:?}");
+    }
+
+    #[test]
+    fn an_xml_sentence_with_two_bcp14_elements_is_one_requirement_at_the_first() {
+        let (catalogue, _) = extract_reporting(&xml_document(
+            "<t>A server <bcp14>MAY</bcp14> close and\nthe client <bcp14>MUST</bcp14> then stop.</t>",
+        ));
+        assert_eq!(levels(&catalogue), [("R1-1", "MAY", BCP14_XML)]);
+        assert_eq!(catalogue.requirements[0].span, Span { start: 5, end: 6 });
+    }
+
+    #[test]
+    fn an_xml_sentence_with_capitals_must_and_no_bcp14_element_is_no_requirement() {
+        let (catalogue, problems) =
+            extract_reporting(&xml_document("<t>The client MUST send data.</t>"));
+        assert!(
+            catalogue.requirements.is_empty(),
+            "{:?}",
+            levels(&catalogue)
+        );
+        assert!(problems.is_empty(), "{problems:?}");
+    }
+
+    #[test]
+    fn an_xml_bcp14_element_holding_no_level_gives_no_requirement_and_names_its_line() {
+        let (catalogue, problems) = extract_reporting(&xml_document(
+            "<t>The first sentence.\nThe client <bcp14>must</bcp14> send data.</t>",
+        ));
+        assert!(
+            catalogue.requirements.is_empty(),
+            "{:?}",
+            levels(&catalogue)
+        );
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("line 6"), "{problems:?}");
+        assert!(problems[0].contains("must"), "{problems:?}");
+        assert_eq!(catalogue.prose_candidates.len(), 1);
+    }
+
+    #[test]
+    fn an_xml_abnf_comment_with_capitals_must_is_an_abnf_comment_requirement() {
+        let (catalogue, _) = extract_reporting(&xml_document(
+            "<sourcecode type=\"abnf\">\nframe = %x00-FF ; MUST be zero\n</sourcecode>",
+        ));
+        assert_eq!(levels(&catalogue), [("R1-1", "MUST", ABNF_COMMENT)]);
+        assert_eq!(catalogue.requirements[0].text, "MUST be zero");
+    }
+
+    #[test]
+    fn an_xml_type_abnf_figure_without_a_rule_line_gives_its_comment_as_abnf_comment() {
+        let body = "<sourcecode type=\"abnf\">\n        / %x02-FF\n        ; MUST be reserved\n</sourcecode>";
+        let document = xml_document(body);
+        assert!(
+            !document.blocks[1]
+                .lines
+                .iter()
+                .any(|l| rfcspec_doc::abnf_rule(l))
+        );
+        let (catalogue, _) = extract_reporting(&document);
+        assert_eq!(levels(&catalogue), [("R1-1", "MUST", ABNF_COMMENT)]);
+        assert_eq!(catalogue.requirements[0].text, "MUST be reserved");
+        assert_eq!(catalogue.requirements[0].span, Span { start: 7, end: 7 });
+    }
+
+    #[test]
+    fn an_xml_figure_that_is_no_abnf_gives_capitals_requirements_as_capitals_text() {
+        let (catalogue, problems) = extract_reporting(&xml_document(
+            "<sourcecode type=\"yang\">\n  leaf port {\n    description\n      \"The port MUST be set.\";\n  }\n</sourcecode>",
+        ));
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(levels(&catalogue), [("R1-1", "MUST", CAPITALS_TEXT)]);
+        assert_eq!(
+            catalogue.requirements[0].text,
+            "leaf port { description \"The port MUST be set.\"; }"
+        );
+        assert_eq!(catalogue.requirements[0].span, Span { start: 6, end: 9 });
+        assert!(catalogue.prose_candidates.is_empty());
+    }
+
+    #[test]
+    fn a_blank_line_in_an_xml_figure_ends_a_sentence_as_it_ends_a_text_paragraph() {
+        let (catalogue, _) = extract_reporting(&xml_document(
+            "<sourcecode type=\"yang\">\n  \"It is NOT RECOMMENDED to enable this.\"; }\n\n  grouping g { description \"A client MUST send.\"; }\n</sourcecode>",
+        ));
+        let texts: Vec<(&str, Span)> = catalogue
+            .requirements
+            .iter()
+            .map(|r| (r.text.as_str(), r.span))
+            .collect();
+        assert_eq!(
+            texts,
+            [
+                (
+                    "\"It is NOT RECOMMENDED to enable this.\"; }",
+                    Span { start: 6, end: 6 }
+                ),
+                (
+                    "grouping g { description \"A client MUST send.\"; }",
+                    Span { start: 8, end: 8 }
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn an_xml_figure_typed_as_another_language_is_no_abnf_though_a_line_looks_like_a_rule() {
+        let document = xml_document(
+            "<sourcecode type=\"yang\">\n  description\n    \"The unit:\n     kbps = kilobits per second. A rate MUST be set.\";\n</sourcecode>",
+        );
+        assert!(
+            document.blocks[1]
+                .lines
+                .iter()
+                .any(|l| rfcspec_doc::abnf_rule(l))
+        );
+        let (catalogue, _) = extract_reporting(&document);
+        assert_eq!(levels(&catalogue), [("R1-1", "MUST", CAPITALS_TEXT)]);
+        assert_eq!(catalogue.requirements[0].text, "A rate MUST be set.\";");
+    }
+
+    #[test]
+    fn an_xml_diagram_with_a_border_line_gives_no_requirement_as_a_text_figure_gives_none() {
+        let (catalogue, _) = extract_reporting(&xml_document(
+            "<artwork type=\"ascii-art\">\n  +-----------------+\n  | header OPTIONAL |\n  +-----------------+\n</artwork>",
+        ));
+        assert!(
+            catalogue.requirements.is_empty(),
+            "{:?}",
+            levels(&catalogue)
+        );
+    }
+
+    fn catalogue_9220_xml() -> (Catalogue, Vec<String>) {
+        let text = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../rfcspec-doc/tests/fixtures/rfc9220.xml"),
+        )
+        .unwrap();
+        extract_reporting(&rfcspec_doc::xml::read(9220, "digest", &text).unwrap())
+    }
+
+    #[test]
+    fn rfc9220_xml_gives_r3_1_should_and_r3_2_may_and_the_boilerplate_none() {
+        let (catalogue, problems) = catalogue_9220_xml();
+        assert!(problems.is_empty(), "{problems:?}");
+        let found: Vec<(&str, &str, &str, usize, usize)> = catalogue
+            .requirements
+            .iter()
+            .map(|r| {
+                (
+                    r.id.as_str(),
+                    r.keyword.as_str(),
+                    r.source.as_str(),
+                    r.span.start,
+                    r.span.end,
+                )
+            })
+            .collect();
+        assert_eq!(
+            found,
+            [
+                ("R3-1", "SHOULD", BCP14_XML, 130, 133),
+                ("R3-2", "MAY", BCP14_XML, 133, 134)
+            ]
+        );
+        assert_eq!(
+            catalogue.requirements[1].text,
+            "A server MAY provide more information via a \"problem details\" response [RFC7807]."
+        );
+    }
+
+    #[test]
+    fn rfc9220_xml_and_text_give_the_same_requirements_and_prose_candidates() {
+        let text = fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../rfcspec-doc/tests/fixtures/rfc9220.txt"),
+        )
+        .unwrap();
+        let from_text = extract(&rfcspec_doc::read(9220, "digest", &text));
+        let (from_xml, _) = catalogue_9220_xml();
+        let requirements =
+            |catalogue: &Catalogue| -> Vec<(String, String, Option<String>, String)> {
+                catalogue
+                    .requirements
+                    .iter()
+                    .map(|r| {
+                        (
+                            r.id.clone(),
+                            r.keyword.clone(),
+                            r.section.clone(),
+                            rfcspec_model::collapse_whitespace(&r.text),
+                        )
+                    })
+                    .collect()
+            };
+        assert_eq!(requirements(&from_xml), requirements(&from_text));
+        assert!(
+            from_text
+                .requirements
+                .iter()
+                .all(|r| r.source == CAPITALS_TEXT)
+        );
+        let prose = |catalogue: &Catalogue| -> Vec<String> {
+            catalogue
+                .prose_candidates
+                .iter()
+                .map(|c| rfcspec_model::collapse_whitespace(&c.text))
+                .collect()
+        };
+        assert_eq!(prose(&from_xml), prose(&from_text));
+        assert_eq!(prose(&from_xml).len(), 2, "{:?}", prose(&from_xml));
     }
 }

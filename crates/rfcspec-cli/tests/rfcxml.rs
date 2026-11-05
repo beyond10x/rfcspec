@@ -244,6 +244,161 @@ fn a_text_document_reads_byte_for_byte_as_before_and_has_no_format_key() {
     assert!(document.get("format").is_none());
 }
 
+fn extract(profile: &Path) -> Output {
+    rfcspec(&[
+        "extract",
+        "--profile",
+        profile.to_str().unwrap(),
+        "--rfc",
+        "9220",
+    ])
+}
+
+/// A profile naming RFC 9220 with `bytes` locked as its source in `format`.
+fn locked_profile(format: rfcspec_model::SourceFormat, bytes: &[u8]) -> tempfile::TempDir {
+    let profile = tempfile::tempdir().unwrap();
+    fs::write(
+        profile.path().join("profile.yaml"),
+        "name: h3-websockets\nrfcs:\n- number: 9220\n  title: Bootstrapping WebSockets with HTTP/3\n  sections:\n  - '3'\n",
+    )
+    .unwrap();
+    rfcspec_source::store_format(profile.path(), 9220, format, bytes).unwrap();
+    profile
+}
+
+fn catalogue_of(output: &Output) -> serde_json::Value {
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn collapsed(value: &serde_json::Value) -> String {
+    value
+        .as_str()
+        .unwrap()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn extract_over_the_xml_gives_r3_1_should_and_r3_2_may_from_bcp14_as_the_text_gives_them() {
+    let profile = fetched_profile();
+    let output = extract(profile.path());
+    let xml = catalogue_of(&output);
+    assert!(
+        output.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text_profile = locked_profile(
+        rfcspec_model::SourceFormat::Text,
+        &fs::read(repository().join("crates/rfcspec-doc/tests/fixtures/rfc9220.txt")).unwrap(),
+    );
+    let text = catalogue_of(&extract(text_profile.path()));
+
+    let rows = |catalogue: &serde_json::Value| -> Vec<(String, String, String, String)> {
+        catalogue["requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| {
+                (
+                    r["id"].as_str().unwrap().to_string(),
+                    r["keyword"].as_str().unwrap().to_string(),
+                    r["section"].as_str().unwrap().to_string(),
+                    collapsed(&r["text"]),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        rows(&xml),
+        [
+            (
+                "R3-1".to_string(),
+                "SHOULD".to_string(),
+                "3".to_string(),
+                "If a server advertises support for Extended CONNECT but receives an Extended CONNECT request with a \":protocol\" value that is unknown or is not supported, the server SHOULD respond to the request with a 501 (Not Implemented) status code (Section 15.6.2 of [HTTP]).".to_string()
+            ),
+            (
+                "R3-2".to_string(),
+                "MAY".to_string(),
+                "3".to_string(),
+                "A server MAY provide more information via a \"problem details\" response [RFC7807].".to_string()
+            ),
+        ]
+    );
+    assert_eq!(rows(&xml), rows(&text));
+    let sources_and_spans = |catalogue: &serde_json::Value| -> Vec<(String, u64, u64)> {
+        catalogue["requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| {
+                (
+                    r["source"].as_str().unwrap().to_string(),
+                    r["span"]["start"].as_u64().unwrap(),
+                    r["span"]["end"].as_u64().unwrap(),
+                )
+            })
+            .collect()
+    };
+    assert_eq!(
+        sources_and_spans(&xml),
+        [
+            ("bcp14-xml".to_string(), 130, 133),
+            ("bcp14-xml".to_string(), 133, 134)
+        ]
+    );
+    assert_eq!(
+        sources_and_spans(&text),
+        [
+            ("capitals-text".to_string(), 91, 94),
+            ("capitals-text".to_string(), 94, 96)
+        ]
+    );
+    let prose = |catalogue: &serde_json::Value| -> Vec<String> {
+        catalogue["prose_candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| collapsed(&c["text"]))
+            .collect()
+    };
+    assert_eq!(prose(&xml), prose(&text));
+    assert_eq!(prose(&xml).len(), 2, "{:?}", prose(&xml));
+    assert!(prose(&xml)[0].contains("may be obtained at"));
+    assert!(prose(&xml)[1].contains("must include"));
+}
+
+#[test]
+fn extract_names_the_line_of_a_bcp14_element_holding_no_level_and_still_exits_0() {
+    let source = String::from_utf8(fixture()).unwrap();
+    let changed = source.replace(
+        "<bcp14>MAY</bcp14>\nprovide",
+        "<bcp14>must</bcp14>\nprovide",
+    );
+    assert_ne!(changed, source);
+    let profile = locked_profile(rfcspec_model::SourceFormat::Xml, changed.as_bytes());
+
+    let output = extract(profile.path());
+    let catalogue = catalogue_of(&output);
+    let ids: Vec<&str> = catalogue["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["R3-1"]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.contains("line 133"), "{stderr}");
+}
+
 #[test]
 fn bulk_check_refuses_an_xml_lock_naming_the_file_and_the_story_that_reads_it() {
     let profiles = tempfile::tempdir().unwrap();
