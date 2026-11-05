@@ -6,7 +6,15 @@ status: draft
 title: rfcspec check covers profiles locked as RFCXML
 relations:
 - informed_by: epic:rfcxml-reader
-revision: 2
+- depends_on: story:fixed-arm-bounds-check
+scope:
+- confidence: cited
+  path: crates/rfcspec-cli/tests/rfcxml.rs
+- confidence: cited
+  path: crates/rfcspec-extract/src/check.rs
+- confidence: cited
+  path: crates/rfcspec-extract/tests/adversary_bcp14_xml.rs
+revision: 6
 ---
 ## Story
 
@@ -31,4 +39,8 @@ document, empty for XML.
 
 ## Scope
 
-`crates/rfcspec-extract/src/check.rs`, `crates/rfcspec-cli/tests/rfcxml.rs`.
+`crates/rfcspec-extract/src/check.rs`, `crates/rfcspec-cli/tests/rfcxml.rs`, `crates/rfcspec-extract/tests/adversary_bcp14_xml.rs` (the three ignored tests it un-ignores).
+
+## Order
+
+Four stories edit `crates/rfcspec-extract/src/check.rs` and run in this order: story:send-payload-type-check → story:fixed-arm-bounds-check → story:xml-overlay-check → story:websocket-grammar-review; story:status-evidence follows the last. This story depends on story:fixed-arm-bounds-check because both edit `check.rs`, and story:websocket-grammar-review depends on this one for the same reason.
