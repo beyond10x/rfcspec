@@ -14,8 +14,8 @@ use std::{
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use rfcspec_model::{
-    Catalogue, Document, Generated, OVERLAY_FILE, Overlay, PROFILE_FILE, Profile, drift, read_yaml,
-    to_json, write_generated,
+    Catalogue, Document, Generated, OVERLAY_FILE, Overlay, PROFILE_FILE, Profile, SourceFormat,
+    drift, read_yaml, to_json, write_generated,
 };
 
 #[derive(Parser)]
@@ -27,13 +27,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// S0: download an RFC's plain text into the profile's sources/ and lock its SHA-256.
+    /// S0: download an RFC's plain text or RFCXML v3 source into the profile's sources/ and lock
+    /// its SHA-256, replacing the RFC's entry in the other format.
     Fetch {
         #[arg(long)]
         rfc: u32,
         #[arg(long)]
         profile: PathBuf,
-        /// Where `rfc<N>.txt` is downloaded from.
+        /// The source format: `rfc<N>.txt` or `rfc<N>.xml`.
+        #[arg(long, value_enum, default_value_t = Format::Text)]
+        format: Format,
+        /// Where `rfc<N>.txt` or `rfc<N>.xml` is downloaded from.
         #[arg(long, default_value = rfcspec_source::RFC_EDITOR)]
         base_url: String,
     },
@@ -222,6 +226,23 @@ enum ReviewVerdict {
 }
 
 #[derive(Clone, Copy, clap::ValueEnum)]
+enum Format {
+    /// Plain text, `rfc<N>.txt`.
+    Text,
+    /// RFCXML v3, `rfc<N>.xml`.
+    Xml,
+}
+
+impl From<Format> for SourceFormat {
+    fn from(format: Format) -> Self {
+        match format {
+            Format::Text => SourceFormat::Text,
+            Format::Xml => SourceFormat::Xml,
+        }
+    }
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
 enum Target {
     Rust,
 }
@@ -269,9 +290,10 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Fetch {
             rfc,
             profile,
+            format,
             base_url,
         } => {
-            let fetched = rfcspec_source::fetch(&profile, rfc, &base_url)?;
+            let fetched = rfcspec_source::fetch_format(&profile, rfc, &base_url, format.into())?;
             println!(
                 "{} {} sha256 {}{}",
                 fetched.entry.rfc,
@@ -653,17 +675,17 @@ fn propose(
     })
 }
 
-/// A locked source read into its normalized document, refused unless the profile names the RFC.
+/// A locked source read into its normalized document by the reader of its format, refused unless
+/// the profile names the RFC.
 fn read_document(profile: &Path, rfc: u32) -> Result<(Document, String)> {
     let named: Profile = read_yaml(&profile.join(PROFILE_FILE))?;
     if !named.rfcs.iter().any(|entry| entry.number == rfc) {
         bail!("profile {} does not name RFC {rfc}", named.name);
     }
     let locked = rfcspec_source::read_locked(profile, rfc)?;
-    Ok((
-        rfcspec_doc::read(rfc, &locked.entry.sha256, &locked.text),
-        locked.text,
-    ))
+    let document = rfcspec_doc::read_format(rfc, locked.format, &locked.entry.sha256, &locked.text)
+        .with_context(|| format!("reading {}", locked.entry.file))?;
+    Ok((document, locked.text))
 }
 
 /// Write generated files, or with `check`, report the drifted ones and fail.
