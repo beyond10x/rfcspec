@@ -2,15 +2,16 @@
 format: aep.planning-md/3
 id: epic:ntp-profile
 kind: epic
-status: active
+status: implemented
 title: 'NTP (RFC 5905) as the fourth profile: a UDP association with poll timers'
 summary: Header codec, on-wire exchange and poll-process machines for RFC 5905 sections 7.2, 7.3, 8, 9.2 and 13
 relations:
 - depends_on: epic:dns-profile
-revision: 3
+revision: 4
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 2}
 - {from: "proposed", to: "active", at: "2026-11-05T13:50:22Z", actor: "human:timo", revision: 3}
+- {from: "active", to: "implemented", at: "2026-11-05T15:33:40Z", actor: "human:timo", revision: 4}
 ---
 ## Outcome
 
