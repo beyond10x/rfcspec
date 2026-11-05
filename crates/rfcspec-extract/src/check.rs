@@ -4,6 +4,7 @@
 //! local fields have distinct names, a guard compares operands of one type and a `set` writes a
 //! value of its field's type (a literal has its own type, a local operand its field's, an input
 //! operand its trigger field's); a machine's declared channel capacity is a positive integer; a
+//! timer armed with `millis` has a positive interval within the machine's `max_time_ms`; a
 //! timer armed with a backoff is declared by its participant, armed by it with `millis` on some
 //! transition (else it has no prior interval to multiply), and has a positive factor and a
 //! positive ceiling within the machine's `max_time_ms` (declared or the lowering default); and
@@ -282,6 +283,17 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         }
                         Effect::Arm(arm) => {
                             timers.push(&arm.timer);
+                            if let Interval::Fixed { millis } = arm.interval {
+                                let head = format!("{item}: arm {} with millis", arm.timer);
+                                let max_time_ms = machine.bounds().max_time_ms;
+                                if millis == 0 {
+                                    problems.push(format!("{head} 0, not a positive integer"));
+                                } else if millis > u64::from(max_time_ms) {
+                                    problems.push(format!(
+                                        "{head} {millis} above the machine's max_time_ms {max_time_ms}"
+                                    ));
+                                }
+                            }
                             if let Interval::Backoff(backoff) = &arm.interval {
                                 let head = format!("{item}: arm {} with backoff", arm.timer);
                                 if participant.timers.contains(&arm.timer)
@@ -1410,6 +1422,10 @@ mod tests {
         );
         let close = machine(&mut overlay, "close");
         close.bounds = None;
+        let Effect::Arm(fixed) = &mut close.participants[0].transitions[0].effects[1] else {
+            panic!("the second effect arms");
+        };
+        fixed.interval = Interval::Fixed { millis: 1000 };
         let Effect::Arm(arm) = &mut close.participants[0].transitions[0].effects[2] else {
             panic!("the third effect arms");
         };
@@ -1422,6 +1438,50 @@ mod tests {
             [format!(
                 "{CLOSE_START}: arm close-timeout with backoff ceiling_ms 1001 above the machine's max_time_ms 1000"
             )]
+        );
+    }
+
+    /// The committed WebSocket overlay whose close client arms `close-timeout` with `millis`.
+    fn close_fixed(millis: u64) -> Overlay {
+        let mut overlay = committed_websocket();
+        let close = machine(&mut overlay, "close");
+        assert_eq!(close.bounds().max_time_ms, 30000);
+        let Effect::Arm(arm) = &mut close.participants[0].transitions[0].effects[1] else {
+            panic!("the second effect arms");
+        };
+        assert!(
+            arm.timer == "close-timeout" && matches!(arm.interval, Interval::Fixed { .. }),
+            "the second effect arms close-timeout with millis"
+        );
+        arm.interval = Interval::Fixed { millis };
+        overlay
+    }
+
+    #[test]
+    fn a_fixed_arm_of_zero_millis_is_named() {
+        assert_eq!(
+            check(&close_fixed(0), &catalogue_6455(), &source_6455()),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with millis 0, not a positive integer"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_fixed_arm_above_the_machine_max_time_is_named() {
+        assert_eq!(
+            check(&close_fixed(30001), &catalogue_6455(), &source_6455()),
+            [format!(
+                "{CLOSE_START}: arm close-timeout with millis 30001 above the machine's max_time_ms 30000"
+            )]
+        );
+    }
+
+    #[test]
+    fn a_fixed_arm_at_the_machine_max_time_holds() {
+        assert_eq!(
+            check(&close_fixed(30000), &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
         );
     }
 
