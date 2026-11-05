@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:abnf-core
 kind: story
-status: proposed
+status: active
 title: rfcspec-abnf parses RFC 5234 and RFC 7405 ABNF, resolves references and core rules, and matches input
 relations:
 - decomposes: epic:wire-layer
@@ -22,9 +22,10 @@ scope:
   path: crates/rfcspec-abnf/src/rfc2616.rs
 - confidence: inferred
   path: crates/rfcspec-abnf/tests/rfc6455_core.rs
-revision: 5
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":1}}}
+- {from: "proposed", to: "active", at: "2026-11-05T23:08:41Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Story
 
@@ -46,7 +47,11 @@ Before: `crates/rfcspec-abnf` has no parser and `cargo test -p rfcspec-abnf --te
 - the section 5.3 figure (lines 1826-1827, `j = i MOD 4`) is refused with an error naming line 1826;
 - comments stay on their lines: the rule `frame-fin` (lines 1701-1703) parsed as `rfc5234` carries the comment `more frames of this message follow` on line 1701, `final frame of this message` on line 1702 and `1 bit in length` on line 1703;
 - the dispatch stubs answer: parsing the section 5.2 rule figures with `Dialect::Bits` returns the `Unsupported` error from `bits.rs` naming `bits`, and parsing the section 4.3 figures with `Dialect::Rfc2616` returns it from `rfc2616.rs` naming `rfc2616` (story:abnf-bits and story:abnf-rfc2616 take these as their Before);
-- synthetic grammars written for the test cover `%s` and `%i`, `=/`, num-val ranges and concatenations, and each core rule.
+- synthetic grammars written for the test, each matched with `matches` (revised 2026-11-06 from review-result:wave6-acceptance-round-1):
+  - `r = %s"Ab"` accepts `Ab` (2 bytes) and gives `Invalid` at offset 0 for `ab`; `r = %i"Ab"` and plain `r = "Ab"` accept both `Ab` and `ab`;
+  - `r = "a"` followed by `r =/ "b"` accepts `a` and `b` and gives `Invalid` at offset 0 for `c`;
+  - `r = %x30-39` accepts `5` and gives `Invalid` at offset 0 for `a`; `r = %d13.10` accepts CR LF (2 bytes) and gives `Invalid` at offset 1 for CR SP;
+  - for each of the 16 core rules, one input it accepts and one it refuses, each asserted with its result.
 
 ## Scope
 

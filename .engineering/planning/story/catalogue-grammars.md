@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:catalogue-grammars
 kind: story
-status: proposed
+status: active
 title: S2 collects the ABNF figures of each section into a catalogue grammar, from text and RFCXML
 relations:
 - decomposes: epic:wire-layer
@@ -16,10 +16,17 @@ scope:
 - confidence: inferred
   path: crates/rfcspec-wire/src/grammars.rs
 - confidence: inferred
+  path: crates/rfcspec-wire/tests/grammars.rs
+- confidence: inferred
+  path: crates/rfcspec-wire/tests/stubs.rs
+- confidence: inferred
+  path: ess/ess-inputs.yaml
+- confidence: inferred
   path: ess/scenarios/extract-grammar-already-exists.yaml
-revision: 8
+revision: 13
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 8}
+- {from: "proposed", to: "active", at: "2026-11-05T23:08:41Z", actor: "human:timo", revision: 13, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Story
 
@@ -44,8 +51,9 @@ Before: `rfcspec extract --profile profiles/websocket --rfc 6455 | jq ".grammars
 - it prints six grammars in document order, with ids `rfc6455/grammar/3`, `rfc6455/grammar/4.2.2`, `rfc6455/grammar/4.3`, `rfc6455/grammar/5.2`, `rfc6455/grammar/5.3`, `rfc6455/grammar/9.1`;
 - `4.3` spans lines 1384-1423, and its rules hold the three figures (1384-1387, 1389-1415, 1420-1423) and none of the prose lines 1416-1419;
 - `5.2` spans lines 1687-1783 and holds the 19 rule figures, not the diagram at 1535-1552;
-- `cargo test -p rfcspec-wire grammars` passes the same on a synthetic RFCXML document with a `<sourcecode type="abnf">` (id from the section number, span section from the anchor);
-- `ess specify validate --path ess` passes with the scenario;
+- `cargo test -p rfcspec-wire --test grammars` runs a new test file `crates/rfcspec-wire/tests/grammars.rs` that fails before the work: on a synthetic RFCXML document whose `<section anchor="intro" pn="section-2.1">` (number `2.1` from `pn`, as `crates/rfcspec-doc/src/xml.rs` reads it) holds one `<sourcecode type="abnf">` with two rule lines and one `<sourcecode>` with no type and no rule line, `collect` gives exactly one grammar, id `rfc<N>/grammar/2.1`, span section `intro`, rules equal to the two lines joined by a newline, and `uses` empty;
+- `crates/rfcspec-wire/tests/stubs.rs` no longer asserts that `grammars::collect` gives nothing on RFC 6455; it asserts the six ids above;
+- `ess/scenarios/extract-grammar-already-exists.yaml` exists and is listed under `scenarios:` in `ess/ess-inputs.yaml`; it runs `rfcspec.catalogue.ExtractGrammar` twice for one id and expects `extracted`, then `already-exists`, and one row in the `rfcspec.catalogue.Grammars` view; `ess specify validate --path ess` exits 0 with it listed;
 - `cargo run -q -p rfcspec-cli -- bulk check --summary bulk/rfc-summary.jsonl --profiles profiles --sections bulk/rfc-sections.jsonl` still passes.
 
 ## Scope

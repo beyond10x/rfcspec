@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-05T23:08:35Z",
+  "actor": "human:timo",
+  "artifact": "story:abnf-core",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "review_outcome",
+    "source": "review-result:wave6-acceptance-round-1",
+    "review": "review-result:wave6-acceptance-round-1",
+    "outcome": "fixed"
+  }
+}
