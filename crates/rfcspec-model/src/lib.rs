@@ -516,13 +516,30 @@ pub struct Machine {
     /// absent means the lowering's default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capacity: Option<u32>,
-    /// The exploration bounds of the lowered model; absent means the lowering's defaults.
+    /// Whether each channel of the lowered model may lose a message; absent means false.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub loss: bool,
+    /// The exploration bounds of the lowered model; absent means [`BOUNDS`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<Bounds>,
     pub messages: Vec<Message>,
     pub participants: Vec<Participant>,
     pub properties: Vec<Property>,
 }
+
+impl Machine {
+    /// The exploration bounds of the lowered model: the declared ones, else [`BOUNDS`].
+    pub fn bounds(&self) -> Bounds {
+        self.bounds.unwrap_or(BOUNDS)
+    }
+}
+
+/// The exploration bounds of a lowered model whose machine names none.
+pub const BOUNDS: Bounds = Bounds {
+    max_steps: 32,
+    max_states: 256,
+    max_time_ms: 1000,
+};
 
 /// The bounds of a bounded exploration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -714,7 +731,7 @@ pub enum Effect {
     Send(Send),
     Emit(String),
     Close(bool),
-    /// Arm a timer for a fixed delay.
+    /// Arm a timer for a fixed delay or a capped backoff.
     Arm(Arm),
     /// Cancel an armed timer.
     Cancel(String),
@@ -763,12 +780,102 @@ impl From<i64> for Value {
     }
 }
 
-/// Arm a timer for a fixed delay in milliseconds.
+/// Arm a timer: `{timer, millis}` for a fixed delay in milliseconds, or `{timer, backoff:
+/// {factor, ceiling_ms}}` for the timer's last armed interval multiplied by `factor` and capped at
+/// `ceiling_ms`. Both keys, or neither, is a parse error.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "ArmFields", into = "ArmFields")]
 pub struct Arm {
     pub timer: String,
-    pub millis: u64,
+    pub interval: Interval,
+}
+
+/// The interval a timer is armed for.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Interval {
+    /// A fixed delay in milliseconds.
+    Fixed { millis: u64 },
+    /// The armed timer's last interval times a factor, capped at a ceiling.
+    Backoff(Backoff),
+}
+
+/// A capped backoff: a positive multiplier of the armed timer's last interval and a positive
+/// ceiling in milliseconds, at most the machine's `max_time_ms`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Backoff {
+    pub factor: u32,
+    pub ceiling_ms: u64,
+}
+
+/// The written form of an [`Arm`]. The outer `Option` of a key is whether it is present, so a key
+/// written as `null` still counts as given.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ArmFields {
+    timer: String,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    millis: Option<Option<u64>>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    backoff: Option<Option<Backoff>>,
+}
+
+/// A key that is present, its value possibly `null`.
+fn present<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+impl TryFrom<ArmFields> for Arm {
+    type Error = String;
+
+    fn try_from(fields: ArmFields) -> std::result::Result<Self, Self::Error> {
+        let timer = &fields.timer;
+        let interval = match (fields.millis, fields.backoff) {
+            (Some(Some(millis)), None) => Interval::Fixed { millis },
+            (None, Some(Some(backoff))) => Interval::Backoff(backoff),
+            (Some(_), Some(_)) => {
+                return Err(format!(
+                    "arm {timer}: millis and backoff together; give one"
+                ));
+            }
+            (None, None) => {
+                return Err(format!("arm {timer}: neither millis nor backoff; give one"));
+            }
+            (Some(None), None) | (None, Some(None)) => {
+                return Err(format!("arm {timer}: millis or backoff is null"));
+            }
+        };
+        Ok(Arm {
+            timer: fields.timer,
+            interval,
+        })
+    }
+}
+
+impl From<Arm> for ArmFields {
+    fn from(arm: Arm) -> Self {
+        let (millis, backoff) = match arm.interval {
+            Interval::Fixed { millis } => (Some(Some(millis)), None),
+            Interval::Backoff(backoff) => (None, Some(Some(backoff))),
+        };
+        ArmFields {
+            timer: arm.timer,
+            millis,
+            backoff,
+        }
+    }
 }
 
 /// A property the lowered model must hold.
@@ -960,7 +1067,7 @@ mod tests {
             [
                 Effect::Arm(Arm {
                     timer: "t".into(),
-                    millis: 5000
+                    interval: Interval::Fixed { millis: 5000 }
                 }),
                 Effect::Cancel("t".into()),
                 Effect::Flush(true)
@@ -1206,6 +1313,67 @@ mod tests {
         assert_eq!(machine.capacity, Some(8));
         assert_eq!(to_yaml(&machine).unwrap(), declared);
         assert!(from_yaml::<Machine>(&declared.replace("8", "-1")).is_err());
+    }
+
+    #[test]
+    fn an_arm_takes_a_fixed_delay_or_a_capped_backoff_and_never_both_or_neither() {
+        let fixed: Arm = from_yaml("{timer: t, millis: 1000}").unwrap();
+        assert_eq!(
+            fixed,
+            Arm {
+                timer: "t".into(),
+                interval: Interval::Fixed { millis: 1000 },
+            }
+        );
+        let backoff: Arm =
+            from_yaml("{timer: poll, backoff: {factor: 2, ceiling_ms: 131072000}}").unwrap();
+        assert_eq!(
+            backoff,
+            Arm {
+                timer: "poll".into(),
+                interval: Interval::Backoff(Backoff {
+                    factor: 2,
+                    ceiling_ms: 131_072_000,
+                }),
+            }
+        );
+        for arm in [&fixed, &backoff] {
+            assert_eq!(&from_yaml::<Arm>(&to_yaml(arm).unwrap()).unwrap(), arm);
+        }
+        assert_eq!(to_yaml(&fixed).unwrap(), "timer: t\nmillis: 1000\n");
+        assert_eq!(
+            to_yaml(&backoff).unwrap(),
+            "timer: poll\nbackoff:\n  factor: 2\n  ceiling_ms: 131072000\n"
+        );
+        for refused in [
+            "{timer: t, millis: 1, backoff: {factor: 2, ceiling_ms: 4}}",
+            "{timer: t}",
+            "{timer: t, millis: 1, jitter: 2}",
+            "{timer: t, backoff: {factor: 2, ceiling_ms: 4, floor_ms: 1}}",
+            "{timer: t, backoff: {factor: 2}}",
+            "{timer: t, millis: null, backoff: {factor: 2, ceiling_ms: 4}}",
+            "{timer: t, millis: 1000, backoff: null}",
+            "{timer: t, millis: null}",
+            "{timer: t, backoff: null}",
+        ] {
+            assert!(from_yaml::<Arm>(refused).is_err(), "{refused}");
+        }
+    }
+
+    #[test]
+    fn a_machine_loss_reads_and_is_omitted_when_false() {
+        let absent = "name: m\ntransport: udp\nmessages: []\nparticipants: []\nproperties: []\n";
+        let machine: Machine = from_yaml(absent).unwrap();
+        assert!(!machine.loss);
+        assert_eq!(to_yaml(&machine).unwrap(), absent);
+        let declared =
+            "name: m\ntransport: udp\nloss: true\nmessages: []\nparticipants: []\nproperties: []\n";
+        let machine: Machine = from_yaml(declared).unwrap();
+        assert!(machine.loss);
+        assert_eq!(to_yaml(&machine).unwrap(), declared);
+        let explicit: Machine = from_yaml(&declared.replace("true", "false")).unwrap();
+        assert!(!explicit.loss);
+        assert_eq!(to_yaml(&explicit).unwrap(), absent);
     }
 
     #[test]
