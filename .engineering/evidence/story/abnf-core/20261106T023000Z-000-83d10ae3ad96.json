@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T02:30:00Z",
+  "actor": "human:timo",
+  "artifact": "story:abnf-core",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-abnf (rfc6455_core 9, adversary 21, 1 ignored); fmt; clippy (wave6-abnf-core)"
+  }
+}

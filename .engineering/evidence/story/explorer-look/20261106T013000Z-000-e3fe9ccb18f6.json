@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T01:30:00Z",
+  "actor": "human:timo",
+  "artifact": "story:explorer-look",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "task website (task explorer: vue-tsc, vitest 86 passed, vite build; docusaurus build) in wave6-explorer-look"
+  }
+}

@@ -2,21 +2,30 @@
 format: aep.planning-md/3
 id: story:explorer-look
 kind: story
-status: active
+status: implemented
 title: The RFC explorer takes the documentation site's look and feel
 relations:
 - decomposes: epic:rfc-explorer
 scope:
 - confidence: cited
+  path: explorer/index.html
+- confidence: cited
   path: explorer/src/App.vue
 - confidence: cited
   path: explorer/src/components
 - confidence: cited
+  path: explorer/src/components/SiteFooter.vue
+- confidence: cited
+  path: explorer/src/components/SiteHeader.vue
+- confidence: cited
   path: explorer/src/style.css
-revision: 6
+- confidence: cited
+  path: explorer/tests/look.test.ts
+revision: 9
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T21:53:33Z", actor: "human:timo", revision: 3}
 - {from: "proposed", to: "active", at: "2026-11-05T23:08:42Z", actor: "human:timo", revision: 6}
+- {from: "active", to: "implemented", at: "2026-11-05T23:36:48Z", actor: "human:timo", revision: 9, decided_on: {"recorded":{"test_result":1,"review_outcome":1}}}
 ---
 ## Story
 

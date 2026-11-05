@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T01:00:00Z",
+  "actor": "human:timo",
+  "artifact": "story:fixed-arm-bounds-check",
+  "kind": "story",
+  "revision": 7,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-extract; cargo test -p rfcspec-cli --test adversary_fixed_arm --test adversary_timer --test check; rfcspec check --all profiles; fmt; clippy (wave6-fixed-arm)"
+  }
+}

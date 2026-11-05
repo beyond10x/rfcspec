@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-06T02:00:00Z",
+  "actor": "human:timo",
+  "artifact": "story:catalogue-grammars",
+  "kind": "story",
+  "revision": 14,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-wire -p rfcspec-model -p rfcspec-extract; adversary corpus cases --ignored; bulk check; rfcspec-docs generate --check; ess specify validate; fmt; clippy (wave6-catalogue-grammars)"
+  }
+}

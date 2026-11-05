@@ -1,15 +1,15 @@
 # Wave 6 of the [plan of 2026-11-05](plan-2026-11-05.md)
 
-Stage: 2, approved 2026-11-06 by session sys-mon on the operator's word (approval-record:wave-6-approval), after the plan-critic panel; units dispatched.
+Stage: 2, approved 2026-11-06 by session sys-mon on the operator's word (approval-record:wave-6-approval), after the plan-critic panel; all four units merged into `wave-6` and implemented.
 
 ## Units
 
 | story | objective | scope | branch | worktree | build dir | stage |
 |---|---|---|---|---|---|---|
-| story:abnf-core | `rfcspec-abnf` parses RFC 5234 and RFC 7405 ABNF, resolves references and core rules, and matches input; `bits` and `rfc2616` dispatch stubs | inferred | wave6-abnf-core | trees/b10x/rfcspec/wave6-abnf-core | that tree's `target/` | active |
-| story:catalogue-grammars | S2 collects each section's ABNF figures into a catalogue `Grammar`, from text and RFCXML | cited and inferred | wave6-catalogue-grammars | trees/b10x/rfcspec/wave6-catalogue-grammars | that tree's `target/` | active |
-| story:fixed-arm-bounds-check | `rfcspec check` refuses a fixed timer `arm` of 0 ms or above `max_time_ms` | cited | wave6-fixed-arm | trees/b10x/rfcspec/wave6-fixed-arm | that tree's `target/` | active |
-| story:explorer-look | the RFC explorer takes the RFCspec documentation site's colours, font, header and footer | cited | wave6-explorer-look | trees/b10x/rfcspec/wave6-explorer-look | that tree's `explorer/node_modules` and `target/` | proposed |
+| story:abnf-core | `rfcspec-abnf` parses RFC 5234 and RFC 7405 ABNF, resolves references and core rules, and matches input; `bits` and `rfc2616` dispatch stubs | inferred | wave6-abnf-core | trees/b10x/rfcspec/wave6-abnf-core | that tree's `target/` | implemented |
+| story:catalogue-grammars | S2 collects each section's ABNF figures into a catalogue `Grammar`, from text and RFCXML | cited and inferred | wave6-catalogue-grammars | trees/b10x/rfcspec/wave6-catalogue-grammars | that tree's `target/` | implemented |
+| story:fixed-arm-bounds-check | `rfcspec check` refuses a fixed timer `arm` of 0 ms or above `max_time_ms` | cited | wave6-fixed-arm | trees/b10x/rfcspec/wave6-fixed-arm | that tree's `target/` | implemented |
+| story:explorer-look | the RFC explorer takes the RFCspec documentation site's colours, font, header and footer | cited | wave6-explorer-look | trees/b10x/rfcspec/wave6-explorer-look | that tree's `explorer/node_modules` and `target/` | implemented |
 
 Integration branch: `wave-6`, from main `bab7197` (wave 5 merged).
 
