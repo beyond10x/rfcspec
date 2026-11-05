@@ -12,7 +12,10 @@ mod bulk;
 mod run;
 mod semantics;
 
-pub use bulk::{BULK_FORMAT, BulkHeader, BulkRow, bulk_line, bulk_summary, rows_sha256};
+pub use bulk::{
+    BULK_FORMAT, BulkHeader, BulkRow, SECTIONS_FORMAT, SectionCounts, SectionsRow, bulk_line,
+    bulk_summary, rows_sha256, sections_sidecar,
+};
 pub use run::{
     RUN_FORMAT, RUNS_DIR, RunReport, RunRow, Verdict, is_must_level, newest, overall, read_runs,
     sha256_hex, target_slug, utc,

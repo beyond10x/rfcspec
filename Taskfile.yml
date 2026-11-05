@@ -1,5 +1,9 @@
 version: '3'
 
+vars:
+  TYPES: --path . --root rfcspec.catalogue.ExplorerShard --names short --declared-field-order
+  RUST_TYPES: --target rust --package rfcspec-explorer-types --rust-box-only-recursion
+
 tasks:
   default:
     cmds: [{task: check}]
@@ -9,6 +13,7 @@ tasks:
     cmds:
       - task: plan
       - task: spec
+      - task: types-check
       - task: examples
       - task: time
       - task: websocket
@@ -92,15 +97,15 @@ tasks:
       - cargo test -q --locked -p rfc5905-ntp
 
   bulk:
-    desc: Check the committed bulk summary offline against itself and against the RFCs the profiles lock.
+    desc: Check the committed bulk summary and its section sidecar offline against themselves and against the RFCs the profiles lock.
     cmds:
-      - cargo run -q --locked -p rfcspec-cli -- bulk check --summary bulk/rfc-summary.jsonl --profiles profiles
+      - cargo run -q --locked -p rfcspec-cli -- bulk check --summary bulk/rfc-summary.jsonl --profiles profiles --sections bulk/rfc-sections.jsonl
 
   bulk-regenerate:
-    desc: Fetch rfc-index.xml, the RFCXML of every RFC the index lists as XML and the plain text of every other RFC it lists as TXT into the cache outside the repository (CACHE, else the default cache), then rewrite bulk/rfc-summary.jsonl from it. Networked; check never runs it.
+    desc: Fetch rfc-index.xml, the RFCXML of every RFC the index lists as XML and the plain text of every other RFC it lists as TXT into the cache outside the repository (CACHE, else the default cache), then rewrite bulk/rfc-summary.jsonl and its section sidecar bulk/rfc-sections.jsonl from it. Networked; check never runs it.
     cmds:
       - cargo run -q --locked -p rfcspec-cli -- bulk fetch {{if .CACHE}}--cache {{.CACHE}}{{end}}
-      - cargo run -q --locked -p rfcspec-cli -- bulk summarise {{if .CACHE}}--cache {{.CACHE}}{{end}} --out bulk/rfc-summary.jsonl
+      - cargo run -q --locked -p rfcspec-cli -- bulk summarise {{if .CACHE}}--cache {{.CACHE}}{{end}} --out bulk/rfc-summary.jsonl --sections bulk/rfc-sections.jsonl
 
   docs-generate:
     desc: Rewrite the generated pages under website/docs/.
@@ -112,8 +117,39 @@ tasks:
     cmds:
       - cargo run -q --locked -p rfcspec-docs -- generate --check
 
+  types-generate:
+    desc: Rewrite the RFC explorer's types that ess/domains/catalogue.yaml determines, the Rust crate the shard writer uses and the TypeScript declarations the app reads.
+    cmds:
+      - rm -rf generated/rust/rfcspec-explorer-types explorer/src/generated
+      - cd ess && ess generate types {{.TYPES}} {{.RUST_TYPES}} --out ../generated/rust/rfcspec-explorer-types
+      - cd ess && ess generate types {{.TYPES}} --target typescript --out ../explorer/src/generated
+
+  types-check:
+    desc: Fail when the generated Rust or TypeScript explorer types differ from what ess/domains/catalogue.yaml determines.
+    cmds:
+      - rm -rf target/types-drift
+      - cd ess && ess generate types {{.TYPES}} {{.RUST_TYPES}} --out ../target/types-drift/rust
+      - cd ess && ess generate types {{.TYPES}} --target typescript --out ../target/types-drift/ts
+      - diff -r --exclude=.ess-output target/types-drift/rust generated/rust/rfcspec-explorer-types
+      - diff -r --exclude=.ess-output target/types-drift/ts explorer/src/generated
+
+  explorer:
+    desc: Install the RFC explorer app's locked dependencies, type-check it with vue-tsc, test it with vitest and build it with vite into website/static/explorer.
+    dir: explorer
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm typecheck
+      - pnpm test
+      - pnpm build
+
   website:
-    desc: Install the site's locked dependencies and build it, as the Pages workflow does.
+    desc: Build the RFC explorer, then install the site's locked dependencies and build it, as the Pages workflow does.
+    cmds:
+      - task: explorer
+      - task: docusaurus
+
+  docusaurus:
+    desc: Install the site's locked dependencies and run the Docusaurus build alone; `website` builds the explorer first.
     dir: website
     cmds:
       - npm ci --allow-git=root

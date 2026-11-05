@@ -1,0 +1,318 @@
+{
+  "$defs": {
+    "rfcspec.catalogue.Bcp14Level": {
+      "description": "The eleven BCP 14 keywords.",
+      "enum": [
+        "MUST",
+        "MUST NOT",
+        "REQUIRED",
+        "SHALL",
+        "SHALL NOT",
+        "SHOULD",
+        "SHOULD NOT",
+        "RECOMMENDED",
+        "NOT RECOMMENDED",
+        "MAY",
+        "OPTIONAL"
+      ],
+      "title": "Bcp14Level",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.Bcp14Level",
+      "x-ess-variants": {
+        "MAY": "May",
+        "MUST": "Must",
+        "MUST NOT": "MustNot",
+        "NOT RECOMMENDED": "NotRecommended",
+        "OPTIONAL": "Optional",
+        "RECOMMENDED": "Recommended",
+        "REQUIRED": "Required",
+        "SHALL": "Shall",
+        "SHALL NOT": "ShallNot",
+        "SHOULD": "Should",
+        "SHOULD NOT": "ShouldNot"
+      }
+    },
+    "rfcspec.catalogue.Digest": {
+      "description": "A SHA-256 digest in lower-case hexadecimal.",
+      "pattern": "^[0-9a-f]*$",
+      "title": "Digest",
+      "type": "string",
+      "x-ess-alphabet": "0123456789abcdef",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.Digest"
+    },
+    "rfcspec.catalogue.ExplorerReference": {
+      "additionalProperties": false,
+      "description": "One Reference of an RFC read from RFCXML as the RFC explorer shows it; the citing RFC is the one that lists it.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/rfcspec.catalogue.ReferenceKind"
+        },
+        "section": {
+          "description": "The anchor of the citing section, absent where the xref lies outside every section.",
+          "type": "string"
+        },
+        "target_rfc": {
+          "description": "The cited RFC's number; it may name an RFC without a row in the bulk summary.",
+          "type": "integer"
+        },
+        "target_section": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_rfc",
+        "kind"
+      ],
+      "title": "ExplorerReference",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerReference"
+    },
+    "rfcspec.catalogue.ExplorerRfc": {
+      "additionalProperties": false,
+      "description": "One Rfc of the bulk summary as the RFC explorer shows it: its index metadata, the source read, its requirement counts by level, in total and by section, its update graph and its References. No requirement text.",
+      "properties": {
+        "area": {
+          "type": "string"
+        },
+        "counts": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.LevelCount"
+          },
+          "type": "array"
+        },
+        "date": {
+          "$ref": "#/$defs/rfcspec.catalogue.YearMonth"
+        },
+        "format": {
+          "$ref": "#/$defs/rfcspec.catalogue.SourceFormat"
+        },
+        "obsoleted_by": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "obsoletes": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.ExplorerReference"
+          },
+          "type": "array"
+        },
+        "rfc": {
+          "$ref": "#/$defs/rfcspec.catalogue.RfcNumber"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.ExplorerSection"
+          },
+          "type": "array"
+        },
+        "sha256": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest"
+        },
+        "status": {
+          "type": "string"
+        },
+        "stream": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updated_by": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "updates": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "rfc",
+        "title",
+        "status",
+        "stream",
+        "date",
+        "format",
+        "sha256",
+        "counts",
+        "obsoletes",
+        "obsoleted_by",
+        "updates",
+        "updated_by",
+        "sections",
+        "references"
+      ],
+      "title": "ExplorerRfc",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerRfc"
+    },
+    "rfcspec.catalogue.ExplorerSection": {
+      "additionalProperties": false,
+      "description": "One section of an RFC as the RFC explorer shows it (a projection of Section and the requirements it owns): its number and, read from RFCXML, its anchor, its title and its mechanically extracted requirements counted by BCP 14 level. The one entry without a number counts the requirements outside every numbered section; a level with none is not listed.",
+      "properties": {
+        "anchor": {
+          "description": "The section anchor read from RFCXML; the text reader records none.",
+          "type": "string"
+        },
+        "counts": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.LevelCount"
+          },
+          "type": "array"
+        },
+        "number": {
+          "description": "The section number (5.2, A.1), absent for the entry counting requirements outside every numbered section.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The section heading without its number, absent where no heading was read.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "counts"
+      ],
+      "title": "ExplorerSection",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerSection"
+    },
+    "rfcspec.catalogue.ExplorerShard": {
+      "additionalProperties": false,
+      "description": "The RFCs of one hundred RFC numbers as the RFC explorer reads them, one file per hundred that holds a summary row, generated from the bulk summary and its section sidecar.",
+      "properties": {
+        "format": {
+          "description": "rfcspec-explorer/1.",
+          "type": "string"
+        },
+        "index_sha256": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest",
+          "description": "SHA-256 of the rfc-index.xml the bulk summary was read from."
+        },
+        "not_in_index": {
+          "description": "The RFC numbers the shard's update graphs and References name that have no row in the bulk summary, so the explorer shows them without a link.",
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "rfcs": {
+          "description": "Every summary row of the range, in number order.",
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.ExplorerRfc"
+          },
+          "type": "array"
+        },
+        "start": {
+          "description": "The first number of the hundred, a multiple of 100.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "index_sha256",
+        "start",
+        "rfcs",
+        "not_in_index"
+      ],
+      "title": "ExplorerShard",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.ExplorerShard"
+    },
+    "rfcspec.catalogue.LevelCount": {
+      "additionalProperties": false,
+      "description": "How many of an RFC's mechanically extracted requirements have one BCP 14 level, under the extractor version the bulk summary records; a level with none is not listed.",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/rfcspec.catalogue.Bcp14Level"
+        }
+      },
+      "required": [
+        "level",
+        "count"
+      ],
+      "title": "LevelCount",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.LevelCount"
+    },
+    "rfcspec.catalogue.ReferenceKind": {
+      "description": "Whether the cited document is listed among the citing RFC's normative or informative references.",
+      "enum": [
+        "normative",
+        "informative"
+      ],
+      "title": "ReferenceKind",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.ReferenceKind",
+      "x-ess-variants": {
+        "informative": "Informative",
+        "normative": "Normative"
+      }
+    },
+    "rfcspec.catalogue.RfcNumber": {
+      "description": "The RFC Editor's number of the document.",
+      "title": "RfcNumber",
+      "type": "integer",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.RfcNumber"
+    },
+    "rfcspec.catalogue.SourceFormat": {
+      "description": "The format the RFC was read from, RFCXML v3 where the index lists it, plain text otherwise.",
+      "enum": [
+        "xml",
+        "text"
+      ],
+      "title": "SourceFormat",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.SourceFormat",
+      "x-ess-variants": {
+        "text": "Text",
+        "xml": "Xml"
+      }
+    },
+    "rfcspec.catalogue.YearMonth": {
+      "description": "A month written YYYY-MM; the index gives month and year.",
+      "maxLength": 7,
+      "minLength": 7,
+      "pattern": "^[\\u002D0-9]*$",
+      "title": "YearMonth",
+      "type": "string",
+      "x-ess-alphabet": "0123456789-",
+      "x-ess-invariants": [
+        "value.count == 7"
+      ],
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.YearMonth"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-ess-provenance": {
+    "contract_digest": "slice-sha256/2:0eeb2d66c6876c4a55dcd5efe7e924c89600b7bde43d02eb88d5d2eaafb54193",
+    "source_digest": "6e3653b8f09794e43fa325c40474ef22ffd92694710fbf58ba04d1b7237b88ea",
+    "specification_version": "v1",
+    "system": "rfcspec"
+  }
+}

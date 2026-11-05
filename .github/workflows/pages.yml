@@ -32,6 +32,14 @@ jobs:
           toolchain: stable
       - name: Check generated pages
         run: cargo run --locked -p rfcspec-docs -- generate --check
+      - name: Build the RFC explorer into website/static/explorer
+        working-directory: explorer
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm build
       - name: Build the Docusaurus site
         run: npm --prefix website ci && npm --prefix website run build
       - name: Bind the built site to its source commit

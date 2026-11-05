@@ -62,6 +62,45 @@ pub struct BulkRow {
     pub lossy: bool,
 }
 
+/// The format of the section sidecar of a summary (`bulk/rfc-sections.jsonl`). Its header has
+/// the fields of a [`BulkHeader`]; its rows are [`SectionsRow`]s, one per summary row, in the
+/// summary's order.
+pub const SECTIONS_FORMAT: &str = "rfcspec-sections/1";
+
+/// The requirements of one RFC by section, and its References, beside its summary row. No
+/// requirement text.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SectionsRow {
+    pub rfc: u32,
+    /// Each numbered section holding at least one requirement, in document order, then one
+    /// entry without a number for the requirements outside every numbered section, if any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<SectionCounts>,
+    /// The References of an RFC read from RFCXML, as `rfcspec read` gives them; a row read from
+    /// plain text has none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<crate::Reference>,
+}
+
+/// One section's requirements counted by BCP 14 level.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SectionCounts {
+    /// The section number (`5.2`, `A.1`); absent for the requirements outside every numbered
+    /// section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub number: Option<String>,
+    /// The section anchor read from RFCXML.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    /// The section heading without its number, where one was read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Requirements by BCP 14 level, the level as the extractor spells it; no zeros.
+    pub counts: BTreeMap<String, u64>,
+}
+
 /// One summary line, without its newline.
 pub fn bulk_line<T: Serialize>(value: &T) -> Result<String> {
     Ok(serde_json::to_string(value)?)
@@ -79,9 +118,28 @@ pub fn rows_sha256<S: AsRef<str>>(lines: &[S]) -> String {
 
 /// The whole summary of some rows: the header, then one line per row, each ending in a newline.
 pub fn bulk_summary(index_sha256: &str, extractor: u32, rows: &[BulkRow]) -> Result<String> {
+    jsonl(BULK_FORMAT, index_sha256, extractor, rows)
+}
+
+/// The whole section sidecar of some rows, written as [`bulk_summary`] writes a summary.
+pub fn sections_sidecar(
+    index_sha256: &str,
+    extractor: u32,
+    rows: &[SectionsRow],
+) -> Result<String> {
+    jsonl(SECTIONS_FORMAT, index_sha256, extractor, rows)
+}
+
+/// A header of `format` over some rows, then one line per row, each ending in a newline.
+fn jsonl<T: Serialize>(
+    format: &str,
+    index_sha256: &str,
+    extractor: u32,
+    rows: &[T],
+) -> Result<String> {
     let lines = rows.iter().map(bulk_line).collect::<Result<Vec<_>>>()?;
     let header = BulkHeader {
-        format: BULK_FORMAT.into(),
+        format: format.into(),
         index_sha256: index_sha256.into(),
         extractor,
         rows: rows.len(),
@@ -162,5 +220,55 @@ mod tests {
         );
         let back: BulkRow = serde_json::from_str(line).unwrap();
         assert_eq!(back, row());
+    }
+
+    #[test]
+    fn a_sidecar_writes_its_own_format_and_omits_empty_sections_and_references() {
+        let rows = [
+            SectionsRow {
+                rfc: 868,
+                sections: vec![],
+                references: vec![],
+            },
+            SectionsRow {
+                rfc: 9220,
+                sections: vec![
+                    SectionCounts {
+                        number: Some("3".into()),
+                        anchor: Some("websockets-upgrade-over-http3".into()),
+                        title: Some("WebSockets Upgrade over HTTP/3".into()),
+                        counts: BTreeMap::from([("MAY".into(), 1)]),
+                    },
+                    SectionCounts {
+                        number: None,
+                        anchor: None,
+                        title: None,
+                        counts: BTreeMap::from([("SHOULD".into(), 1)]),
+                    },
+                ],
+                references: vec![crate::Reference {
+                    section: Some("introduction".into()),
+                    target_rfc: 8441,
+                    target_section: None,
+                    kind: crate::ReferenceKind::Normative,
+                }],
+            },
+        ];
+        let text = sections_sidecar(&"1".repeat(64), 1, &rows).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        let header: BulkHeader = serde_json::from_str(lines[0]).unwrap();
+        assert_eq!(header.format, SECTIONS_FORMAT);
+        assert_eq!(header.rows, 2);
+        assert_eq!(header.rows_sha256, rows_sha256(&lines[1..]));
+        assert_eq!(lines[1], "{\"rfc\":868}");
+        assert_eq!(
+            lines[2],
+            "{\"rfc\":9220,\"sections\":[{\"number\":\"3\",\"anchor\":\"websockets-upgrade-over-http3\",\"title\":\"WebSockets Upgrade over HTTP/3\",\"counts\":{\"MAY\":1}},{\"counts\":{\"SHOULD\":1}}],\"references\":[{\"section\":\"introduction\",\"target_rfc\":8441,\"kind\":\"normative\"}]}"
+        );
+        assert_eq!(
+            serde_json::from_str::<SectionsRow>(lines[2]).unwrap(),
+            rows[1]
+        );
+        assert!(text.ends_with("}\n"));
     }
 }
