@@ -6,22 +6,30 @@
 use std::{fs, path::PathBuf};
 
 use rfcspec_extract::extract;
-use rfcspec_model::{sha256_hex, to_json};
+use rfcspec_model::{Catalogue, sha256_hex, to_json};
 
-/// What is pinned of the text-path catalogue of `profiles/<profile>`'s locked `rfc<N>.txt`: how
-/// many requirements it lists, the SHA-256 of its requirement list (one `<id> <level>
-/// <start>-<end>` line per requirement) and the SHA-256 of the whole catalogue as JSON, which
-/// also pins every requirement's text and the ids, texts and spans of the prose candidates,
-/// dialogue steps and examples (RFC 868 and 1035 have no BCP 14 requirement; their overlays key
-/// prose candidates).
-fn pinned(profile: &str, rfc: u32) -> (usize, String, String) {
+/// The text-path catalogue of `profiles/<profile>`'s locked `rfc<N>.txt`.
+fn catalogue(profile: &str, rfc: u32) -> Catalogue {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../profiles")
         .join(profile)
         .join(format!("sources/rfc{rfc}.txt"));
     let bytes = fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let text = String::from_utf8(bytes.clone()).unwrap();
-    let catalogue = extract(&rfcspec_doc::read(rfc, &sha256_hex(&bytes), &text));
+    extract(&rfcspec_doc::read(rfc, &sha256_hex(&bytes), &text))
+}
+
+/// What is pinned of the text-path catalogue of `profiles/<profile>`'s locked `rfc<N>.txt`: how
+/// many requirements it lists, the SHA-256 of its requirement list (one `<id> <level>
+/// <start>-<end>` line per requirement) and the SHA-256 of the whole catalogue as JSON, which
+/// also pins every requirement's text and the ids, texts and spans of the prose candidates,
+/// dialogue steps and examples (RFC 868 and 1035 have no BCP 14 requirement; their overlays key
+/// prose candidates). The grammars (story:catalogue-grammars) are left out of the catalogue
+/// digest: they are collected from figures, and the digest pins what the overlays key.
+/// [`grammars_pinned`] pins them instead.
+fn pinned(profile: &str, rfc: u32) -> (usize, String, String) {
+    let mut catalogue = catalogue(profile, rfc);
+    catalogue.grammars.clear();
     let list: String = catalogue
         .requirements
         .iter()
@@ -79,6 +87,90 @@ fn the_text_path_catalogues_of_the_locked_rfcs_keep_every_requirement_id_level_a
         .iter()
         .map(|&(profile, rfc, count, list, catalogue)| {
             (profile, rfc, count, list.to_owned(), catalogue.to_owned())
+        })
+        .collect();
+    assert_eq!(actual, expected);
+}
+
+/// What is pinned of the grammars of a locked text-path catalogue (story:catalogue-grammars):
+/// each grammar's id and span, in document order, and the SHA-256 of the grammars as JSON, which
+/// also pins their names, sections, rules and digests.
+fn grammars_pinned(profile: &str, rfc: u32) -> (Vec<(String, usize, usize)>, String) {
+    let catalogue = catalogue(profile, rfc);
+    (
+        catalogue
+            .grammars
+            .iter()
+            .map(|g| (g.id.clone(), g.span.start, g.span.end))
+            .collect(),
+        sha256_hex(to_json(&catalogue.grammars).unwrap().as_bytes()),
+    )
+}
+
+/// Profile, RFC, the grammars' ids and spans, the grammars' digest.
+type GrammarPin = (
+    &'static str,
+    u32,
+    &'static [(&'static str, usize, usize)],
+    &'static str,
+);
+
+const GRAMMARS: &[GrammarPin] = &[
+    (
+        "time",
+        868,
+        &[],
+        "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    ),
+    (
+        "dns",
+        1035,
+        &[],
+        "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    ),
+    (
+        "ntp",
+        5905,
+        &[
+            ("rfc5905/grammar/6", 825, 830),
+            ("rfc5905/grammar/8", 1600, 1604),
+            ("rfc5905/grammar/10", 2093, 2143),
+            ("rfc5905/grammar/11.2.3", 2508, 2583),
+            ("rfc5905/grammar/A.5.1", 4435, 4546),
+            ("rfc5905/grammar/A.5.5.1", 5129, 5178),
+            ("rfc5905/grammar/A.5.5.6", 5513, 5626),
+        ],
+        "0caddb94d3e79029d729164cf458b64445085311f2d64a84112d2e8e9dd22e29",
+    ),
+    (
+        "websocket",
+        6455,
+        &[
+            ("rfc6455/grammar/3", 741, 747),
+            ("rfc6455/grammar/4.2.2", 1321, 1327),
+            ("rfc6455/grammar/4.3", 1384, 1423),
+            ("rfc6455/grammar/5.2", 1687, 1783),
+            ("rfc6455/grammar/5.3", 1826, 1827),
+            ("rfc6455/grammar/9.1", 2671, 2679),
+        ],
+        "26a4ff782273d15b13cf2b4cac9c89644c9bc6a5ae3ea8dfc8d2521a94d329cd",
+    ),
+];
+
+#[test]
+fn the_text_path_catalogues_of_the_locked_rfcs_keep_every_grammar_id_span_and_text() {
+    let actual: Vec<_> = GRAMMARS
+        .iter()
+        .map(|&(profile, rfc, ..)| (profile, rfc, grammars_pinned(profile, rfc)))
+        .collect();
+    let expected: Vec<_> = GRAMMARS
+        .iter()
+        .map(|&(profile, rfc, spans, digest)| {
+            let spans = spans
+                .iter()
+                .map(|&(id, start, end)| (id.to_owned(), start, end))
+                .collect();
+            (profile, rfc, (spans, digest.to_owned()))
         })
         .collect();
     assert_eq!(actual, expected);
