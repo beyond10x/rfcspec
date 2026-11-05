@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { ExplorerShard } from '../src/generated/types.ts';
+import type { ExplorerIndex, ExplorerShard } from '../src/generated/types.ts';
 import h3 from './fixtures/09200.json';
 import websocket from './fixtures/06400.json';
 import generated09200 from '../../website/static/data/rfcs/09200.json';
 import generated06400 from '../../website/static/data/rfcs/06400.json';
+import index from './fixtures/rfc-index.json';
+import generatedIndex from '../../website/static/data/rfc-index.json';
 
 /** The generated shard narrowed to one RFC, as a fixture holds it. */
 function narrowed(shard: ExplorerShard, rfc: number): ExplorerShard {
@@ -16,5 +18,13 @@ describe('the fixtures', () => {
     expect(websocket).toEqual(narrowed(generated06400 as ExplorerShard, 6455));
     expect((h3 as ExplorerShard).rfcs).toHaveLength(1);
     expect((websocket as ExplorerShard).rfcs).toHaveLength(1);
+  });
+
+  it('hold the generated index narrowed to twelve RFCs, so a shape change fails here', () => {
+    const fixture = index as ExplorerIndex;
+    const numbers = fixture.rfcs.map((row) => row.rfc);
+    expect(numbers).toEqual([1, 868, 1035, 2119, 5905, 6455, 7540, 8441, 8763, 9220, 9915, 9962]);
+    const generated = generatedIndex as ExplorerIndex;
+    expect(fixture).toEqual({ ...generated, rfcs: generated.rfcs.filter((row) => numbers.includes(row.rfc)) });
   });
 });

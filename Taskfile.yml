@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  TYPES: --path . --root rfcspec.catalogue.ExplorerShard --names short --declared-field-order
+  TYPES: --path . --root rfcspec.catalogue.ExplorerShard --root rfcspec.catalogue.ExplorerIndex --names short --declared-field-order
   RUST_TYPES: --target rust --package rfcspec-explorer-types --rust-box-only-recursion
 
 tasks:
