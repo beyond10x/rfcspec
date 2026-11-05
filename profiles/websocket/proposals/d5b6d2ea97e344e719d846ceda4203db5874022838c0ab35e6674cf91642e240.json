@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 767,
+      "start": 766
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "7881f069d96501a4cc815463d7c76b2963b71111936e5c1d9e5be0c27168ccb4",
+  "inputs": {
+    "item": "rfc6455/R3-2",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "3",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 767,
+      "start": 766
+    },
+    "text": "Fragment identifiers are meaningless in the context of WebSocket URIs and MUST NOT be used on these URIs."
+  },
+  "item": "rfc6455/R3-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "d5b6d2ea97e344e719d846ceda4203db5874022838c0ab35e6674cf91642e240",
+  "response": {
+    "id": "R3-2",
+    "level": "MUST NOT",
+    "quote": "Fragment identifiers are meaningless in the context of WebSocket URIs and MUST NOT be used on these URIs.",
+    "source": "capitals-text",
+    "span": {
+      "end": 767,
+      "start": 766
+    },
+    "status": {
+      "unsupported": "The protocol profile does not enforce the prohibition against fragment identifiers in WebSocket URIs."
+    }
+  },
+  "task": "status"
+}

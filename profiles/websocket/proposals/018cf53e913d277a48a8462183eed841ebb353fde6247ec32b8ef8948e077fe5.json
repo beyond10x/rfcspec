@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1439,
+      "start": 1435
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "46bad14852989f78855b0d5407834959498e3a54d4a6607cbef8c0c430756bbb",
+  "inputs": {
+    "item": "rfc6455/R4.4-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.4",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1439,
+      "start": 1435
+    },
+    "text": "If the server doesn't support the requested version, it MUST respond with a |Sec-WebSocket-Version| header field (or multiple |Sec-WebSocket-Version| header fields) containing all versions it is willing to use."
+  },
+  "item": "rfc6455/R4.4-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "018cf53e913d277a48a8462183eed841ebb353fde6247ec32b8ef8948e077fe5",
+  "response": {
+    "id": "R4.4-1",
+    "level": "MUST",
+    "quote": "If the server doesn't support the requested version, it MUST respond with a |Sec-WebSocket-Version| header field (or multiple |Sec-WebSocket-Version| header fields) containing all versions it is willing to use.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1439,
+      "start": 1435
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the required response mechanism for unsupported versions."
+    }
+  },
+  "task": "status"
+}

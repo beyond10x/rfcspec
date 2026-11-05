@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2657,
+      "start": 2654
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "159f5b728ff745355a1e7eb44a3ab7d7c9f363f4dcd2d9771f379906fae6c3f6",
+  "inputs": {
+    "item": "rfc6455/R9-3",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "9",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2657,
+      "start": 2654
+    },
+    "text": "If extension parameters are included in negotiations between the client and the server, those parameters MUST be chosen in accordance with the specification of the extension to which the parameters apply."
+  },
+  "item": "rfc6455/R9-3",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "93e1db62a1d4753eecdbe10453fb4f918fc01b88c5b1bc7eb5e0d7958700b6ea",
+  "response": {
+    "id": "R9-3",
+    "level": "MUST",
+    "quote": "If extension parameters are included in negotiations between the client and the server, those parameters MUST be chosen in accordance with the specification of the extension to which the parameters apply.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2657,
+      "start": 2654
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement selection of extension parameters according to the specification of the applicable extension."
+    }
+  },
+  "task": "status"
+}

@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 960,
+      "start": 959
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "f2246a95b04d47aee0f9eb3caa39524ca25f6490881c00fc6dd0dcdd8f820000",
+  "inputs": {
+    "item": "rfc6455/R4.1-23",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 960,
+      "start": 959
+    },
+    "text": "The request MUST contain a |Connection| header field whose value MUST include the \"Upgrade\" token."
+  },
+  "item": "rfc6455/R4.1-23",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "38c2ec8c657b2d7982b7217f6f132e707f5a57068dd8cd32b1dd0c2758263a32",
+  "response": {
+    "id": "R4.1-23",
+    "level": "MUST",
+    "quote": "The request MUST contain a |Connection| header field whose value MUST include the \"Upgrade\" token.",
+    "source": "capitals-text",
+    "span": {
+      "end": 960,
+      "start": 959
+    },
+    "status": {
+      "unsupported": "the model does not include the required |Connection| header field"
+    }
+  },
+  "task": "status"
+}

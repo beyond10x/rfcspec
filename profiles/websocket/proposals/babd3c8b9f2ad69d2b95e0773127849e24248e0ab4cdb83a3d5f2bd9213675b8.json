@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 910,
+      "start": 907
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "5147b3e4150145b5cd602e24dfcc56eeb83a9dd7d94474eaa25c180ba654328d",
+  "inputs": {
+    "item": "rfc6455/R4.1-12",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 910,
+      "start": 907
+    },
+    "text": "If the connection could not be opened, either because a direct connection failed or because any proxy used returned an error, then the client MUST _Fail the WebSocket Connection_ and abort the connection attempt."
+  },
+  "item": "rfc6455/R4.1-12",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "babd3c8b9f2ad69d2b95e0773127849e24248e0ab4cdb83a3d5f2bd9213675b8",
+  "response": {
+    "id": "R4.1-12",
+    "level": "MUST",
+    "quote": "If the connection could not be opened, either because a direct connection failed or because any proxy used returned an error, then the client MUST _Fail the WebSocket Connection_ and abort the connection attempt.",
+    "source": "capitals-text",
+    "span": {
+      "end": 910,
+      "start": 907
+    },
+    "status": {
+      "unsupported": "the protocol profile's model does not implement failing the WebSocket connection as specified"
+    }
+  },
+  "task": "status"
+}

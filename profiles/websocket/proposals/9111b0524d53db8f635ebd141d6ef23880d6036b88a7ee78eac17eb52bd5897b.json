@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3183,
+      "start": 3182
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "caf6513ffd690fc601667de68b495f317081e31cd67249065f58951162b8f08a",
+  "inputs": {
+    "item": "rfc6455/R11.3.1-1",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "11.3.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3183,
+      "start": 3182
+    },
+    "text": "The |Sec-WebSocket-Key| header field MUST NOT appear more than once in an HTTP request."
+  },
+  "item": "rfc6455/R11.3.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "9111b0524d53db8f635ebd141d6ef23880d6036b88a7ee78eac17eb52bd5897b",
+  "response": {
+    "id": "R11.3.1-1",
+    "level": "MUST NOT",
+    "quote": "The |Sec-WebSocket-Key| header field MUST NOT appear more than once in an HTTP request.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3183,
+      "start": 3182
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce restrictions on header field multiplicity."
+    }
+  },
+  "task": "status"
+}

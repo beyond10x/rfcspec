@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3094,
+      "start": 3091
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "432e4e8ecdec03f275f6fce6c2c00264654978b3ecf74a1b7a32e7b5feeee9d5",
+  "inputs": {
+    "item": "rfc6455/R11.1.2-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "11.1.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3094,
+      "start": 3091
+    },
+    "text": "Encoding considerations Characters in the host component that are excluded by the syntax defined above MUST be converted from Unicode to ASCII as specified in [RFC3987] or its replacement."
+  },
+  "item": "rfc6455/R11.1.2-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "8e5375d65c22b8ba6b9ee87732f011444e1388ad73dbef7a985703f7647c2f44",
+  "response": {
+    "id": "R11.1.2-1",
+    "level": "MUST",
+    "quote": "Encoding considerations Characters in the host component that are excluded by the syntax defined above MUST be converted from Unicode to ASCII as specified in [RFC3987] or its replacement.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3094,
+      "start": 3091
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement the required conversion of excluded characters from Unicode to ASCII as specified in [RFC3987] or its replacement."
+    }
+  },
+  "task": "status"
+}

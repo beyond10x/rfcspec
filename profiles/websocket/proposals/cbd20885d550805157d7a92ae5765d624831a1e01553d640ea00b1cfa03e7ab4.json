@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 931,
+      "start": 930
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "29d7a67fa941c178e579a2ccfc7896e65fb57a9274a1a7d9056749bf7c872576",
+  "inputs": {
+    "item": "rfc6455/R4.1-18",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 931,
+      "start": 930
+    },
+    "text": "The handshake MUST be a valid HTTP request as specified by [RFC2616]."
+  },
+  "item": "rfc6455/R4.1-18",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "cbd20885d550805157d7a92ae5765d624831a1e01553d640ea00b1cfa03e7ab4",
+  "response": {
+    "id": "R4.1-18",
+    "level": "MUST",
+    "quote": "The handshake MUST be a valid HTTP request as specified by [RFC2616].",
+    "source": "capitals-text",
+    "span": {
+      "end": 931,
+      "start": 930
+    },
+    "status": {
+      "unsupported": "the protocol profile does not implement HTTP handshakes"
+    }
+  },
+  "task": "status"
+}

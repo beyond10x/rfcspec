@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1216,
+      "start": 1214
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "b964902aff349402a2331a74c3a4f71b28d96712687263ecee87596446f0044c",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-4",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1216,
+      "start": 1214
+    },
+    "text": "The server MAY use this information as part of a determination of whether to accept the incoming connection."
+  },
+  "item": "rfc6455/R4.2.2-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "01ea67eee2515de783f14ffc743b8f48b571c6d4f48076368f3d7d14328f52a2",
+  "response": {
+    "id": "R4.2.2-4",
+    "level": "MAY",
+    "quote": "The server MAY use this information as part of a determination of whether to accept the incoming connection.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1216,
+      "start": 1214
+    },
+    "status": {
+      "not-applicable": "The protocol permits servers to use origin information but does not require it, so non-implementation does not violate this optional requirement."
+    }
+  },
+  "task": "status"
+}

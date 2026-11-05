@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1296,
+      "start": 1295
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "7bb70d3a9158b1c655cc91e7718300034b24dffb4624e1727b9d07355e00923b",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-11",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1296,
+      "start": 1295
+    },
+    "text": "Extensions not listed by the client MUST NOT be listed."
+  },
+  "item": "rfc6455/R4.2.2-11",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4ff44984a5b9abc04dc54a4ff14c3610b24ae40ca73bb42fd3f2a9b07d9a4485",
+  "response": {
+    "id": "R4.2.2-11",
+    "level": "MUST NOT",
+    "quote": "Extensions not listed by the client MUST NOT be listed.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1296,
+      "start": 1295
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce this restriction on extensions listed by the server."
+    }
+  },
+  "task": "status"
+}

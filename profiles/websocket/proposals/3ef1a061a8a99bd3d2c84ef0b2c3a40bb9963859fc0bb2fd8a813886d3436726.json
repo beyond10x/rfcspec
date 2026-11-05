@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1282,
+      "start": 1279
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "2d20e7d8fb3b099b08a1ef3a50150abb2ce9d1bf94bc77fa3e6b4aa8bdee746e",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-10",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1282,
+      "start": 1279
+    },
+    "text": "If the server supports multiple extensions, then the value MUST be derived from the client's handshake, specifically by selecting one or more of the values from the |Sec-WebSocket-Extensions| field."
+  },
+  "item": "rfc6455/R4.2.2-10",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "3ef1a061a8a99bd3d2c84ef0b2c3a40bb9963859fc0bb2fd8a813886d3436726",
+  "response": {
+    "id": "R4.2.2-10",
+    "level": "MUST",
+    "quote": "If the server supports multiple extensions, then the value MUST be derived from the client's handshake, specifically by selecting one or more of the values from the |Sec-WebSocket-Extensions| field.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1282,
+      "start": 1279
+    },
+    "status": {
+      "not-applicable": "The model does not support multiple extensions."
+    }
+  },
+  "task": "status"
+}

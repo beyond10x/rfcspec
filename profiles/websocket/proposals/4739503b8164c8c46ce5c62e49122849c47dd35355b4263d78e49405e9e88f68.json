@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3232,
+      "start": 3231
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "dd137ca2a3929d1daa76d0c2fff88c6de1d7d1764d0a7147417665d0f5ea900c",
+  "inputs": {
+    "item": "rfc6455/R11.3.2-2",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "11.3.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3232,
+      "start": 3231
+    },
+    "text": "However, the |Sec-WebSocket-Extensions| header field MUST NOT appear more than once in an HTTP response."
+  },
+  "item": "rfc6455/R11.3.2-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4739503b8164c8c46ce5c62e49122849c47dd35355b4263d78e49405e9e88f68",
+  "response": {
+    "id": "R11.3.2-2",
+    "level": "MUST NOT",
+    "quote": "However, the |Sec-WebSocket-Extensions| header field MUST NOT appear more than once in an HTTP response.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3232,
+      "start": 3231
+    },
+    "status": {
+      "unsupported": "The model does not enforce the restriction on multiple occurrences in HTTP responses."
+    }
+  },
+  "task": "status"
+}

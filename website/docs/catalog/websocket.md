@@ -31,14 +31,63 @@ One row per layer, as `profile.yaml` declares them ([communication semantics](/d
 
 ## Requirement matrix
 
-Reviewed: 77 requirements, by level 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY; by status 29 satisfied, 40 unsupported, 8 not applicable.
+Reviewed: 155 requirements, by level 87 MUST, 21 MUST NOT, 14 SHOULD, 4 SHOULD NOT, 29 MAY; by status 29 satisfied, 117 unsupported, 9 not applicable.
 
-Unreviewed: 119 requirements of the mechanical catalogue of RFC 6455 have no status, by level 77 MUST, 11 MUST NOT, 7 SHOULD, 1 SHOULD NOT, 22 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
+Unreviewed: 41 requirements of the mechanical catalogue of RFC 6455 have no status, by level 21 MUST, 2 MUST NOT, 4 SHOULD, 13 MAY, 1 OPTIONAL. `rfcspec extract` lists them; the matrix below holds the reviewed ones.
 
 One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec/blob/main/profiles/websocket/overlay.yaml), in its order. The source is the line span in RFC 6455.
 
 | Id | Level | Transports | Quote | Source | Status | Element or reason |
 |---|---|---|---|---|---|---|
+| R2-1 | MUST | all | Requirements phrased in the imperative as part of algorithms (such as "strip any leading space characters" or "return false and abort these steps") are to be interpreted with the meaning of the key word ("MUST", "SHOULD", "MAY", etc.) used in introducing the algorithm. | lines 662-665 | not applicable | a reading convention for the RFC's algorithms, not a behaviour an endpoint performs |
+| R3-2 | MUST NOT | all | Fragment identifiers are meaningless in the context of WebSocket URIs and MUST NOT be used on these URIs. | lines 766-767 | unsupported | The protocol profile does not enforce the prohibition against fragment identifiers in WebSocket URIs. |
+| R4.1-2 | MUST | all | When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response. | lines 797-801 | unsupported | The protocol profile's model does not implement the required handshake procedure for establishing WebSocket connections. |
+| R4.1-3 | MUST | all | The components of the WebSocket URI passed into this algorithm (/host/, /port/, /resource name/, and /secure/ flag) MUST be valid according to the specification of WebSocket URIs specified in Section 3. | lines 808-811 | unsupported | The protocol profile's model does not implement validation of WebSocket URI components as required. |
+| R4.1-4 | MUST | all | If any of the components are invalid, the client MUST _Fail the WebSocket Connection_ and abort these steps. | lines 811-812 | unsupported | The protocol profile's model does not implement failure handling for invalid WebSocket URI components as required. |
+| R4.1-5 | MUST | all | If the client already has a WebSocket connection to the remote host (IP address) identified by /host/ and port /port/ pair, even if the remote host is known by another name, the client MUST wait until that connection has been established or for that connection to have failed. | lines 814-818 | unsupported | The model does not implement the requirement to wait for an existing connection to be established or fail. |
+| R4.1-6 | MUST | all | There MUST be no more than one connection in a CONNECTING state. | lines 818-819 | unsupported | The protocol profile's model does not enforce the restriction on having only one connection in the CONNECTING state at any given time. |
+| R4.1-7 | MUST | all | If multiple connections to the same IP address are attempted simultaneously, the client MUST serialize them so that there is no more than one connection at a time running through the following steps. | lines 819-822 | unsupported | the protocol profile's model does not handle multiple connections to the same IP address |
+| R4.1-8 | MUST | all | If the client cannot determine the IP address of the remote host (for example, because all communication is being done through a proxy server that performs DNS queries itself), then the client MUST assume for the purposes of this step that each host name refers to a distinct remote host, and instead the client SHOULD limit the total number of simultaneous pending connections to a reasonably low number (e.g., the client might allow simultaneous pending connections to a.example.com and b.example.com, but if thirty simultaneous connections to a single host are requested, that may not be allowed). | lines 824-833 | unsupported | The model does not implement logic to handle scenarios where the client cannot determine the remote host's IP address, violating the MUST requirement. |
+| R4.1-10 | SHOULD | all | If the client is not configured to use a proxy, then a direct TCP connection SHOULD be opened to the host given by /host/ and the port given by /port/ | lines 880-882 | unsupported | Model does not support direct TCP connection establishment. |
+| R4.1-11 | MUST | all | For the purpose of proxy autoconfiguration scripts, the URI to pass the function MUST be constructed from /host/, /port/, /resource name/, and the /secure/ flag using the definition of a WebSocket URI as given in Section 3. | lines 891-894 | unsupported | The protocol profile's model does not implement the construction of WebSocket URIs for proxy autoconfiguration scripts as required. |
+| R4.1-12 | MUST | all | If the connection could not be opened, either because a direct connection failed or because any proxy used returned an error, then the client MUST _Fail the WebSocket Connection_ and abort the connection attempt. | lines 907-910 | unsupported | the protocol profile's model does not implement failing the WebSocket connection as specified |
+| R4.1-13 | MUST | all | If /secure/ is true, the client MUST perform a TLS handshake over the connection after opening the connection and before sending the handshake data [RFC2818]. | lines 912-914 | unsupported | The protocol profile does not implement TLS handshake functionality as required. |
+| R4.1-14 | MUST | all | If this fails (e.g., the server's certificate could not be verified), then the client MUST _Fail the WebSocket Connection_ and abort the connection. | lines 914-916 | unsupported | The protocol profile's model does not implement failure handling for TLS handshake failures in WebSocket connections. |
+| R4.1-15 | MUST | all | Otherwise, all further communication on this channel MUST run through the encrypted tunnel [RFC5246]. | lines 916-918 | unsupported | Model does not implement encrypted tunnel communication as required |
+| R4.1-16 | MUST | all | Clients MUST use the Server Name Indication extension in the TLS handshake [RFC6066]. | lines 920-921 | unsupported | the protocol profile's model does not support the Server Name Indication extension |
+| R4.1-17 | MUST | all | Once a connection to the server has been established (including a connection via a proxy or over a TLS-encrypted tunnel), the client MUST send an opening handshake to the server. | lines 923-925 | unsupported | the profile does not model the opening handshake (section 4); the requirement applies to every client |
+| R4.1-18 | MUST | all | The handshake MUST be a valid HTTP request as specified by [RFC2616]. | lines 930-931 | unsupported | the protocol profile does not implement HTTP handshakes |
+| R4.1-19 | MUST | all | The method of the request MUST be GET, and the HTTP version MUST be at least 1.1. | lines 933-934 | unsupported | The protocol profile's model does not enforce the required method (GET) or HTTP version (≥1.1) constraints. |
+| R4.1-21 | MUST | all | The request MUST contain a \|Host\| header field whose value contains /host/ plus optionally ":" followed by /port/ (when not using the default port). | lines 944-946 | unsupported | Model does not implement Host header validation for /host/ and /port/ as specified. |
+| R4.1-22 | MUST | all | The request MUST contain an \|Upgrade\| header field whose value MUST include the "websocket" keyword. | lines 948-949 | unsupported | The model does not support the required header field |
+| R4.1-23 | MUST | all | The request MUST contain a \|Connection\| header field whose value MUST include the "Upgrade" token. | lines 959-960 | unsupported | the model does not include the required \|Connection\| header field |
+| R4.1-24 | MUST | all | The request MUST include a header field with the name \|Sec-WebSocket-Key\|. | lines 962-963 | unsupported | The model does not include the required \|Sec-WebSocket-Key\| header field. |
+| R4.1-25 | MUST | all | The value of this header field MUST be a nonce consisting of a randomly selected 16-byte value that has been base64-encoded (see Section 4 of [RFC4648]). | lines 963-965 | unsupported | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Key is sent or checked |
+| R4.1-26 | MUST | all | The nonce MUST be selected randomly for each connection. | lines 965-966 | unsupported | The protocol profile's model does not implement random nonce selection per connection. |
+| R4.1-27 | MUST | all | The request MUST include a header field with the name \|Origin\| [RFC6454] if the request is coming from a browser client. | lines 973-974 | unsupported | The protocol profile's model does not support including the Origin header field as required. |
+| R4.1-29 | MUST | all | The request MUST include a header field with the name \|Sec-WebSocket-Version\|. The value of this header field MUST be | lines 987-988 | unsupported | The protocol profile's model does not include the required \|Sec-WebSocket-Version\| header field. |
+| R4.1-30 | MUST | all | The value of this header field MUST be 13. | lines 988-989 | unsupported | The protocol profile's model does not enforce the Sec-WebSocket-Version header to be 13. |
+| R4.1-32 | MUST | all | The elements that comprise this value MUST be non-empty strings with characters in the range U+0021 to U+007E not including separator characters as defined in [RFC2616] and MUST all be unique strings. | lines 1001-1004 | unsupported | The protocol profile's model does not enforce uniqueness or character restrictions on subprotocol elements. |
+| R4.1-33 | MAY | all | The request MAY include a header field with the name \|Sec-WebSocket-Extensions\|. | lines 1015-1016 | unsupported | the profile does not model the opening handshake (section 4) or extensions |
+| R4.1-34 | MAY | all | The request MAY include any other header fields, for example, cookies [RFC6265] and/or authentication-related header fields such as the \|Authorization\| header field [RFC2616], which are processed according to documents that define them. | lines 1021-1024 | unsupported | the profile does not model the opening handshake (section 4), so no request header fields are sent |
+| R4.1-36 | MUST | all | The client MUST validate the server's response as follows: | lines 1028-1028 | unsupported | Model does not implement client validation of server responses as required |
+| R4.1-37 | MUST | all | If the response lacks an \|Upgrade\| header field or the \|Upgrade\| header field contains a value that is not an ASCII case- insensitive match for the value "websocket", the client MUST _Fail the WebSocket Connection_. | lines 1037-1040 | unsupported | The model does not implement the required check for the Upgrade header field. |
+| R4.1-38 | MUST | all | If the response lacks a \|Connection\| header field or the \|Connection\| header field doesn't contain a token that is an ASCII case-insensitive match for the value "Upgrade", the client MUST _Fail the WebSocket Connection_. | lines 1042-1045 | unsupported | The protocol profile's model does not implement the required check for the \|Connection\| header field's "Upgrade" token. |
+| R4.1-40 | MUST | all | If the response includes a \|Sec-WebSocket-Extensions\| header field and this header field indicates the use of an extension that was not present in the client's handshake (the server has indicated an extension not requested by the client), the client MUST _Fail the WebSocket Connection_. | lines 1055-1059 | unsupported | The protocol profile does not handle extensions not requested by the client. |
+| R4.1-41 | MUST | all | If the response includes a \|Sec-WebSocket-Protocol\| header field and this header field indicates the use of a subprotocol that was not present in the client's handshake (the server has indicated a subprotocol not requested by the client), the client MUST _Fail the WebSocket Connection_. | lines 1071-1075 | unsupported | The model does not implement logic to check for mismatched subprotocols in the server's response or fail the connection accordingly. |
+| R4.1-42 | MUST | all | If the server's response does not conform to the requirements for the server's handshake as defined in this section and in Section 4.2.2, the client MUST _Fail the WebSocket Connection_. | lines 1077-1079 | unsupported | The model does not include a mechanism to fail the WebSocket connection as required. |
+| R4.2.1-2 | SHOULD NOT | all | A connection attempt lacking this header field SHOULD NOT be interpreted as coming from a browser client. | lines 1163-1165 | unsupported | the profile does not model the server's reading of the opening handshake (section 4.2.1) |
+| R4.2.2-1 | MUST | all | When a client establishes a WebSocket connection to a server, the server MUST complete the following steps to accept the connection and send the server's opening handshake. | lines 1189-1191 | unsupported | The model does not implement the requirement to complete the server's opening handshake steps. |
+| R4.2.2-2 | MUST | all | If this fails (e.g., the client indicated a host name in the extended client hello "server_name" extension that the server does not host), then close the connection; otherwise, all further communication for the connection (including the server's handshake) MUST run through the encrypted tunnel [RFC5246]. | lines 1194-1199 | unsupported | the profile does not model TLS or the server's opening handshake (section 4.2.2) |
+| R4.2.2-5 | MUST | all | If the server does not wish to accept this connection, it MUST return an appropriate HTTP error code (e.g., 403 Forbidden) and abort the WebSocket handshake described in this section. | lines 1218-1221 | unsupported | the model does not handle server rejection of connections |
+| R4.2.2-6 | MUST | all | If this version does not match a version understood by the server, the server MUST abort the WebSocket handshake described in this section and instead send an appropriate HTTP error code (such as 426 Upgrade Required) and a \|Sec-WebSocket-Version\| header field indicating the version(s) the server is capable of understanding. | lines 1242-1248 | unsupported | The protocol profile's model does not implement the requirement to abort the handshake and return an HTTP error code when version mismatch occurs. |
+| R4.2.2-7 | MUST | all | If the requested service is not available, the server MUST send an appropriate HTTP error code (such as 404 Not Found) and abort the WebSocket handshake. | lines 1254-1257 | unsupported | The model does not implement handling of unavailable services with HTTP error codes and handshake abortion. |
+| R4.2.2-8 | MUST | all | The value chosen MUST be derived from the client's handshake, specifically by selecting one of the values from the \|Sec-WebSocket-Protocol\| field that the server is willing to use for this connection (if any). | lines 1261-1264 | unsupported | The model does not support deriving the subprotocol value from the client's handshake as specified. |
+| R4.2.2-9 | MUST NOT | all | The absence of such a field is equivalent to the null value (meaning that if the server does not wish to agree to one of the suggested subprotocols, it MUST NOT send back a \|Sec-WebSocket-Protocol\| header field in its response). | lines 1267-1271 | unsupported | the profile does not model subprotocol selection in the opening handshake (section 4.2.2) |
+| R4.2.2-10 | MUST | all | If the server supports multiple extensions, then the value MUST be derived from the client's handshake, specifically by selecting one or more of the values from the \|Sec-WebSocket-Extensions\| field. | lines 1279-1282 | unsupported | the profile does not model extension negotiation in the opening handshake (section 4.2.2) |
+| R4.2.2-11 | MUST NOT | all | Extensions not listed by the client MUST NOT be listed. | lines 1295-1296 | unsupported | The protocol profile's model does not enforce this restriction on extensions listed by the server. |
+| R4.2.2-12 | MUST | all | If the server chooses to accept the incoming connection, it MUST reply with a valid HTTP response indicating the following. | lines 1299-1300 | unsupported | The protocol profile's model does not implement HTTP response handling for connection acceptance. |
+| R4.4-1 | MUST | all | If the server doesn't support the requested version, it MUST respond with a \|Sec-WebSocket-Version\| header field (or multiple \|Sec-WebSocket-Version\| header fields) containing all versions it is willing to use. | lines 1435-1439 | unsupported | The protocol profile's model does not implement the required response mechanism for unsupported versions. |
 | R5.1-1 | MUST | all | To avoid confusing network intermediaries (such as intercepting proxies) and for security reasons that are further discussed in Section 10.3, a client MUST mask all frames that it sends to the server (see Section 5.3 for further details). | lines 1490-1493 | unsupported | The protocol profile's model does not implement frame masking as required. |
 | R5.1-2 | MUST | all | (Note that masking is done whether or not the WebSocket Protocol is running over TLS.) The server MUST close the connection upon receiving a frame that is not masked. | lines 1493-1496 | unsupported | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
 | R5.1-5 | MUST | all | A client MUST close a connection if it detects a masked frame. | lines 1499-1500 | unsupported | The model does not enforce closing the connection when a masked frame is detected. |
@@ -86,6 +135,9 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R5.5.3-1 | MAY | all | If an endpoint receives a Ping frame and has not yet sent Pong frame(s) in response to previous Ping frame(s), the endpoint MAY elect to send a Pong frame for only the most recently processed Ping frame. | lines 2064-2067 | unsupported | ess-gap G10: sending a Pong for only the most recent Ping needs a guard on whether a later Ping is pending on the incoming channel |
 | R5.5.3-2 | MAY | all | A Pong frame MAY be sent unsolicited. | lines 2079-2079 | satisfied | fragments.client.R5.4-1-R5.4-2-R5.5.3-2-send-pong |
 | R5.6-1 | MUST | all | Note that a particular text frame might include a partial UTF-8 sequence; however, the whole message MUST contain valid UTF-8. | lines 2096-2098 | unsupported | ess-gap G3: UTF-8 validity is a property of the payload bytes; the data frames of the fragments machine carry only opcode and fin |
+| R5.8-1 | MUST | all | The endpoints of a connection MUST negotiate the use of any extensions during the opening handshake. | lines 2154-2156 | unsupported | The protocol profile does not implement extension negotiation during the opening handshake. |
+| R6.2-5 | MAY | all | Extensions (Section 9) MAY change the semantics of how data is read, specifically including what comprises a message boundary. | lines 2251-2252 | unsupported | the profile does not model extensions (section 9) |
+| R6.2-6 | MAY | all | Extensions, in addition to adding "Extension data" before the "Application data" in a payload, MAY also modify the "Application data" (such as by compressing it). | lines 2253-2255 | unsupported | The protocol profile's model does not implement extension modifications to application data. |
 | R7.1.1-1 | SHOULD | all | An endpoint SHOULD use a method that cleanly closes the TCP connection, as well as the TLS session, if applicable, discarding any trailing bytes that may have been received. | lines 2267-2270 | unsupported | the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect |
 | R7.1.1-2 | MAY | all | An endpoint MAY close the connection via any means available when necessary, such as when under attack. | lines 2270-2271 | not applicable | an implementation's defence under attack, with no protocol exchange to model |
 | R7.1.1-3 | SHOULD | all | The underlying TCP connection, in most normal cases, SHOULD be closed first by the server, so that it holds the TIME_WAIT state and not the client (as this would prevent it from re-opening the connection for 2 maximum segment lifetimes (2MSL), while there is no corresponding server impact as a TIME_WAIT connection is immediately reopened upon a new SYN with a higher seq number). | lines 2273-2278 | satisfied | close.server.R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close |
@@ -116,6 +168,32 @@ One row per requirement of [`overlay.yaml`](https://github.com/beyond10x/rfcspec
 | R7.4.1-4 | MUST NOT | all | 1006 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint. | lines 2540-2541 | unsupported | ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code |
 | R7.4.1-5 | SHOULD | all | The list of extensions that are needed SHOULD appear in the /reason/ part of the Close frame. | lines 2572-2583 | not applicable | no extension is negotiated in this profile, so status code 1010 is never sent |
 | R7.4.1-6 | MUST NOT | all | 1015 is a reserved value and MUST NOT be set as a status code in a Close control frame by an endpoint. | lines 2595-2596 | unsupported | ess-gap G1: excluding a reserved close code needs a guard beyond equality on the code |
+| R8.1-1 | MUST | all | When an endpoint is to interpret a byte stream as UTF-8 but finds that the byte stream is not, in fact, a valid UTF-8 stream, that endpoint MUST _Fail the WebSocket Connection_. | lines 2643-2645 | unsupported | The protocol profile's model does not implement UTF-8 validation for WebSocket connections as required. |
+| R9-1 | MAY | all | WebSocket clients MAY request extensions to this specification, and WebSocket servers MAY accept some or all extensions requested by the client. | lines 2651-2653 | unsupported | the profile does not model extensions (section 9) |
+| R9-2 | MUST NOT | all | A server MUST NOT respond with any extension not requested by the client. | lines 2653-2654 | unsupported | The model does not enforce the restriction on responding with unrequested extensions. |
+| R9-3 | MUST | all | If extension parameters are included in negotiations between the client and the server, those parameters MUST be chosen in accordance with the specification of the extension to which the parameters apply. | lines 2654-2657 | unsupported | The protocol profile's model does not implement selection of extension parameters according to the specification of the applicable extension. |
+| R9.1-1 | MUST | all | If a value is received by either the client or the server during negotiation that does not conform to the ABNF below, the recipient of such malformed data MUST immediately _Fail the WebSocket Connection_. | lines 2666-2669 | unsupported | The model does not implement immediate connection failure for malformed data. |
+| R9.1-4 | MUST | all | Any extension-token used MUST be a registered token (see Section 11.4). | lines 2706-2707 | unsupported | The protocol profile's model does not enforce registration of extension-tokens as required. |
+| R9.1-5 | MUST | all | The parameters supplied with any given extension MUST be defined for that extension. | lines 2707-2708 | unsupported | The model does not implement extension parameter validation. |
+| R9.1-7 | MAY | all | Any interactions between multiple extensions MAY be defined in the documents defining the extensions. | lines 2712-2714 | unsupported | the profile does not model extensions (section 9), so no interaction between them |
+| R9.2-1 | MAY | all | This document doesn't define any extension, but implementations MAY use extensions defined separately. | lines 2758-2759 | unsupported | the profile does not model extensions (section 9) |
+| R10.2-2 | SHOULD | all | If the origin indicated is unacceptable to the server, then it SHOULD respond to the WebSocket handshake with a reply containing HTTP 403 Forbidden status code. | lines 2791-2793 | unsupported | The protocol profile's model does not implement origin verification or HTTP 403 response handling for WebSocket handshakes. |
+| R10.3-1 | MUST | all | Clients MUST choose a new masking key for each frame, using an algorithm that cannot be predicted by end applications that provide data. | lines 2849-2851 | unsupported | The protocol profile's model does not implement the requirement to generate unique masking keys per frame. |
+| R10.4-1 | MUST | all | Implementations that have implementation- and/or platform-specific limitations regarding the frame size or total message size after reassembly from multiple frames MUST protect themselves against exceeding those limits. | lines 2898-2901 | unsupported | the profile does not model limits on frame or message size |
+| R10.6-1 | MUST | all | WebSocket implementations MUST support TLS and SHOULD employ it when communicating with their peers. | lines 2930-2932 | unsupported | The protocol profile's model does not implement TLS support as required. |
+| R10.7-1 | MUST | all | Incoming data MUST always be validated by both clients and servers. | lines 2946-2946 | unsupported | The protocol profile's model does not implement validation of incoming data as required. |
+| R10.7-2 | MAY | all | If, at any time, an endpoint is faced with data that it does not understand or that violates some criteria by which the endpoint determines safety of input, or when the endpoint sees an opening handshake that does not correspond to the values it is expecting (e.g., incorrect path or origin in the client request), the endpoint MAY drop the TCP connection. | lines 2947-2952 | unsupported | the profile does not model the opening handshake (section 4) or an endpoint's input-safety criteria |
+| R10.7-4 | SHOULD | all | If the invalid data is sent during the WebSocket handshake, the server SHOULD return an appropriate HTTP [RFC2616] status code. | lines 2956-2958 | unsupported | The model does not handle returning HTTP status codes for invalid WebSocket handshake data. |
+| R11.1.1-1 | MUST | all | Characters in the host component that are excluded by the syntax defined above MUST be converted from Unicode to ASCII as specified in [RFC3987] or its replacement. | lines 3015-3017 | unsupported | The model does not implement conversion of excluded host characters to ASCII as required. |
+| R11.1.1-2 | MUST | all | Characters in other components that are excluded by the syntax defined above MUST be converted from Unicode to ASCII by first encoding the characters as UTF-8 and then replacing the corresponding bytes using their percent-encoded form as defined in the URI [RFC3986] and Internationalized Resource Identifier (IRI) [RFC3987] specifications. | lines 3031-3036 | unsupported | The model does not implement the required conversion from Unicode to ASCII using UTF-8 and percent-encoding. |
+| R11.1.2-1 | MUST | all | Encoding considerations Characters in the host component that are excluded by the syntax defined above MUST be converted from Unicode to ASCII as specified in [RFC3987] or its replacement. | lines 3091-3094 | unsupported | The protocol profile's model does not implement the required conversion of excluded characters from Unicode to ASCII as specified in [RFC3987] or its replacement. |
+| R11.1.2-2 | MUST | all | Characters in other components that are excluded by the syntax defined above MUST be converted from Unicode to ASCII by first encoding the characters as UTF-8 and then replacing the corresponding bytes using their percent-encoded form as defined in the URI [RFC3986] and IRI [RFC3987] specifications. | lines 3099-3103 | unsupported | The protocol profile's model does not implement the required Unicode-to-ASCII conversion mechanism for excluded characters. |
+| R11.3.1-1 | MUST NOT | all | The \|Sec-WebSocket-Key\| header field MUST NOT appear more than once in an HTTP request. | lines 3182-3183 | unsupported | The protocol profile's model does not enforce restrictions on header field multiplicity. |
+| R11.3.2-2 | MUST NOT | all | However, the \|Sec-WebSocket-Extensions\| header field MUST NOT appear more than once in an HTTP response. | lines 3231-3232 | unsupported | The model does not enforce the restriction on multiple occurrences in HTTP responses. |
+| R11.3.3-1 | MUST NOT | all | The \|Sec-WebSocket-Accept\| header MUST NOT appear more than once in an HTTP response. | lines 3270-3271 | unsupported | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Accept is sent or checked |
+| R11.3.4-2 | MUST NOT | all | However, the \|Sec-WebSocket-Protocol\| header field MUST NOT appear more than once in an HTTP response. | lines 3314-3315 | unsupported | The protocol profile's model does not enforce restrictions on HTTP response header field multiplicity. |
+| R11.3.5-1 | MAY | all | The \|Sec-WebSocket-Version\| header field MAY appear multiple times in an HTTP response (which is logically the same as a single \|Sec-WebSocket-Version\| header field that contains all values). | lines 3367-3369 | unsupported | The model does not allow the Sec-WebSocket-Version header field to appear multiple times in an HTTP response. |
+| R11.3.5-2 | MUST NOT | all | However, the \|Sec-WebSocket-Version\| header field MUST NOT appear more than once in an HTTP request. | lines 3370-3371 | unsupported | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Version header field is sent |
 
 ## ESS gaps
 
@@ -133,6 +211,54 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 
 | Requirement | Reason |
 |---|---|
+| R3-2 | The protocol profile does not enforce the prohibition against fragment identifiers in WebSocket URIs. |
+| R4.1-2 | The protocol profile's model does not implement the required handshake procedure for establishing WebSocket connections. |
+| R4.1-3 | The protocol profile's model does not implement validation of WebSocket URI components as required. |
+| R4.1-4 | The protocol profile's model does not implement failure handling for invalid WebSocket URI components as required. |
+| R4.1-5 | The model does not implement the requirement to wait for an existing connection to be established or fail. |
+| R4.1-6 | The protocol profile's model does not enforce the restriction on having only one connection in the CONNECTING state at any given time. |
+| R4.1-7 | the protocol profile's model does not handle multiple connections to the same IP address |
+| R4.1-8 | The model does not implement logic to handle scenarios where the client cannot determine the remote host's IP address, violating the MUST requirement. |
+| R4.1-10 | Model does not support direct TCP connection establishment. |
+| R4.1-11 | The protocol profile's model does not implement the construction of WebSocket URIs for proxy autoconfiguration scripts as required. |
+| R4.1-12 | the protocol profile's model does not implement failing the WebSocket connection as specified |
+| R4.1-13 | The protocol profile does not implement TLS handshake functionality as required. |
+| R4.1-14 | The protocol profile's model does not implement failure handling for TLS handshake failures in WebSocket connections. |
+| R4.1-15 | Model does not implement encrypted tunnel communication as required |
+| R4.1-16 | the protocol profile's model does not support the Server Name Indication extension |
+| R4.1-17 | the profile does not model the opening handshake (section 4); the requirement applies to every client |
+| R4.1-18 | the protocol profile does not implement HTTP handshakes |
+| R4.1-19 | The protocol profile's model does not enforce the required method (GET) or HTTP version (≥1.1) constraints. |
+| R4.1-21 | Model does not implement Host header validation for /host/ and /port/ as specified. |
+| R4.1-22 | The model does not support the required header field |
+| R4.1-23 | the model does not include the required \|Connection\| header field |
+| R4.1-24 | The model does not include the required \|Sec-WebSocket-Key\| header field. |
+| R4.1-25 | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Key is sent or checked |
+| R4.1-26 | The protocol profile's model does not implement random nonce selection per connection. |
+| R4.1-27 | The protocol profile's model does not support including the Origin header field as required. |
+| R4.1-29 | The protocol profile's model does not include the required \|Sec-WebSocket-Version\| header field. |
+| R4.1-30 | The protocol profile's model does not enforce the Sec-WebSocket-Version header to be 13. |
+| R4.1-32 | The protocol profile's model does not enforce uniqueness or character restrictions on subprotocol elements. |
+| R4.1-33 | the profile does not model the opening handshake (section 4) or extensions |
+| R4.1-34 | the profile does not model the opening handshake (section 4), so no request header fields are sent |
+| R4.1-36 | Model does not implement client validation of server responses as required |
+| R4.1-37 | The model does not implement the required check for the Upgrade header field. |
+| R4.1-38 | The protocol profile's model does not implement the required check for the \|Connection\| header field's "Upgrade" token. |
+| R4.1-40 | The protocol profile does not handle extensions not requested by the client. |
+| R4.1-41 | The model does not implement logic to check for mismatched subprotocols in the server's response or fail the connection accordingly. |
+| R4.1-42 | The model does not include a mechanism to fail the WebSocket connection as required. |
+| R4.2.1-2 | the profile does not model the server's reading of the opening handshake (section 4.2.1) |
+| R4.2.2-1 | The model does not implement the requirement to complete the server's opening handshake steps. |
+| R4.2.2-2 | the profile does not model TLS or the server's opening handshake (section 4.2.2) |
+| R4.2.2-5 | the model does not handle server rejection of connections |
+| R4.2.2-6 | The protocol profile's model does not implement the requirement to abort the handshake and return an HTTP error code when version mismatch occurs. |
+| R4.2.2-7 | The model does not implement handling of unavailable services with HTTP error codes and handshake abortion. |
+| R4.2.2-8 | The model does not support deriving the subprotocol value from the client's handshake as specified. |
+| R4.2.2-9 | the profile does not model subprotocol selection in the opening handshake (section 4.2.2) |
+| R4.2.2-10 | the profile does not model extension negotiation in the opening handshake (section 4.2.2) |
+| R4.2.2-11 | The protocol profile's model does not enforce this restriction on extensions listed by the server. |
+| R4.2.2-12 | The protocol profile's model does not implement HTTP response handling for connection acceptance. |
+| R4.4-1 | The protocol profile's model does not implement the required response mechanism for unsupported versions. |
 | R5.1-1 | The protocol profile's model does not implement frame masking as required. |
 | R5.1-2 | The protocol profile's model does not enforce connection closure for unmasked frames received by the server. |
 | R5.1-5 | The model does not enforce closing the connection when a masked frame is detected. |
@@ -148,6 +274,9 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R5.3-3 | The protocol profile's model does not implement masking key derivation from a strong entropy source. |
 | R5.4-3 | delivery order is the tcp layer's ordered delivery, not an element of the fragments machine |
 | R5.4-7 | only the server receives data frames in the fragments machine; the client receives no message |
+| R5.8-1 | The protocol profile does not implement extension negotiation during the opening handshake. |
+| R6.2-5 | the profile does not model extensions (section 9) |
+| R6.2-6 | The protocol profile's model does not implement extension modifications to application data. |
 | R7.1.1-1 | the TCP and TLS teardown lies below the model: closing the tcp layer is one close effect |
 | R7.1.7-2 | the server never closes the connection on failing it: the fragments machine's server enters failed, a state its never_state property forbids, and no transition leaves it |
 | R7.1.7-3 | no machine sends a Close frame on failing the connection: the close machine fails only on the closing timeout, after its Close frame was sent, and the fragments machine forbids its failed state rather than modelling what follows it |
@@ -161,6 +290,32 @@ Requirements marked unsupported because ESS cannot carry their rule yet, by gap 
 | R7.2.3-4 | reconnecting lies outside the lifetime of one connection, which the close machine models |
 | R7.3-1 | a server-initiated close is not modelled: the close machine starts closing from the client |
 | R7.4.1-2 | binary messages are not modelled: the fragments machine carries text messages only, so no endpoint receives a binary message |
+| R8.1-1 | The protocol profile's model does not implement UTF-8 validation for WebSocket connections as required. |
+| R9-1 | the profile does not model extensions (section 9) |
+| R9-2 | The model does not enforce the restriction on responding with unrequested extensions. |
+| R9-3 | The protocol profile's model does not implement selection of extension parameters according to the specification of the applicable extension. |
+| R9.1-1 | The model does not implement immediate connection failure for malformed data. |
+| R9.1-4 | The protocol profile's model does not enforce registration of extension-tokens as required. |
+| R9.1-5 | The model does not implement extension parameter validation. |
+| R9.1-7 | the profile does not model extensions (section 9), so no interaction between them |
+| R9.2-1 | the profile does not model extensions (section 9) |
+| R10.2-2 | The protocol profile's model does not implement origin verification or HTTP 403 response handling for WebSocket handshakes. |
+| R10.3-1 | The protocol profile's model does not implement the requirement to generate unique masking keys per frame. |
+| R10.4-1 | the profile does not model limits on frame or message size |
+| R10.6-1 | The protocol profile's model does not implement TLS support as required. |
+| R10.7-1 | The protocol profile's model does not implement validation of incoming data as required. |
+| R10.7-2 | the profile does not model the opening handshake (section 4) or an endpoint's input-safety criteria |
+| R10.7-4 | The model does not handle returning HTTP status codes for invalid WebSocket handshake data. |
+| R11.1.1-1 | The model does not implement conversion of excluded host characters to ASCII as required. |
+| R11.1.1-2 | The model does not implement the required conversion from Unicode to ASCII using UTF-8 and percent-encoding. |
+| R11.1.2-1 | The protocol profile's model does not implement the required conversion of excluded characters from Unicode to ASCII as specified in [RFC3987] or its replacement. |
+| R11.1.2-2 | The protocol profile's model does not implement the required Unicode-to-ASCII conversion mechanism for excluded characters. |
+| R11.3.1-1 | The protocol profile's model does not enforce restrictions on header field multiplicity. |
+| R11.3.2-2 | The model does not enforce the restriction on multiple occurrences in HTTP responses. |
+| R11.3.3-1 | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Accept is sent or checked |
+| R11.3.4-2 | The protocol profile's model does not enforce restrictions on HTTP response header field multiplicity. |
+| R11.3.5-1 | The model does not allow the Sec-WebSocket-Version header field to appear multiple times in an HTTP response. |
+| R11.3.5-2 | the profile does not model the opening handshake (section 4), so no Sec-WebSocket-Version header field is sent |
 
 ## Rejected proposals
 
@@ -171,6 +326,32 @@ Proposals a reviewer rejected, from the decisions in [`profiles/websocket/overla
 | rfc6455/R5.1-4 | `8710bb6d53914b1171d509e48b6d8bc2bb7c6c787fac0a7771ca2be3a14e9817` | the profile models both peers, so a server requirement is not outside the model; it stays unreviewed |
 | rfc6455/R5.1-3 | `fa96a298641aedf3fb409b5259134cce779c43a2db3097b260a3f9e0ee5f8a3b` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
 | rfc6455/R5.3-1 | `d8b7d4f4d8d737eac015d3ceba6b7a096f913639ca5b747d2c03a24935795a75` | the frame-header layout carries the mask bit, so this is a layout review for satisfied, not unsupported |
+| rfc6455/R2-2 | `a01da14fc1a017d6e541887a4a7c4c5dcc980406f226d9675b8cab15eb698714` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R4.1-28 | `a0c9f98760efe535975107aa83b5f419303f7aa5d86cd6436ac3301cd6508822` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R4.1-31 | `5d95514da5e2423ac5ac59c9244b5d383ea357e1b64aad7da6486877bab1685f` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R4.2-1 | `f154d556ac3a4994bfd672667a09d872c98b648b9066220c0a537c6529cc967f` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R4.2.2-3 | `4f9761e07b881eb84fb90315021d9a506b365279cd36d0c13d1ee87cd22f5232` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R6.1-1 | `2c30fd55a077a975c460a1313268e1adef6be42ad9eb627468f2c3c2023bef60` | the fragments machine models sending a message as frames; this is a requirement-link review, not unsupported |
+| rfc6455/R6.1-3 | `e87671b14595b197d73dbf94a181baeb422ea932b401a351cfe43bb275486504` | the fragments machine models sending a message as frames; this is a requirement-link review, not unsupported |
+| rfc6455/R6.1-8 | `ee8c749349e5c311dded555ab225d914b36e0818502c21e1f3cf0932a55ac878` | the frame-header layout carries the mask bit, so this is a layout review for satisfied, not unsupported |
+| rfc6455/R9.1-3 | `524de21d5f5edf27c9237113677058cc16788be8d3f7932f23c86a1a9e082c2b` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R10.2-1 | `1d271943ec7b911fb26f43ecd97839c79afc8fdb61545af193600c7b60f1b391` | a SHOULD is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R10.7-3 | `ec980714e6173d2f7f4ddb6a2cbdfdf42c690df8a2a4e447f1ad600712dd6bd7` | the close machine models sending a Close frame; this is a requirement-link review, not unsupported |
+| rfc6455/R11.3.2-1 | `32c4a062e7897eb7864a5b5612cb7f0fe0dc00bd1148d5da4ece11a77ea2ef52` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R4.2.2-4 | `01ea67eee2515de783f14ffc743b8f48b571c6d4f48076368f3d7d14328f52a2` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R6.1-7 | `1949c6e540caf22a3a956763f979347be91ebbdc7795bd71ccb4aba51478d1be` | the frame-header layout carries the FIN bit and the fragments machine sends the last frame with it; this is a requirement-link review |
+| rfc6455/R6.2-7 | `21efb4a3df1a6b9d72e63b5a0eb78d9aca51a2b207322beed961661dc478095d` | the reason misreads BCP 14 as a rule on the RFC's wording; unmasking is a review of the frame codec |
+| rfc6455/R6.1-6 | `30dedddb2469dddfa8ace6ea91ad229332be00283e97b79846b75b8f1f053be8` | the frame-header layout carries the opcode and the fragments machine sends the first frame with it; this is a requirement-link review |
+| rfc6455/R4.2.1-1 | `377fe730d88f00310272d0f56ce46c9f7ff84bf6e34d15f58f122e1a8b73c880` | the reason misreads BCP 14 as applying only to RFC authors; the requirement is on the server's reading of the opening handshake |
+| rfc6455/R6.2-3 | `63a0551caa4839f0be2939f47a507966d629e7d7adb411ca417a25ffa1743cf2` | the fragments machine models data frames and their opcode; this is a requirement-link review, not unsupported |
+| rfc6455/R4.1-1 | `678f3bb4b7f86977fc70eb966cd9aada1aa906d7ef5dc3c0818770bd279ba187` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R6.1-5 | `79210b7820e09af283ae05bdec6d2cfe09fbc7aacd5019c2c50a07606181af02` | the fragments machine models a message sent as a series of frames; this is a requirement-link review, not unsupported |
+| rfc6455/R6.2-4 | `86cff3939901cc7cecf254bce7410c9ed46b3268a87cf4cc0c9025c4decec106` | the fragments machine models message boundaries over data frames; this is a requirement-link review, not unsupported |
+| rfc6455/R6.1-9 | `adeb99dbeb8aadf275830d8646eae9f90f40d66ab111bfc00f236d17ba68a5ad` | the machines send their frames over the declared tcp channel; this is a requirement-link review, not not-applicable |
+| rfc6455/R11.3.4-1 | `bb644be8fd2bb452ba41f60df7ab66438c7914feade66eafdef3582530ce5d42` | an optional MAY is in scope like any other requirement; not-applicable needs a reason the requirement cannot arise |
+| rfc6455/R6.2-2 | `be39a77d9e6b82d9e121fb9b2871fa7832d1d6316dbbf2e2fd223a24724dd8eb` | the close and ping machines model control frames (section 5.5); this is a requirement-link review, not unsupported |
+| rfc6455/R2.1-1 | `d2e5755630ab140430d72d0403bca36be1e7b6d61c8c43049c7ef400c5e852a9` | exploration interleaves channel deliveries, which already admits a delayed transmission; this is a requirement-link review, not not-applicable |
+| rfc6455/R4.1-20 | `e17bddbb49093566abea0e980d93865dd8be3fd72816b1d017075f399bee0260` | the reason misreads BCP 14 as a rule on the RFC's wording; the requirement is on the client's opening handshake |
 
 ## Conformance
 

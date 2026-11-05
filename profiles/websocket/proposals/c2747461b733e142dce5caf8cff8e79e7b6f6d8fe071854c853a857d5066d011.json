@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 918,
+      "start": 916
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "15ca69735a8ae805bb3cce7541418d7d4b697f6394df41786fa3f3984319dc3c",
+  "inputs": {
+    "item": "rfc6455/R4.1-15",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 918,
+      "start": 916
+    },
+    "text": "Otherwise, all further communication on this channel MUST run through the encrypted tunnel [RFC5246]."
+  },
+  "item": "rfc6455/R4.1-15",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "c2747461b733e142dce5caf8cff8e79e7b6f6d8fe071854c853a857d5066d011",
+  "response": {
+    "id": "R4.1-15",
+    "level": "MUST",
+    "quote": "Otherwise, all further communication on this channel MUST run through the encrypted tunnel [RFC5246].",
+    "source": "capitals-text",
+    "span": {
+      "end": 918,
+      "start": 916
+    },
+    "status": {
+      "unsupported": "Model does not implement encrypted tunnel communication as required"
+    }
+  },
+  "task": "status"
+}

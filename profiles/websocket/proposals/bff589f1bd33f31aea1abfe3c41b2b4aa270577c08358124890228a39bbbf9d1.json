@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2958,
+      "start": 2956
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "0103cd189ba6faafc66ba4d92dd7d213bae8afb430f0cc606da4f8332575ff24",
+  "inputs": {
+    "item": "rfc6455/R10.7-4",
+    "keyword": "SHOULD",
+    "rfc": 6455,
+    "section": "10.7",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2958,
+      "start": 2956
+    },
+    "text": "If the invalid data is sent during the WebSocket handshake, the server SHOULD return an appropriate HTTP [RFC2616] status code."
+  },
+  "item": "rfc6455/R10.7-4",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "bff589f1bd33f31aea1abfe3c41b2b4aa270577c08358124890228a39bbbf9d1",
+  "response": {
+    "id": "R10.7-4",
+    "level": "SHOULD",
+    "quote": "If the invalid data is sent during the WebSocket handshake, the server SHOULD return an appropriate HTTP [RFC2616] status code.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2958,
+      "start": 2956
+    },
+    "status": {
+      "unsupported": "The model does not handle returning HTTP status codes for invalid WebSocket handshake data."
+    }
+  },
+  "task": "status"
+}

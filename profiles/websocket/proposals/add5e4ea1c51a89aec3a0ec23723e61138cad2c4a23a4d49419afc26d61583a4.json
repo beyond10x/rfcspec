@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2645,
+      "start": 2643
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "217e4b1cae9efb0dad8dfbb08c53bfe26a05934ae3c08092f2904d416e3ebdb5",
+  "inputs": {
+    "item": "rfc6455/R8.1-1",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "8.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2645,
+      "start": 2643
+    },
+    "text": "When an endpoint is to interpret a byte stream as UTF-8 but finds that the byte stream is not, in fact, a valid UTF-8 stream, that endpoint MUST _Fail the WebSocket Connection_."
+  },
+  "item": "rfc6455/R8.1-1",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "add5e4ea1c51a89aec3a0ec23723e61138cad2c4a23a4d49419afc26d61583a4",
+  "response": {
+    "id": "R8.1-1",
+    "level": "MUST",
+    "quote": "When an endpoint is to interpret a byte stream as UTF-8 but finds that the byte stream is not, in fact, a valid UTF-8 stream, that endpoint MUST _Fail the WebSocket Connection_.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2645,
+      "start": 2643
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement UTF-8 validation for WebSocket connections as required."
+    }
+  },
+  "task": "status"
+}

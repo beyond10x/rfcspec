@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1300,
+      "start": 1299
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "639b28ecfcc0f7fb781c2fc85b3c41ada7732281c56353b9754e1de0a4c5babd",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-12",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1300,
+      "start": 1299
+    },
+    "text": "If the server chooses to accept the incoming connection, it MUST reply with a valid HTTP response indicating the following."
+  },
+  "item": "rfc6455/R4.2.2-12",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "1f30831e8bfe99b1b3aaafa67e3f1e6f6574c98bfd483127151821bd82c9563a",
+  "response": {
+    "id": "R4.2.2-12",
+    "level": "MUST",
+    "quote": "If the server chooses to accept the incoming connection, it MUST reply with a valid HTTP response indicating the following.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1300,
+      "start": 1299
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement HTTP response handling for connection acceptance."
+    }
+  },
+  "task": "status"
+}

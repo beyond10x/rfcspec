@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2714,
+      "start": 2712
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "356aceb850eb0fd26ff9379097531cab1404be4fea16c397be59e3ed19ed7df5",
+  "inputs": {
+    "item": "rfc6455/R9.1-7",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "9.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2714,
+      "start": 2712
+    },
+    "text": "Any interactions between multiple extensions MAY be defined in the documents defining the extensions."
+  },
+  "item": "rfc6455/R9.1-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "89cbb55e21a819153a72df14c53ecafa4d35a8dbba80b099c9a92f5f97d63dca",
+  "response": {
+    "id": "R9.1-7",
+    "level": "MAY",
+    "quote": "Any interactions between multiple extensions MAY be defined in the documents defining the extensions.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2714,
+      "start": 2712
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not implement interactions between multiple extensions."
+    }
+  },
+  "task": "status"
+}

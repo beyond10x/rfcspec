@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 681,
+      "start": 679
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "e224fee7e51401edd5449bdd70d1010e741b7b237eb290dd55f29c21db1bceb1",
+  "inputs": {
+    "item": "rfc6455/R2-2",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 681,
+      "start": 679
+    },
+    "text": "Conformance requirements phrased as algorithms or specific steps MAY be implemented in any manner, so long as the end result is equivalent."
+  },
+  "item": "rfc6455/R2-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "a01da14fc1a017d6e541887a4a7c4c5dcc980406f226d9675b8cab15eb698714",
+  "response": {
+    "id": "R2-2",
+    "level": "MAY",
+    "quote": "Conformance requirements phrased as algorithms or specific steps MAY be implemented in any manner, so long as the end result is equivalent.",
+    "source": "capitals-text",
+    "span": {
+      "end": 681,
+      "start": 679
+    },
+    "status": {
+      "not-applicable": "The requirement is optional (MAY) and the model's non-implementation does not violate BCP 14."
+    }
+  },
+  "task": "status"
+}

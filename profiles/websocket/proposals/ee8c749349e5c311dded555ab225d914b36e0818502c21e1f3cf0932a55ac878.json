@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2212,
+      "start": 2211
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "2f2ae990cd0876cc9c38003ae80addb5e8728ba00f0cbcc5a55cc3b626a2224e",
+  "inputs": {
+    "item": "rfc6455/R6.1-8",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "6.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2212,
+      "start": 2211
+    },
+    "text": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3."
+  },
+  "item": "rfc6455/R6.1-8",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "ee8c749349e5c311dded555ab225d914b36e0818502c21e1f3cf0932a55ac878",
+  "response": {
+    "id": "R6.1-8",
+    "level": "MUST",
+    "quote": "If the data is being sent by the client, the frame(s) MUST be masked as defined in Section 5.3.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2212,
+      "start": 2211
+    },
+    "status": {
+      "unsupported": "the model does not support frame masking as required by Section 5.3"
+    }
+  },
+  "task": "status"
+}

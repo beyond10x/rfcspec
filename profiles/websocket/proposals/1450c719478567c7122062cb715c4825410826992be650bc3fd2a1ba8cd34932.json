@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2654,
+      "start": 2653
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "a88c424568310570c4f09325ed475d011a59220b05f0c0eb19523aaa768292ce",
+  "inputs": {
+    "item": "rfc6455/R9-2",
+    "keyword": "MUST NOT",
+    "rfc": 6455,
+    "section": "9",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2654,
+      "start": 2653
+    },
+    "text": "A server MUST NOT respond with any extension not requested by the client."
+  },
+  "item": "rfc6455/R9-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "1450c719478567c7122062cb715c4825410826992be650bc3fd2a1ba8cd34932",
+  "response": {
+    "id": "R9-2",
+    "level": "MUST NOT",
+    "quote": "A server MUST NOT respond with any extension not requested by the client.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2654,
+      "start": 2653
+    },
+    "status": {
+      "unsupported": "The model does not enforce the restriction on responding with unrequested extensions."
+    }
+  },
+  "task": "status"
+}

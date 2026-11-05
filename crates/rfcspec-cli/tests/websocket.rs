@@ -173,13 +173,20 @@ fn task_check_explores_every_websocket_model_with_its_witness() {
     );
 }
 
-/// The ids of the catalogue requirements `rfcspec extract` lists in sections 5.1 and 5.3.
-fn slice_ids() -> BTreeSet<String> {
+/// Whether a section lies in the profile's sections (`profile.yaml`) or below one.
+fn scoped(section: &str) -> bool {
+    ["5.2", "5.4", "5.5", "5.6", "7"]
+        .iter()
+        .any(|s| section == *s || section.starts_with(&format!("{s}.")))
+}
+
+/// The ids of the catalogue requirements `rfcspec extract` lists outside the profile's sections.
+fn outside_ids() -> BTreeSet<String> {
     catalogue()["requirements"]
         .as_array()
         .unwrap()
         .iter()
-        .filter(|r| matches!(r["section"].as_str(), Some("5.1" | "5.3")))
+        .filter(|r| !scoped(r["section"].as_str().unwrap()))
         .map(|r| r["id"].as_str().unwrap().to_owned())
         .collect()
 }
@@ -209,9 +216,8 @@ fn recorded_proposals() -> Vec<(String, serde_json::Value)> {
 }
 
 #[test]
-fn the_recorded_proposals_are_one_status_proposal_per_catalogue_requirement_of_5_1_and_5_3() {
-    let ids = slice_ids();
-    assert_eq!(ids.len(), 10, "{ids:?}");
+fn the_recorded_proposals_are_one_status_proposal_per_requirement_outside_the_profile_sections() {
+    let outside = outside_ids();
     let proposals = recorded_proposals();
     let mut items = BTreeSet::new();
     for (stem, proposal) in &proposals {
@@ -225,8 +231,12 @@ fn the_recorded_proposals_are_one_status_proposal_per_catalogue_requirement_of_5
             .strip_prefix("rfc6455/")
             .unwrap_or_else(|| panic!("{item}"));
         assert!(items.insert(id.to_owned()), "{item} proposed twice");
+        assert!(
+            outside.contains(id),
+            "{item} lies in the profile's sections"
+        );
     }
-    assert_eq!(items, ids);
+    assert_eq!(items.len(), 114, "{items:?}");
 }
 
 #[test]
@@ -681,13 +691,8 @@ fn every_in_scope_requirement_has_a_status_and_one_outside_only_by_an_accept_or_
         .filter(|d| d.kind != rfcspec_model::DecisionKind::Reject)
         .map(|d| d.item.strip_prefix("rfc6455/").unwrap())
         .collect();
-    assert_eq!(accepted.len(), 7, "{accepted:?}");
+    assert_eq!(accepted.len(), 85, "{accepted:?}");
     let mut outside_reviewed = BTreeSet::new();
-    let scoped = |section: &str| {
-        ["5.2", "5.4", "5.5", "5.6", "7"]
-            .iter()
-            .any(|s| section == *s || section.starts_with(&format!("{s}.")))
-    };
     let mut in_scope = 0;
     let mut outside = 0;
     let mut keywords_in = 0;

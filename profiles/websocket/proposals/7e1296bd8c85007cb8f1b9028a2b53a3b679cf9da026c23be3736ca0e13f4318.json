@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 822,
+      "start": 819
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "041cba5bbc183b97f917fb3e40bc0343113c7e7ca746c1ac0f143b060e0790d8",
+  "inputs": {
+    "item": "rfc6455/R4.1-7",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 822,
+      "start": 819
+    },
+    "text": "If multiple connections to the same IP address are attempted simultaneously, the client MUST serialize them so that there is no more than one connection at a time running through the following steps."
+  },
+  "item": "rfc6455/R4.1-7",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "7e1296bd8c85007cb8f1b9028a2b53a3b679cf9da026c23be3736ca0e13f4318",
+  "response": {
+    "id": "R4.1-7",
+    "level": "MUST",
+    "quote": "If multiple connections to the same IP address are attempted simultaneously, the client MUST serialize them so that there is no more than one connection at a time running through the following steps.",
+    "source": "capitals-text",
+    "span": {
+      "end": 822,
+      "start": 819
+    },
+    "status": {
+      "unsupported": "the protocol profile's model does not handle multiple connections to the same IP address"
+    }
+  },
+  "task": "status"
+}

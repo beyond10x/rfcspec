@@ -22,4 +22,4 @@ The [RFC index](/docs/catalog/rfcs) lists every RFC published as plain text with
 | [dns](/docs/catalog/dns) | RFC 1035 Domain Names - Implementation and Specification | K1 | S6 | 3 MUST, 2 SHOULD, 1 SHOULD NOT | 4 | 2 | 0 | 0 | no recorded run |
 | [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 6 MUST, 1 SHOULD, 2 MAY | 5 | 4 | 0 | 10 | no recorded run |
 | [time](/docs/catalog/time) | RFC 868 Time Protocol | K1 | S6 | 4 MUST, 2 SHOULD | 6 | 0 | 0 | 0 | no recorded run |
-| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 31 MUST, 12 MUST NOT, 11 SHOULD, 3 SHOULD NOT, 20 MAY | 29 | 40 | 8 | 119 | no recorded run |
+| [websocket](/docs/catalog/websocket) | RFC 6455 The WebSocket Protocol | K1 | S6 | 87 MUST, 21 MUST NOT, 14 SHOULD, 4 SHOULD NOT, 29 MAY | 29 | 117 | 9 | 41 | no recorded run |

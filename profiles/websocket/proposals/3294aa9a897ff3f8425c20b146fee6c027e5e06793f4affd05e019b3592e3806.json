@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1221,
+      "start": 1218
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "d5c818fe91abc4709309973d4fa65202d79375b4c39c45a2ff2201ec17f9666b",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-5",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1221,
+      "start": 1218
+    },
+    "text": "If the server does not wish to accept this connection, it MUST return an appropriate HTTP error code (e.g., 403 Forbidden) and abort the WebSocket handshake described in this section."
+  },
+  "item": "rfc6455/R4.2.2-5",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "3294aa9a897ff3f8425c20b146fee6c027e5e06793f4affd05e019b3592e3806",
+  "response": {
+    "id": "R4.2.2-5",
+    "level": "MUST",
+    "quote": "If the server does not wish to accept this connection, it MUST return an appropriate HTTP error code (e.g., 403 Forbidden) and abort the WebSocket handshake described in this section.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1221,
+      "start": 1218
+    },
+    "status": {
+      "unsupported": "the model does not handle server rejection of connections"
+    }
+  },
+  "task": "status"
+}

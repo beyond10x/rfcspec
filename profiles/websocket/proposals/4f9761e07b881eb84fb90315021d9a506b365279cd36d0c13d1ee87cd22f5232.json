@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1206,
+      "start": 1205
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "ab0342016e7d1615c51095771d47eecfe04e950892705da1d6f997e69843018f",
+  "inputs": {
+    "item": "rfc6455/R4.2.2-3",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.2.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1206,
+      "start": 1205
+    },
+    "text": "The server MAY redirect the client using a 3xx status code [RFC2616]."
+  },
+  "item": "rfc6455/R4.2.2-3",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "4f9761e07b881eb84fb90315021d9a506b365279cd36d0c13d1ee87cd22f5232",
+  "response": {
+    "id": "R4.2.2-3",
+    "level": "MAY",
+    "quote": "The server MAY redirect the client using a 3xx status code [RFC2616].",
+    "source": "capitals-text",
+    "span": {
+      "end": 1206,
+      "start": 1205
+    },
+    "status": {
+      "not-applicable": "The model is not required to implement MAY requirements as they are optional per BCP 14."
+    }
+  },
+  "task": "status"
+}

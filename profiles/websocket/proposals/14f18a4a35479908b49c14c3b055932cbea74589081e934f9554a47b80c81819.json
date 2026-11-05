@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 989,
+      "start": 988
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "a6f4dc3d46f4ea6db37fa2899b011626ad869f3f99fb2d9f42de7beb0e08a041",
+  "inputs": {
+    "item": "rfc6455/R4.1-30",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 989,
+      "start": 988
+    },
+    "text": "The value of this header field MUST be 13."
+  },
+  "item": "rfc6455/R4.1-30",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "14f18a4a35479908b49c14c3b055932cbea74589081e934f9554a47b80c81819",
+  "response": {
+    "id": "R4.1-30",
+    "level": "MUST",
+    "quote": "The value of this header field MUST be 13.",
+    "source": "capitals-text",
+    "span": {
+      "end": 989,
+      "start": 988
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not enforce the Sec-WebSocket-Version header to be 13."
+    }
+  },
+  "task": "status"
+}

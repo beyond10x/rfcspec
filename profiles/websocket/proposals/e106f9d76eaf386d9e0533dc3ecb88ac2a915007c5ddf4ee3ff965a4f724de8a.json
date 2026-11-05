@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 1016,
+      "start": 1015
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "c36f413bc2d5ec9cb370a9276dacd924ced2bdf707369db2fb9a969466157b92",
+  "inputs": {
+    "item": "rfc6455/R4.1-33",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 1016,
+      "start": 1015
+    },
+    "text": "The request MAY include a header field with the name |Sec-WebSocket-Extensions|."
+  },
+  "item": "rfc6455/R4.1-33",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "e106f9d76eaf386d9e0533dc3ecb88ac2a915007c5ddf4ee3ff965a4f724de8a",
+  "response": {
+    "id": "R4.1-33",
+    "level": "MAY",
+    "quote": "The request MAY include a header field with the name |Sec-WebSocket-Extensions|.",
+    "source": "capitals-text",
+    "span": {
+      "end": 1016,
+      "start": 1015
+    },
+    "status": {
+      "not-applicable": "The protocol profile's model does not implement the optional inclusion of the Sec-WebSocket-Extensions header field."
+    }
+  },
+  "task": "status"
+}

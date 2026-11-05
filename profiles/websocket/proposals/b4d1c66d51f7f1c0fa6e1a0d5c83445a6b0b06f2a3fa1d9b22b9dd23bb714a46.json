@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 3036,
+      "start": 3031
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "754292e9ee79d7d740b1b30fd5fb8d77f60c17851350213d00392e8a48f00248",
+  "inputs": {
+    "item": "rfc6455/R11.1.1-2",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "11.1.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 3036,
+      "start": 3031
+    },
+    "text": "Characters in other components that are excluded by the syntax defined above MUST be converted from Unicode to ASCII by first encoding the characters as UTF-8 and then replacing the corresponding bytes using their percent-encoded form as defined in the URI [RFC3986] and Internationalized Resource Identifier (IRI) [RFC3987] specifications."
+  },
+  "item": "rfc6455/R11.1.1-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "b4d1c66d51f7f1c0fa6e1a0d5c83445a6b0b06f2a3fa1d9b22b9dd23bb714a46",
+  "response": {
+    "id": "R11.1.1-2",
+    "level": "MUST",
+    "quote": "Characters in other components that are excluded by the syntax defined above MUST be converted from Unicode to ASCII by first encoding the characters as UTF-8 and then replacing the corresponding bytes using their percent-encoded form as defined in the URI [RFC3986] and Internationalized Resource Identifier (IRI) [RFC3987] specifications.",
+    "source": "capitals-text",
+    "span": {
+      "end": 3036,
+      "start": 3031
+    },
+    "status": {
+      "unsupported": "The model does not implement the required conversion from Unicode to ASCII using UTF-8 and percent-encoding."
+    }
+  },
+  "task": "status"
+}

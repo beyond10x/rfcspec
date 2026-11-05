@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2793,
+      "start": 2791
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "b76b00a4e5e54c9444d124caa977548981308eae0d81340ff9edb8f225d243f3",
+  "inputs": {
+    "item": "rfc6455/R10.2-2",
+    "keyword": "SHOULD",
+    "rfc": 6455,
+    "section": "10.2",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2793,
+      "start": 2791
+    },
+    "text": "If the origin indicated is unacceptable to the server, then it SHOULD respond to the WebSocket handshake with a reply containing HTTP 403 Forbidden status code."
+  },
+  "item": "rfc6455/R10.2-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "3fb3a5f57c5fb1a2f68cafe98b6ef9d410cb2a4e8269a900a16f58f3357338e1",
+  "response": {
+    "id": "R10.2-2",
+    "level": "SHOULD",
+    "quote": "If the origin indicated is unacceptable to the server, then it SHOULD respond to the WebSocket handshake with a reply containing HTTP 403 Forbidden status code.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2793,
+      "start": 2791
+    },
+    "status": {
+      "unsupported": "The protocol profile's model does not implement origin verification or HTTP 403 response handling for WebSocket handshakes."
+    }
+  },
+  "task": "status"
+}

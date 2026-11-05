@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 2952,
+      "start": 2947
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "7d28c9ef3e6eb3ee676d3500f4b4a6e58f315296bf676293ae9f550fe9f88e9b",
+  "inputs": {
+    "item": "rfc6455/R10.7-2",
+    "keyword": "MAY",
+    "rfc": 6455,
+    "section": "10.7",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 2952,
+      "start": 2947
+    },
+    "text": "If, at any time, an endpoint is faced with data that it does not understand or that violates some criteria by which the endpoint determines safety of input, or when the endpoint sees an opening handshake that does not correspond to the values it is expecting (e.g., incorrect path or origin in the client request), the endpoint MAY drop the TCP connection."
+  },
+  "item": "rfc6455/R10.7-2",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "2e8892b9bb80ac9ff6d4938890751c83d06714f100a5368e68ca1c4887717dcb",
+  "response": {
+    "id": "R10.7-2",
+    "level": "MAY",
+    "quote": "If, at any time, an endpoint is faced with data that it does not understand or that violates some criteria by which the endpoint determines safety of input, or when the endpoint sees an opening handshake that does not correspond to the values it is expecting (e.g., incorrect path or origin in the client request), the endpoint MAY drop the TCP connection.",
+    "source": "capitals-text",
+    "span": {
+      "end": 2952,
+      "start": 2947
+    },
+    "status": {
+      "unsupported": "The model does not implement the MAY requirement."
+    }
+  },
+  "task": "status"
+}

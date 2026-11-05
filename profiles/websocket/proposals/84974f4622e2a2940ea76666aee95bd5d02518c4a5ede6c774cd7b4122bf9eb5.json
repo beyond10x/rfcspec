@@ -1,0 +1,41 @@
+{
+  "cited_spans": [
+    {
+      "end": 833,
+      "start": 824
+    }
+  ],
+  "format": "rfcspec-proposal/1",
+  "input_digest": "473fd44b54f82dd127a4e163a4c2bec2aac033b8e1f89f8061363d9293681d32",
+  "inputs": {
+    "item": "rfc6455/R4.1-8",
+    "keyword": "MUST",
+    "rfc": 6455,
+    "section": "4.1",
+    "source": "capitals-text",
+    "source_sha256": "765775326aee0ecca9b04bde3fd1f52932d498e33e34e428bd61b8a24da0fa3b",
+    "span": {
+      "end": 833,
+      "start": 824
+    },
+    "text": "If the client cannot determine the IP address of the remote host (for example, because all communication is being done through a proxy server that performs DNS queries itself), then the client MUST assume for the purposes of this step that each host name refers to a distinct remote host, and instead the client SHOULD limit the total number of simultaneous pending connections to a reasonably low number (e.g., the client might allow simultaneous pending connections to a.example.com and b.example.com, but if thirty simultaneous connections to a single host are requested, that may not be allowed)."
+  },
+  "item": "rfc6455/R4.1-8",
+  "model_id": "local/qwen3:14b",
+  "profile": "websocket",
+  "proposal_id": "84974f4622e2a2940ea76666aee95bd5d02518c4a5ede6c774cd7b4122bf9eb5",
+  "response": {
+    "id": "R4.1-8",
+    "level": "MUST",
+    "quote": "If the client cannot determine the IP address of the remote host (for example, because all communication is being done through a proxy server that performs DNS queries itself), then the client MUST assume for the purposes of this step that each host name refers to a distinct remote host, and instead the client SHOULD limit the total number of simultaneous pending connections to a reasonably low number (e.g., the client might allow simultaneous pending connections to a.example.com and b.example.com, but if thirty simultaneous connections to a single host are requested, that may not be allowed).",
+    "source": "capitals-text",
+    "span": {
+      "end": 833,
+      "start": 824
+    },
+    "status": {
+      "unsupported": "The model does not implement logic to handle scenarios where the client cannot determine the remote host's IP address, violating the MUST requirement."
+    }
+  },
+  "task": "status"
+}
