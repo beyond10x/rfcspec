@@ -46,11 +46,16 @@ fn scratch(name: &str) -> TempDir {
         .unwrap()
 }
 
-/// The three texts the profiles lock, copied into `<dir>/texts` as `rfc<N>.txt`.
+/// The four texts the profiles lock, copied into `<dir>/texts` as `rfc<N>.txt`.
 fn texts(dir: &Path) -> PathBuf {
     let texts = dir.join("texts");
     fs::create_dir_all(&texts).unwrap();
-    for (profile, rfc) in [("time", 868), ("dns", 1035), ("websocket", 6455)] {
+    for (profile, rfc) in [
+        ("time", 868),
+        ("dns", 1035),
+        ("ntp", 5905),
+        ("websocket", 6455),
+    ] {
         fs::copy(
             repository().join(format!("profiles/{profile}/sources/rfc{rfc}.txt")),
             texts.join(format!("rfc{rfc}.txt")),
@@ -161,7 +166,7 @@ fn summarise_writes_a_summary_check_accepts_with_the_locked_digests_and_extracte
     let header: Value = serde_json::from_str(&lines[0]).unwrap();
     assert_eq!(header["format"], "rfcspec-bulk/1");
     assert_eq!(header["extractor"], 1);
-    assert_eq!(header["rows"], 3);
+    assert_eq!(header["rows"], 4);
     assert_eq!(
         header["index_sha256"],
         sha256_hex(&fs::read(repository().join(INDEX)).unwrap())
@@ -171,7 +176,10 @@ fn summarise_writes_a_summary_check_accepts_with_the_locked_digests_and_extracte
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
     let numbers: Vec<&Value> = rows.iter().map(|row| &row["rfc"]).collect();
-    assert_eq!(numbers, [&json!(868), &json!(1035), &json!(6455)]);
+    assert_eq!(
+        numbers,
+        [&json!(868), &json!(1035), &json!(5905), &json!(6455)]
+    );
 
     let time = &rows[0];
     assert_eq!(time["counts"], json!({}));
@@ -187,7 +195,15 @@ fn summarise_writes_a_summary_check_accepts_with_the_locked_digests_and_extracte
     assert_eq!(dns["date"], "1987-11");
     assert_eq!(dns["obsoletes"], json!([882, 883, 973]));
 
-    let websocket = &rows[2];
+    let ntp = &rows[2];
+    assert_eq!(ntp["sha256"], locked_sha256("profiles/ntp"));
+    assert_eq!(ntp["counts"], extracted_counts("profiles/ntp", "5905"));
+    assert_eq!(
+        ntp["counts"],
+        json!({"MAY": 3, "MUST": 6, "MUST NOT": 1, "SHOULD": 3})
+    );
+
+    let websocket = &rows[3];
     assert!(
         websocket["sha256"]
             .as_str()
@@ -296,9 +312,9 @@ fn check_refuses_another_format() {
 
 #[test]
 fn check_refuses_a_row_count_that_differs() {
-    let error = refused("rows", |lines| set_header(lines, "rows", json!(4)));
+    let error = refused("rows", |lines| set_header(lines, "rows", json!(5)));
     assert!(error.contains("line 1"), "{error}");
-    assert!(error.contains("rows 4"), "{error}");
+    assert!(error.contains("rows 5"), "{error}");
 }
 
 #[test]
@@ -313,7 +329,7 @@ fn check_refuses_an_edited_row_whose_rfc_no_profile_locks_by_rows_sha256() {
         reheader(lines);
         line = set_row(lines, 7000, |row| row["counts"]["MUST"] = json!(2));
     });
-    assert_eq!(line, 5);
+    assert_eq!(line, 6);
     assert!(error.contains("line 1"), "{error}");
     assert!(error.contains("rows_sha256"), "{error}");
     assert_eq!(error.lines().count(), 1, "{error}");
@@ -423,7 +439,7 @@ fn check_refuses_locked_counts_that_differ_from_extracting_the_locked_source() {
         });
         reheader(lines);
     });
-    assert!(error.contains("line 4"), "{error}");
+    assert!(error.contains("line 5"), "{error}");
     assert!(error.contains("counts"), "{error}");
 }
 
@@ -668,6 +684,13 @@ fn the_committed_summary_holds_and_stays_under_8_mib() {
     let (_, dns) = row(&lines, 1035);
     assert_eq!(dns["sha256"], locked_sha256("profiles/dns"));
     assert_eq!(dns["counts"], extracted_counts("profiles/dns", "1035"));
+    let (_, ntp) = row(&lines, 5905);
+    assert_eq!(
+        ntp["sha256"],
+        "8b7abd903c60202e2953ee012fefa6916666c3b0c71825c748cdd262024fb268"
+    );
+    assert_eq!(ntp["sha256"], locked_sha256("profiles/ntp"));
+    assert_eq!(ntp["counts"], extracted_counts("profiles/ntp", "5905"));
     let (_, websocket) = row(&lines, 6455);
     assert_eq!(
         websocket["sha256"],
