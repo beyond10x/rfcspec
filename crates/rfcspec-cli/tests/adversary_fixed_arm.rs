@@ -91,9 +91,8 @@ fn check_and_ess_agree_on_a_fixed_arm_under_the_default_bounds() {
 fn a_fixed_arm_above_the_default_max_time_is_named_with_the_default() {
     let refused = problems(&close_fixed(1001, true));
     assert!(
-        refused.iter().any(|p| p.ends_with(
-            "arm close-timeout with millis 1001 above the machine's max_time_ms 1000"
-        )),
+        refused.iter().any(|p| p
+            .ends_with("arm close-timeout with millis 1001 above the machine's max_time_ms 1000")),
         "{refused:?}"
     );
 }
