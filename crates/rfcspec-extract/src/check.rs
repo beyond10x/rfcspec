@@ -215,6 +215,15 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         ));
                     }
                 }
+                let typed_value = |value: &Value| -> Option<(String, String)> {
+                    match value {
+                        Value::Integer(n) => Some((n.to_string(), "Integer".to_owned())),
+                        Value::Boolean(b) => Some((b.to_string(), "Boolean".to_owned())),
+                        Value::Field(source) => trigger_fields
+                            .get(&source.input)
+                            .map(|kind| (format!("input {}", source.input), kind.clone())),
+                    }
+                };
                 for effect in &transition.effects {
                     match effect {
                         Effect::Set(set) => {
@@ -224,20 +233,7 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                                     set.field
                                 )),
                                 Some(field) => {
-                                    let value = match &set.value {
-                                        Value::Integer(n) => {
-                                            Some((n.to_string(), "Integer".to_owned()))
-                                        }
-                                        Value::Boolean(b) => {
-                                            Some((b.to_string(), "Boolean".to_owned()))
-                                        }
-                                        Value::Field(source) => {
-                                            trigger_fields.get(&source.input).map(|kind| {
-                                                (format!("input {}", source.input), kind.clone())
-                                            })
-                                        }
-                                    };
-                                    if let Some((value, kind)) = value
+                                    if let Some((value, kind)) = typed_value(&set.value)
                                         && kind != field.kind
                                     {
                                         problems.push(format!(
@@ -258,7 +254,22 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         }
                         Effect::Send(send) => {
                             used.push(&send.message);
+                            let message_fields = machine
+                                .messages
+                                .iter()
+                                .find(|m| m.name == send.message)
+                                .map(|m| &m.fields);
                             for (field, value) in &send.payload {
+                                if let Some(field_kind) =
+                                    message_fields.and_then(|fields| fields.get(field))
+                                    && let Some((value, kind)) = typed_value(value)
+                                    && &kind != field_kind
+                                {
+                                    problems.push(format!(
+                                        "{item}: send {} payload {field} ({field_kind}) given {value} ({kind})",
+                                        send.message
+                                    ));
+                                }
                                 if let Value::Field(source) = value
                                     && !trigger_fields.contains_key(&source.input)
                                 {
@@ -1276,6 +1287,23 @@ mod tests {
             check(&overlay, &catalogue_6455(), &source_6455()),
             [
                 "transition ping.client.R5.5.2-1-R5.5.2-4-send-ping: set ping-data (Integer) to true (Boolean)"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_send_payload_typed_differently_from_its_message_field_is_named() {
+        let mut overlay = committed_websocket();
+        let client = &mut machine(&mut overlay, "ping").participants[0];
+        let Effect::Send(send) = &mut client.transitions[0].effects[1] else {
+            panic!("the second effect sends");
+        };
+        assert_eq!(send.message, "ping");
+        send.payload.insert("data".into(), Value::Boolean(true));
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [
+                "transition ping.client.R5.5.2-1-R5.5.2-4-send-ping: send ping payload data (Integer) given true (Boolean)"
             ]
         );
     }
