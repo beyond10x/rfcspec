@@ -143,6 +143,51 @@ pub struct Document {
     /// XML.
     pub furniture: Vec<usize>,
     pub blocks: Vec<Block>,
+    /// Each `<xref>` of an RFCXML source to another RFC, in source order; the text reader
+    /// records none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<Reference>,
+    /// The `<xref>`s of an RFCXML source that are not stored as references; absent for text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_counts: Option<ReferenceCounts>,
+}
+
+/// One citation of another RFC, read from an `<xref>` of the citing RFC's RFCXML source
+/// (`rfcspec.catalogue.Reference`); the citing RFC is the document's.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Reference {
+    /// The anchor of the section, `<references>`, abstract or note the xref lies in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
+    /// The cited RFC's number, from the `seriesInfo name="RFC"` of the `<reference>` the xref
+    /// targets; it may name an RFC that was never read.
+    pub target_rfc: u32,
+    /// The cited section of the target RFC, the xref's `section` attribute.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_section: Option<String>,
+    pub kind: ReferenceKind,
+}
+
+/// Whether a cited document is listed among the normative or the informative references
+/// (`rfcspec.catalogue.ReferenceKind`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ReferenceKind {
+    Normative,
+    Informative,
+}
+
+/// The `<xref>` citations of an RFCXML source counted and not stored: those to an anchor of the
+/// citing RFC or to a `<reference>` naming it, those to a document that is not an RFC, and those
+/// whose target names no anchor of the source. An xref to a `<referencegroup>` counts once for
+/// each member that is not stored.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceCounts {
+    pub self_references: usize,
+    pub non_rfc: usize,
+    pub unresolved: usize,
 }
 
 /// A `<bcp14>` element of an RFCXML source: its keyword and the byte offset at which it starts

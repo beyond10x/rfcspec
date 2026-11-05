@@ -150,6 +150,8 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
         format: SourceFormat::Text,
         furniture,
         blocks,
+        references: Vec::new(),
+        reference_counts: None,
     }
 }
 
