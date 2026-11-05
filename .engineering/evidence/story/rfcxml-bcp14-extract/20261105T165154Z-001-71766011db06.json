@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T16:51:54Z",
+  "actor": "human:timo",
+  "artifact": "story:rfcxml-bcp14-extract",
+  "kind": "story",
+  "revision": 8,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test --locked -p rfcspec-extract -p rfcspec-doc -p rfcspec-cli -p rfcspec-model (289 ok, 3 ignored); bulk check; check --all; docs generate --check; fmt; clippy"
+  }
+}
