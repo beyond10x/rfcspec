@@ -1,7 +1,8 @@
 #![forbid(unsafe_code)]
 //! S5: lower the overlay's machines to `ess-protospec/1`, one model per machine (one per
 //! transport). Each machine has two participants joined by one FIFO channel in each direction; a
-//! transition's lowered name is the requirement and dialogue-step ids it implements, then its label.
+//! transition's lowered name is the requirement and dialogue-step ids it implements, then its label;
+//! only a model construct, labelled `model-`, implements none.
 //! A machine carries inputs with typed fields, timers armed for a fixed delay (`{arm: {timer,
 //! millis}}`, lowered to `after: {kind: fixed, millis}`) or a capped backoff (`{arm: {timer,
 //! backoff: {factor, ceiling_ms}}}`, lowered to `after: {kind: backoff, timer, factor,
@@ -23,7 +24,8 @@ use anyhow::{Context, Result, bail, ensure};
 pub use rfcspec_model::BOUNDS;
 use rfcspec_model::{
     Bounds, Effect, Generated, Interval, Literal, Machine, Operand, Overlay,
-    Property as OverlayProperty, Trigger, Value as OverlayValue, to_yaml,
+    Property as OverlayProperty, Transition as OverlayTransition, Trigger, Value as OverlayValue,
+    to_yaml,
 };
 use serde::Serialize;
 
@@ -44,6 +46,37 @@ pub fn lower(overlay: &Overlay, profile: &str) -> Result<Vec<Generated>> {
             })
         })
         .collect()
+}
+
+/// A model construct: labelled `model-` and neither sending a message nor emitting an event, so
+/// it carries no protocol behaviour and lowers without a requirement or dialogue step.
+pub fn is_model_construct(transition: &OverlayTransition) -> bool {
+    transition.label.starts_with("model-")
+        && !transition
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::Send(_) | Effect::Emit(_)))
+}
+
+/// The transitions of an overlay that lower without a requirement link, as
+/// `<machine>.<participant>.<name>`.
+pub fn model_constructs(overlay: &Overlay) -> Vec<String> {
+    let mut constructs = Vec::new();
+    for machine in &overlay.machines {
+        for participant in &machine.participants {
+            for transition in &participant.transitions {
+                if transition.implements.is_empty() && is_model_construct(transition) {
+                    constructs.push(format!(
+                        "{}.{}.{}",
+                        machine.name,
+                        participant.name,
+                        transition.name()
+                    ));
+                }
+            }
+        }
+    }
+    constructs
 }
 
 /// Run `ess protocol explore` on a model with its input witnesses and return its JSON report.
@@ -308,7 +341,7 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
         let mut transitions = Vec::new();
         for transition in &participant.transitions {
             let name = transition.name();
-            if transition.implements.is_empty() {
+            if transition.implements.is_empty() && !is_model_construct(transition) {
                 bail!(
                     "machine {}: transition {}.{name} implements no requirement or dialogue step",
                     machine.name,
@@ -596,6 +629,65 @@ mod tests {
             .clear();
         let error = lower(&overlay, "time").unwrap_err().to_string();
         assert!(error.contains("implements no requirement"), "{error}");
+    }
+
+    /// A model construct, such as the NTP poll machine's horizon, implements no requirement, says
+    /// so in its label and neither sends nor emits: only such a transition lowers without
+    /// requirement ids. The same transition with a send or an emit, or without the `model-`
+    /// label, is refused.
+    #[test]
+    fn a_transition_implementing_nothing_lowers_only_when_labelled_as_a_model_construct() {
+        let construct = |label: &str, keep: fn(&Effect) -> bool| {
+            let mut overlay = overlay();
+            let transition = &mut overlay.machines[0].participants[0].transitions[0];
+            transition.implements.clear();
+            transition.label = label.into();
+            transition.effects.retain(keep);
+            overlay
+        };
+        let silent = |e: &Effect| !matches!(e, Effect::Send(_) | Effect::Emit(_));
+        let lowered = lower(&construct("model-horizon", silent), "time").unwrap();
+        assert!(
+            lowered[0].text.contains("name: model-horizon\n"),
+            "{}",
+            lowered[0].text
+        );
+        let mut emitting = construct("model-horizon", silent);
+        emitting.machines[0].participants[0].transitions[0]
+            .effects
+            .push(Effect::Emit("e".into()));
+        let mut sending = overlay();
+        let transition = &mut sending.machines[0].participants[0].transitions[0];
+        assert!(
+            transition
+                .effects
+                .iter()
+                .any(|e| matches!(e, Effect::Send(_))),
+            "{transition:?}"
+        );
+        transition.implements.clear();
+        transition.label = "model-horizon".into();
+        for refused in [construct("horizon-model", silent), emitting, sending] {
+            let error = lower(&refused, "time").unwrap_err().to_string();
+            assert!(error.contains("implements no requirement"), "{error}");
+        }
+    }
+
+    /// Every exempted transition is named; the ntp poll machine's four horizon transitions are
+    /// the only ones in any profile.
+    #[test]
+    fn model_constructs_names_every_transition_lowered_without_a_requirement() {
+        assert_eq!(
+            model_constructs(&ntp_overlay()),
+            [
+                "poll.client.model-horizon-unreachable",
+                "poll.client.model-horizon-reachable",
+                "poll.client.model-horizon-backoff",
+                "poll.client.model-horizon-discard",
+            ]
+        );
+        assert!(model_constructs(&overlay()).is_empty());
+        assert!(model_constructs(&websocket_overlay()).is_empty());
     }
 
     #[test]
@@ -1456,11 +1548,15 @@ mod tests {
     fn the_committed_exchange_model_equals_a_fresh_lowering_and_explore_passes_it() {
         let lowered = lower(&ntp_overlay(), "ntp").unwrap();
         let files: Vec<&str> = lowered.iter().map(|g| g.file.as_str()).collect();
-        assert_eq!(files, ["exchange.protospec.yaml"]);
-        assert_eq!(
-            fs::read_to_string(ntp().join("generated/exchange.protospec.yaml")).unwrap(),
-            lowered[0].text
-        );
+        assert_eq!(files, ["exchange.protospec.yaml", "poll.protospec.yaml"]);
+        for generated in &lowered {
+            assert_eq!(
+                fs::read_to_string(ntp().join("generated").join(&generated.file)).unwrap(),
+                generated.text,
+                "{}",
+                generated.file
+            );
+        }
         let model = parsed(&lowered[0]);
         assert_eq!(model["name"], "rfc5905-ntp-exchange");
         assert_eq!(

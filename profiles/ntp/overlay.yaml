@@ -56,6 +56,48 @@ requirements:
     quote: the server constructs a server (mode 4) packet and returns it to the client without retaining state.
     span: {start: 1862, end: 1863}
     status: {satisfied: exchange.server.R9.2-FXMIT-1-answer}
+  - id: R13-BACKOFF-1
+    source: prose
+    level: MUST
+    quote: Thereafter for each poll hpoll is increased by one, which doubles the poll interval up to the maximum MAXPOLL
+    span: {start: 2948, end: 2950}
+    status: {satisfied: poll.client.R13-BACKOFF-1-poll-backoff}
+  - id: R13-RESET-1
+    source: prose
+    level: MUST
+    quote: When the server again becomes reachable, unreach is set to zero, hpoll is reset to the tc system variable
+    span: {start: 2951, end: 2952}
+    status: {unsupported: "ess-gap G7: tc is a system variable the model does not carry, and a timer cannot be armed from a field; the model resets the poll interval to 2^MINPOLL s"}
+  - id: R9.2-REACH-1
+    source: prose
+    level: MUST
+    quote: If the register contains any nonzero bits, the server is considered reachable; otherwise, it is unreachable.
+    span: {start: 2012, end: 2014}
+    status: {satisfied: poll.client.R9.2-REACH-1-poll-emptied}
+  - id: R9.2-REACH-2
+    source: prose
+    level: MUST
+    quote: The register is shifted left by one bit when a packet is sent and the rightmost bit is set to zero.
+    span: {start: 2010, end: 2011}
+    status: {unsupported: "ess-gap G2: set has no shift or count, so the 8 polls of the register are abstracted to a nondeterministic step from reachable to unreachable"}
+  - id: R13-UNREACH-1
+    source: prose
+    level: MUST
+    quote: otherwise, unreach is incremented by one for each poll to the maximum UNREACH.
+    span: {start: 2947, end: 2948}
+    status: {unsupported: "ess-gap G2: set has no count, so the polls up to UNREACH are abstracted to a nondeterministic step from unreachable to backoff"}
+  - id: R13-RUN-1
+    source: prose
+    level: MUST
+    quote: It runs continuously, whether or not servers are reachable
+    span: {start: 2833, end: 2834}
+    status: {unsupported: "ess-gap G11: a timer re-armed on every expiry never passes exploration, so the model ends the poll process at a 48 s horizon, a model construct and not RFC behaviour"}
+  - id: R13-UPDATE-1
+    source: prose
+    level: MUST
+    quote: otherwise, the host poll exponent hpoll is set to the minimum of ppoll from the last packet received and hpoll from the poll routine, but not less than MINPOLL or greater than MAXPOLL.
+    span: {start: 2999, end: 3002}
+    status: {unsupported: "ess-gap G7: the poll exponent comes from fields of the packet and the association, and a timer cannot be armed from a field"}
 layouts:
   - name: header
     quote: The basic header extends from the beginning of the packet to the end of the Transmit Timestamp field.
@@ -186,4 +228,134 @@ machines:
               - {send: {message: response, payload: {org: {input: org}}}}
     properties:
       - {name: one-valid-packet-per-poll, participant: client, event: valid-packet, max: 2}
-findings: []
+  - name: poll
+    transport: udp
+    capacity: 4
+    loss: true
+    bounds: {max_steps: 128, max_states: 8192, max_time_ms: 131072000}
+    messages:
+      - {name: request, fields: {}}
+      - {name: response, fields: {}}
+    participants:
+      - name: client
+        initial: idle
+        states: [idle, unreachable, reachable, backoff, ended]
+        inputs: [mobilize]
+        timers: [poll, horizon]
+        transitions:
+          - implements: [R9.2-REACH-1]
+            label: mobilize
+            from: idle
+            to: unreachable
+            on: {input: mobilize}
+            effects:
+              - {send: {message: request}}
+              - {arm: {timer: poll, millis: 16000}}
+              - {arm: {timer: horizon, millis: 48000}}
+          - implements: [R9.2-REACH-1]
+            label: poll-reachable
+            from: reachable
+            to: reachable
+            on: {timer: poll}
+            effects:
+              - {send: {message: request}}
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: [R9.2-REACH-1]
+            label: poll-emptied
+            from: reachable
+            to: unreachable
+            on: {timer: poll}
+            effects:
+              - {send: {message: request}}
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: [R9.2-REACH-1]
+            label: poll-unreachable
+            from: unreachable
+            to: unreachable
+            on: {timer: poll}
+            effects:
+              - {send: {message: request}}
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: [R13-BACKOFF-1]
+            label: poll-backoff-start
+            from: unreachable
+            to: backoff
+            on: {timer: poll}
+            effects:
+              - {send: {message: request}}
+              - {arm: {timer: poll, backoff: {factor: 2, ceiling_ms: 131072000}}}
+          - implements: [R13-BACKOFF-1]
+            label: poll-backoff
+            from: backoff
+            to: backoff
+            on: {timer: poll}
+            effects:
+              - {send: {message: request}}
+              - {emit: backoff-poll}
+              - {arm: {timer: poll, backoff: {factor: 2, ceiling_ms: 131072000}}}
+          - implements: [R9.2-REACH-1]
+            label: response-unreachable
+            from: unreachable
+            to: reachable
+            on: {receive: response}
+          - implements: [R9.2-REACH-1]
+            label: response-reachable
+            from: reachable
+            to: reachable
+            on: {receive: response}
+          - implements: [R9.2-REACH-1]
+            label: response-backoff
+            from: backoff
+            to: reachable
+            on: {receive: response}
+            effects:
+              - {arm: {timer: poll, millis: 16000}}
+          - implements: []
+            label: model-horizon-unreachable
+            from: unreachable
+            to: ended
+            on: {timer: horizon}
+            effects:
+              - {cancel: poll}
+          - implements: []
+            label: model-horizon-reachable
+            from: reachable
+            to: ended
+            on: {timer: horizon}
+            effects:
+              - {cancel: poll}
+          - implements: []
+            label: model-horizon-backoff
+            from: backoff
+            to: ended
+            on: {timer: horizon}
+            effects:
+              - {cancel: poll}
+          - implements: []
+            label: model-horizon-discard
+            from: ended
+            to: ended
+            on: {receive: response}
+      - name: server
+        initial: listening
+        states: [listening]
+        transitions:
+          - implements: [R9.2-FXMIT-1]
+            label: answer
+            from: listening
+            to: listening
+            on: {receive: request}
+            effects:
+              - {send: {message: response}}
+    properties:
+      - name: backoff-doubles-interval
+        participant: client
+        event: backoff-poll
+        max: 1
+        description: "Within the 48 s model horizon exploration checks only that the first backoff interval is not 16 s: it fails a client whose first two backoff intervals sum to 32 s or less. The doubling (factor 2) and the 2^MAXPOLL s ceiling lie beyond the horizon; the arm pins of the lowering test check them."
+findings:
+  - id: F-1
+    item: R13-UNREACH-1
+    quote: "| UNREACH | 24 | unreach limit |"
+    span: {start: 2871, end: 2871}
+    finding: Figure 29 sets UNREACH to 24 (line 2871), the appendix skeleton to 12 (line 5820, "#define UNREACH 12"). The model counts neither (ess-gap G2), so the value does not reach it.
