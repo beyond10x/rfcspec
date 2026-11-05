@@ -1,0 +1,15 @@
+name: websocket
+rfcs:
+  - number: 6455
+    title: The WebSocket Protocol
+    sections: ["5.2", "5.5", "7"]
+semantics:
+  - layer: tcp
+    unit: bytes
+    delivery: {ordered: true, reliable: true, duplicates: false}
+    direction: full-duplex
+    multiplexing: single
+    exchange: session
+    correlation: none
+    lifetime: connection
+    roles: [client, server]

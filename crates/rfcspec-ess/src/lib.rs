@@ -2,17 +2,23 @@
 //! S5: lower the overlay's machines to `ess-protospec/1`, one model per machine (one per
 //! transport). Each machine has two participants joined by one FIFO channel in each direction; a
 //! transition's lowered name is the requirement and dialogue-step ids it implements, then its label.
+//! A machine carries inputs with typed fields, timers armed for a fixed delay, payload values that
+//! are literals or fields of the triggering input or received message, `flush`, and the
+//! `event_count` and `flush_before_close` properties; its bounds default to [`BOUNDS`].
 //!
 //! The models are validated and explored by the `ess` command, never by this crate.
 
 use std::{collections::BTreeMap, path::Path, process::Command};
 
 use anyhow::{Context, Result, bail, ensure};
-use rfcspec_model::{Effect, Generated, Machine, Overlay, Trigger, to_yaml};
+use rfcspec_model::{
+    Bounds, Effect, Generated, Machine, Overlay, Property as OverlayProperty, Trigger,
+    Value as OverlayValue, to_yaml,
+};
 use serde::Serialize;
 
-/// The exploration bounds of every lowered model.
-const BOUNDS: Bounds = Bounds {
+/// The exploration bounds of a lowered model whose machine names none.
+pub const BOUNDS: Bounds = Bounds {
     max_steps: 32,
     max_states: 256,
     max_time_ms: 1000,
@@ -67,19 +73,14 @@ struct Model {
 }
 
 #[derive(Serialize)]
-struct Bounds {
-    max_steps: u32,
-    max_states: u32,
-    max_time_ms: u32,
-}
-
-#[derive(Serialize)]
 struct Participant {
     name: String,
     initial: String,
     states: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     inputs: Vec<Message>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    timers: Vec<String>,
     transitions: Vec<Transition>,
 }
 
@@ -94,6 +95,16 @@ struct FieldType {
     name: String,
     #[serde(rename = "type")]
     kind: String,
+}
+
+fn fields(fields: &BTreeMap<String, String>) -> Vec<FieldType> {
+    fields
+        .iter()
+        .map(|(name, kind)| FieldType {
+            name: name.clone(),
+            kind: kind.clone(),
+        })
+        .collect()
 }
 
 #[derive(Serialize)]
@@ -117,7 +128,7 @@ struct TriggerOut {
     message: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Default, Serialize)]
 struct EffectOut {
     kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -125,32 +136,60 @@ struct EffectOut {
     #[serde(skip_serializing_if = "Option::is_none")]
     message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    exchange: Option<Literal>,
+    exchange: Option<Source>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    logical: Option<Literal>,
+    logical: Option<Source>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    payload: Option<BTreeMap<String, Literal>>,
+    payload: Option<BTreeMap<String, Source>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    timer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    after: Option<Delay>,
+}
+
+/// A value source: a literal, or a field of the triggering input or received message.
+#[derive(Serialize)]
+struct Source {
+    kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    field: Option<String>,
 }
 
 #[derive(Serialize)]
-struct Literal {
+struct Delay {
     kind: &'static str,
-    value: Value,
+    millis: u64,
 }
 
 #[derive(Serialize)]
 #[serde(untagged)]
 enum Value {
     Integer(i64),
+    Boolean(bool),
     Text(String),
 }
 
-fn literal(value: Value) -> Literal {
-    Literal {
+fn literal(value: Value) -> Source {
+    Source {
         kind: "literal",
-        value,
+        value: Some(value),
+        field: None,
+    }
+}
+
+fn source(value: &OverlayValue) -> Source {
+    match value {
+        OverlayValue::Integer(n) => literal(Value::Integer(*n)),
+        OverlayValue::Boolean(b) => literal(Value::Boolean(*b)),
+        OverlayValue::Field(field) => Source {
+            kind: "input",
+            value: None,
+            field: Some(field.input.clone()),
+        },
     }
 }
 
@@ -170,8 +209,12 @@ struct Property {
     kind: &'static str,
     name: String,
     participant: String,
-    event: String,
-    max: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    event: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    channel: Option<String>,
 }
 
 fn channel(from: &str, to: &str) -> String {
@@ -190,6 +233,13 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
         .iter()
         .map(|p| p.name.as_str())
         .collect();
+    let peer_of = |name: &str| -> Result<&str> {
+        let index = names
+            .iter()
+            .position(|n| *n == name)
+            .with_context(|| format!("machine {}: no participant {name}", machine.name))?;
+        Ok(names[1 - index])
+    };
     let mut participants = Vec::new();
     for (index, participant) in machine.participants.iter().enumerate() {
         let me = names[index];
@@ -217,6 +267,12 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                     channel: Some(channel(peer, me)),
                     message: Some(message.clone()),
                 },
+                Trigger::Timer(timer) => TriggerOut {
+                    kind: "timer",
+                    name: Some(timer.clone()),
+                    channel: None,
+                    message: None,
+                },
             };
             let mut effects = Vec::new();
             for effect in &transition.effects {
@@ -230,32 +286,40 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                         payload: Some(
                             send.payload
                                 .iter()
-                                .map(|(field, value)| {
-                                    (field.clone(), literal(Value::Integer(*value)))
-                                })
+                                .map(|(field, value)| (field.clone(), source(value)))
                                 .collect(),
                         ),
-                        name: None,
+                        ..EffectOut::default()
                     }),
                     Effect::Emit(event) => effects.push(EffectOut {
                         kind: "emit",
-                        channel: None,
-                        message: None,
-                        exchange: None,
-                        logical: None,
-                        payload: None,
                         name: Some(event.clone()),
+                        ..EffectOut::default()
                     }),
                     Effect::Close(true) => effects.push(EffectOut {
                         kind: "close",
-                        channel: None,
-                        message: None,
-                        exchange: None,
-                        logical: None,
-                        payload: None,
-                        name: None,
+                        ..EffectOut::default()
                     }),
-                    Effect::Close(false) => {}
+                    Effect::Close(false) | Effect::Flush(false) => {}
+                    Effect::Arm(arm) => effects.push(EffectOut {
+                        kind: "arm",
+                        timer: Some(arm.timer.clone()),
+                        after: Some(Delay {
+                            kind: "fixed",
+                            millis: arm.millis,
+                        }),
+                        ..EffectOut::default()
+                    }),
+                    Effect::Cancel(timer) => effects.push(EffectOut {
+                        kind: "cancel",
+                        timer: Some(timer.clone()),
+                        ..EffectOut::default()
+                    }),
+                    Effect::Flush(true) => effects.push(EffectOut {
+                        kind: "flush",
+                        channel: Some(channel(me, peer)),
+                        ..EffectOut::default()
+                    }),
                 }
             }
             transitions.push(Transition {
@@ -274,31 +338,49 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 .inputs
                 .iter()
                 .map(|input| Message {
-                    name: input.clone(),
-                    fields: vec![],
+                    name: input.name().to_owned(),
+                    fields: fields(&input.fields()),
                 })
                 .collect(),
+            timers: participant.timers.clone(),
             transitions,
+        });
+    }
+    let mut properties = Vec::new();
+    for property in &machine.properties {
+        properties.push(match property {
+            OverlayProperty::EventCount(count) => Property {
+                kind: "event_count",
+                name: count.name.clone(),
+                participant: count.participant.clone(),
+                event: Some(count.event.clone()),
+                max: Some(count.max),
+                channel: None,
+            },
+            OverlayProperty::FlushBeforeClose(flush) => Property {
+                kind: "flush_before_close",
+                name: flush.name.clone(),
+                participant: flush.flush_before_close.clone(),
+                event: None,
+                max: None,
+                channel: Some(channel(
+                    &flush.flush_before_close,
+                    peer_of(&flush.flush_before_close)?,
+                )),
+            },
         });
     }
     Ok(Model {
         format: "ess-protospec/1",
         name: format!("rfc{rfc}-{profile}-{}", machine.name),
-        bounds: BOUNDS,
+        bounds: machine.bounds.unwrap_or(BOUNDS),
         participants,
         messages: machine
             .messages
             .iter()
             .map(|message| Message {
                 name: message.name.clone(),
-                fields: message
-                    .fields
-                    .iter()
-                    .map(|(name, kind)| FieldType {
-                        name: name.clone(),
-                        kind: kind.clone(),
-                    })
-                    .collect(),
+                fields: fields(&message.fields),
             })
             .collect(),
         channels: [(names[0], names[1]), (names[1], names[0])]
@@ -313,17 +395,7 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 duplication: false,
             })
             .collect(),
-        properties: machine
-            .properties
-            .iter()
-            .map(|property| Property {
-                kind: "event_count",
-                name: property.name.clone(),
-                participant: property.participant.clone(),
-                event: property.event.clone(),
-                max: property.max,
-            })
-            .collect(),
+        properties,
     })
 }
 
@@ -510,7 +582,7 @@ mod tests {
             effects: vec![
                 Effect::Send(Send {
                     message: "time".into(),
-                    payload: [("seconds".to_string(), 2629584000)].into(),
+                    payload: [("seconds".to_string(), 2629584000.into())].into(),
                 }),
                 Effect::Emit("time-sent".into()),
             ],
@@ -527,6 +599,187 @@ mod tests {
         assert!(
             reason.contains("property violated") && reason.contains("time-sent-once"),
             "{reason}"
+        );
+    }
+
+    fn websocket() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/websocket")
+    }
+
+    fn websocket_overlay() -> Overlay {
+        read_yaml(&websocket().join("overlay.yaml")).unwrap()
+    }
+
+    fn close_model() -> serde_json::Value {
+        let lowered = lower(&websocket_overlay(), "websocket").unwrap();
+        assert_eq!(lowered.len(), 1);
+        assert_eq!(lowered[0].file, "close.protospec.yaml");
+        parsed(&lowered[0])
+    }
+
+    fn participant<'a>(model: &'a serde_json::Value, name: &str) -> &'a serde_json::Value {
+        model["participants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["name"] == name)
+            .unwrap()
+    }
+
+    fn effect_kinds(transition: &serde_json::Value) -> Vec<&str> {
+        transition["effects"]
+            .as_array()
+            .map(|effects| {
+                effects
+                    .iter()
+                    .map(|e| e["kind"].as_str().unwrap())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn the_close_machine_lowers_states_inputs_timers_flush_and_properties() {
+        let model = close_model();
+        assert_eq!(model["name"], "rfc6455-websocket-close");
+        assert_eq!(
+            model["bounds"],
+            serde_json::json!({"max_steps": 64, "max_states": 1024, "max_time_ms": 30000})
+        );
+        let client = participant(&model, "client");
+        let server = participant(&model, "server");
+        assert_eq!(
+            client["states"],
+            serde_json::json!(["open", "closing", "closed"])
+        );
+        assert_eq!(server["states"], serde_json::json!(["open", "closed"]));
+        assert_eq!(
+            client["inputs"],
+            serde_json::json!([{"name": "close", "fields": [{"name": "code", "type": "Integer"}]}])
+        );
+        assert_eq!(client["timers"], serde_json::json!(["close-timeout"]));
+
+        let start = transitions(&model, "client")
+            .into_iter()
+            .find(|t| t["trigger"]["kind"] == "input")
+            .unwrap();
+        assert_eq!(
+            (start["from"].as_str(), start["to"].as_str()),
+            (Some("open"), Some("closing"))
+        );
+        let send = &start["effects"][0];
+        assert_eq!(send["kind"], "send");
+        assert_eq!(send["message"], "close-frame");
+        assert_eq!(
+            send["payload"]["code"],
+            serde_json::json!({"kind": "input", "field": "code"})
+        );
+        assert_eq!(
+            send["payload"]["masked"],
+            serde_json::json!({"kind": "literal", "value": true})
+        );
+        assert_eq!(
+            start["effects"][1],
+            serde_json::json!({"kind": "arm", "timer": "close-timeout", "after": {"kind": "fixed", "millis": 5000}})
+        );
+
+        let echoed = transitions(&model, "client")
+            .into_iter()
+            .find(|t| t["from"] == "closing" && t["trigger"]["kind"] == "receive")
+            .unwrap();
+        assert_eq!(
+            echoed["effects"][0],
+            serde_json::json!({"kind": "cancel", "timer": "close-timeout"})
+        );
+        let timeout = transitions(&model, "client")
+            .into_iter()
+            .find(|t| t["trigger"]["kind"] == "timer")
+            .unwrap();
+        assert_eq!(timeout["trigger"]["name"], "close-timeout");
+        assert_eq!(effect_kinds(timeout), ["emit"]);
+
+        let echo = &transitions(&model, "server")[0];
+        assert_eq!(effect_kinds(echo), ["send", "flush", "close"]);
+        assert_eq!(echo["effects"][1]["channel"], "server-to-client");
+
+        assert_eq!(
+            model["properties"],
+            serde_json::json!([
+                {"kind": "flush_before_close", "name": "server-flushes-close", "participant": "server", "channel": "server-to-client"},
+                {"kind": "event_count", "name": "closed-once", "participant": "client", "event": "connection-closed", "max": 1}
+            ])
+        );
+    }
+
+    #[test]
+    fn every_close_transition_name_leads_with_catalogue_requirement_ids() {
+        let overlay = websocket_overlay();
+        for machine in &overlay.machines {
+            for participant in &machine.participants {
+                for transition in &participant.transitions {
+                    let name = transition.name();
+                    assert!(!transition.implements.is_empty(), "{name}");
+                    let lead = transition.implements.join("-");
+                    assert!(name.starts_with(&format!("{lead}-")), "{name}");
+                    for id in &transition.implements {
+                        assert!(id.starts_with('R') && id.contains('-'), "{id}");
+                        assert!(overlay.requirements.iter().any(|r| &r.id == id), "{id}");
+                    }
+                }
+            }
+        }
+        let mut nothing = websocket_overlay();
+        nothing.machines[0].participants[1].transitions[0]
+            .implements
+            .clear();
+        let error = lower(&nothing, "websocket").unwrap_err().to_string();
+        assert!(error.contains("implements no requirement"), "{error}");
+    }
+
+    #[test]
+    fn the_committed_close_model_equals_a_fresh_lowering() {
+        let lowered = lower(&websocket_overlay(), "websocket").unwrap();
+        assert_eq!(
+            drift(&websocket().join("generated"), &lowered),
+            Vec::<PathBuf>::new()
+        );
+        assert_eq!(
+            fs::read_to_string(websocket().join("witnesses/close.inputs.json")).unwrap(),
+            "[\n  {\"kind\":\"input\",\"participant\":\"client\",\"name\":\"close\",\"payload\":{\"code\":1000}}\n]\n"
+        );
+    }
+
+    #[test]
+    fn ess_explore_passes_the_committed_close_model() {
+        let report = explore(
+            &websocket().join("generated/close.protospec.yaml"),
+            &websocket().join("witnesses/close.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    #[test]
+    fn a_client_that_closes_on_the_closing_timeout_is_inconclusive_gap_g9() {
+        let mut overlay = websocket_overlay();
+        let client = &mut overlay.machines[0].participants[0];
+        let timeout = client
+            .transitions
+            .iter_mut()
+            .find(|t| t.on == Trigger::Timer("close-timeout".into()))
+            .unwrap();
+        timeout.effects.push(Effect::Close(true));
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "websocket").unwrap()).unwrap();
+        let report = explore(
+            &out.path().join("close.protospec.yaml"),
+            &websocket().join("witnesses/close.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "inconclusive", "{report:#}");
+        assert_eq!(
+            report["reason"],
+            "dead end with outstanding queue, timer or flush obligations"
         );
     }
 }

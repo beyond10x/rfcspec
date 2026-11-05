@@ -129,16 +129,28 @@ pub struct Block {
     pub kind: BlockKind,
     pub span: Span,
     /// One entry per source line of the span. Paragraph and heading lines are trimmed; figure
-    /// lines keep their indentation, and blank lines inside a figure are empty strings.
+    /// lines keep their indentation. Blank lines and page furniture inside a block (a paragraph
+    /// or figure continued across a page break) are empty strings.
     pub lines: Vec<String>,
+    /// The number of the numbered section the block lies in (`5.2`), absent before the first
+    /// numbered heading and in an RFC without numbered sections.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 }
 
 impl Block {
     /// The block's text: paragraph lines joined by single spaces, figure lines by newlines.
+    /// Empty lines inside a paragraph (a page break) are skipped.
     pub fn text(&self) -> String {
         match self.kind {
             BlockKind::Figure => self.lines.join("\n"),
-            BlockKind::Heading | BlockKind::Paragraph => self.lines.join(" "),
+            BlockKind::Heading | BlockKind::Paragraph => self
+                .lines
+                .iter()
+                .filter(|line| !line.is_empty())
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .join(" "),
         }
     }
 }
@@ -155,18 +167,48 @@ pub struct Catalogue {
     pub prose_candidates: Vec<ProseCandidate>,
     pub dialogue_steps: Vec<DialogueStep>,
     pub examples: Vec<NumericExample>,
+    /// Bulleted lines that list octets (`0x81 0x05 ...`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub octet_examples: Vec<OctetExample>,
+}
+
+/// An example given as octets, such as RFC 6455's `*  0x82 0x7E 0x0100 [256 bytes of binary
+/// data]`: the listed octets in order (a multi-octet token read big-endian), and the octets the
+/// example elides.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OctetExample {
+    pub id: String,
+    pub octets: Vec<u8>,
+    pub elided: u64,
+    pub text: String,
+    pub span: Span,
 }
 
 /// The catalogue format.
 pub const CATALOGUE_FORMAT: &str = "rfcspec/1";
 
+/// A sentence with a BCP 14 keyword in capitals.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bcp14Requirement {
+    /// `R<section>-<ordinal>`, the ordinal counting the requirements of the section in document
+    /// order (`R5.2-1`); `R-<ordinal>` outside every numbered section.
     pub id: String,
+    /// The level: the keyword that occurs first in the sentence, the longest at that position.
     pub keyword: String,
     pub text: String,
     pub span: Span,
+    /// `capitals-text` for a sentence of a paragraph, `abnf-comment` for a sentence of an ABNF
+    /// comment inside a figure.
+    pub source: String,
+    /// The numbered section the sentence lies in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section: Option<String>,
 }
+
+/// The requirement source of a sentence in a paragraph.
+pub const CAPITALS_TEXT: &str = "capitals-text";
+/// The requirement source of a sentence in an ABNF comment.
+pub const ABNF_COMMENT: &str = "abnf-comment";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProseCandidate {
@@ -277,16 +319,21 @@ pub enum Status {
     NotApplicable(String),
 }
 
-/// A binary layout: fields with bit widths.
+/// A binary layout: fields with bit widths, packed most significant bit first.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Layout {
     pub name: String,
     pub quote: String,
     pub span: Span,
-    /// The instant the value counts from, `YYYY-MM-DD` at 00:00 GMT.
-    pub epoch: String,
+    /// The instant a one-field time value counts from, `YYYY-MM-DD` at 00:00 GMT.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub epoch: Option<String>,
     pub fields: Vec<Field>,
+    /// The fields that carry the length of what follows the layout, most specific first: the
+    /// length is the value of the first of them that is present.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub length: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -297,6 +344,64 @@ pub struct Field {
     pub signed: bool,
     /// `big-endian` or `little-endian`.
     pub order: String,
+    /// Present only when an earlier field of the layout has a value (ESS
+    /// `rfcspec.catalogue.Presence`); absent means always present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presence: Option<Presence>,
+    /// Constraints on the value (ESS `rfcspec.catalogue.FieldConstraint`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub constraints: Vec<Constraint>,
+}
+
+/// A field is present when another field of the layout equals the value.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Presence {
+    pub field: String,
+    pub equals: i64,
+}
+
+/// A constraint on a field's value (ESS `rfcspec.catalogue.ConstraintKind`): `{equals: N}`,
+/// `{range: [LOW, HIGH]}` (inclusive) or `{one_of: [N, ...]}`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum Constraint {
+    Equals(i64),
+    Range([i64; 2]),
+    OneOf(Vec<i64>),
+}
+
+impl Constraint {
+    /// Every value the constraint names.
+    pub fn values(&self) -> Vec<i64> {
+        match self {
+            Constraint::Equals(value) => vec![*value],
+            Constraint::Range(bounds) => bounds.to_vec(),
+            Constraint::OneOf(values) => values.clone(),
+        }
+    }
+
+    /// Whether a value meets the constraint.
+    pub fn admits(&self, value: i128) -> bool {
+        match self {
+            Constraint::Equals(expected) => value == i128::from(*expected),
+            Constraint::Range([low, high]) => {
+                i128::from(*low) <= value && value <= i128::from(*high)
+            }
+            Constraint::OneOf(values) => values.iter().any(|v| i128::from(*v) == value),
+        }
+    }
+}
+
+impl Field {
+    /// The smallest and largest value the field's width holds.
+    pub fn bounds(&self) -> (i128, i128) {
+        if self.signed {
+            (-(1i128 << (self.bits - 1)), (1i128 << (self.bits - 1)) - 1)
+        } else {
+            (0, (1i128 << self.bits) - 1)
+        }
+    }
 }
 
 /// A review finding about a catalogue item.
@@ -317,9 +422,21 @@ pub struct Finding {
 pub struct Machine {
     pub name: String,
     pub transport: String,
+    /// The exploration bounds of the lowered model; absent means the lowering's defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bounds: Option<Bounds>,
     pub messages: Vec<Message>,
     pub participants: Vec<Participant>,
-    pub properties: Vec<EventCount>,
+    pub properties: Vec<Property>,
+}
+
+/// The bounds of a bounded exploration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Bounds {
+    pub max_steps: u32,
+    pub max_states: u32,
+    pub max_time_ms: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -335,14 +452,59 @@ pub struct Message {
 #[serde(deny_unknown_fields)]
 pub struct Participant {
     pub name: String,
-    /// The dialogue party, `S` or `U`.
-    pub party: String,
+    /// The dialogue party, `S` or `U`, for a machine read from a dialogue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub party: Option<String>,
     pub initial: String,
     pub states: Vec<String>,
-    /// Zero-field inputs the environment offers.
+    /// The inputs the environment offers.
     #[serde(default)]
-    pub inputs: Vec<String>,
+    pub inputs: Vec<Input>,
+    /// The timers the participant arms and cancels.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timers: Vec<String>,
     pub transitions: Vec<Transition>,
+}
+
+impl Participant {
+    /// The input of that name.
+    pub fn input(&self, name: &str) -> Option<&Input> {
+        self.inputs.iter().find(|input| input.name() == name)
+    }
+}
+
+/// An input the environment offers: a bare name has no fields.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Input {
+    Bare(String),
+    Typed(TypedInput),
+}
+
+/// An input with typed fields.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TypedInput {
+    pub name: String,
+    /// Field name to type (`Integer`, `String`, `Boolean`).
+    pub fields: BTreeMap<String, String>,
+}
+
+impl Input {
+    pub fn name(&self) -> &str {
+        match self {
+            Input::Bare(name) => name,
+            Input::Typed(typed) => &typed.name,
+        }
+    }
+
+    /// Field name to type; none for a bare input.
+    pub fn fields(&self) -> BTreeMap<String, String> {
+        match self {
+            Input::Bare(_) => BTreeMap::new(),
+            Input::Typed(typed) => typed.fields.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -372,6 +534,8 @@ impl Transition {
 pub enum Trigger {
     Input(String),
     Receive(String),
+    /// A timer of the participant fires.
+    Timer(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -380,6 +544,12 @@ pub enum Effect {
     Send(Send),
     Emit(String),
     Close(bool),
+    /// Arm a timer for a fixed delay.
+    Arm(Arm),
+    /// Cancel an armed timer.
+    Cancel(String),
+    /// Wait until everything sent to the peer is delivered.
+    Flush(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -387,7 +557,55 @@ pub enum Effect {
 pub struct Send {
     pub message: String,
     #[serde(default)]
-    pub payload: BTreeMap<String, i64>,
+    pub payload: BTreeMap<String, Value>,
+}
+
+/// A payload value: an integer or Boolean literal, or a field of the triggering input or
+/// received message.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Value {
+    Integer(i64),
+    Boolean(bool),
+    Field(FieldRef),
+}
+
+/// A field of the triggering input or received message.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FieldRef {
+    pub input: String,
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Value::Integer(value)
+    }
+}
+
+/// Arm a timer for a fixed delay in milliseconds.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Arm {
+    pub timer: String,
+    pub millis: u64,
+}
+
+/// A property the lowered model must hold.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Property {
+    EventCount(EventCount),
+    FlushBeforeClose(FlushBeforeClose),
+}
+
+impl Property {
+    pub fn name(&self) -> &str {
+        match self {
+            Property::EventCount(count) => &count.name,
+            Property::FlushBeforeClose(flush) => &flush.name,
+        }
+    }
 }
 
 /// An `event_count` property: the participant emits the event at most `max` times.
@@ -398,6 +616,15 @@ pub struct EventCount {
     pub participant: String,
     pub event: String,
     pub max: u32,
+}
+
+/// A `flush_before_close` property: the participant named by `flush_before_close` closes only
+/// after everything it sent to its peer is delivered.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FlushBeforeClose {
+    pub name: String,
+    pub flush_before_close: String,
 }
 
 /// One generated file: its path relative to an output directory, and its bytes.
@@ -500,6 +727,105 @@ mod tests {
         );
         let status: Status = from_yaml("{satisfied: layout.time}").unwrap();
         assert_eq!(status, Status::Satisfied("layout.time".into()));
+    }
+
+    #[test]
+    fn inputs_values_triggers_and_properties_read_in_both_forms() {
+        let inputs: Vec<Input> =
+            from_yaml("- connect\n- {name: close, fields: {code: Integer}}\n").unwrap();
+        assert_eq!(inputs[0].name(), "connect");
+        assert!(inputs[0].fields().is_empty());
+        assert_eq!(inputs[1].fields()["code"], "Integer");
+        let send: Send =
+            from_yaml("{message: close-frame, payload: {code: {input: code}, masked: true, n: 3}}")
+                .unwrap();
+        assert_eq!(
+            send.payload["code"],
+            Value::Field(FieldRef {
+                input: "code".into()
+            })
+        );
+        assert_eq!(send.payload["masked"], Value::Boolean(true));
+        assert_eq!(send.payload["n"], Value::Integer(3));
+        let effects: Vec<Effect> =
+            from_yaml("- {arm: {timer: t, millis: 5000}}\n- {cancel: t}\n- {flush: true}\n")
+                .unwrap();
+        assert_eq!(
+            effects,
+            [
+                Effect::Arm(Arm {
+                    timer: "t".into(),
+                    millis: 5000
+                }),
+                Effect::Cancel("t".into()),
+                Effect::Flush(true)
+            ]
+        );
+        assert_eq!(
+            from_yaml::<Trigger>("{timer: t}").unwrap(),
+            Trigger::Timer("t".into())
+        );
+        let properties: Vec<Property> = from_yaml(
+            "- {name: a, participant: client, event: e, max: 1}\n- {name: b, flush_before_close: server}\n",
+        )
+        .unwrap();
+        assert!(matches!(properties[0], Property::EventCount(_)));
+        assert!(matches!(properties[1], Property::FlushBeforeClose(_)));
+        assert!(
+            from_yaml::<Vec<Property>>("- {name: c, flush_before_close: server, max: 1}\n")
+                .is_err()
+        );
+        assert!(from_yaml::<Arm>("{timer: t, millis: 1, jitter: 2}").is_err());
+    }
+
+    #[test]
+    fn a_layout_epoch_is_optional_and_fields_take_presence_and_constraints() {
+        let layout: Layout = from_yaml(
+            "name: h\nquote: q\nspan: {start: 1, end: 1}\nfields:\n  - {name: a, bits: 7, signed: false, order: big-endian}\n  - {name: b, bits: 16, signed: false, order: big-endian, presence: {field: a, equals: 126}, constraints: [{range: [126, 65535]}, {equals: 200}, {one_of: [1, 2]}]}\n",
+        )
+        .unwrap();
+        assert_eq!(layout.epoch, None);
+        let field = &layout.fields[1];
+        assert_eq!(
+            field.presence,
+            Some(Presence {
+                field: "a".into(),
+                equals: 126
+            })
+        );
+        assert_eq!(
+            field.constraints,
+            [
+                Constraint::Range([126, 65535]),
+                Constraint::Equals(200),
+                Constraint::OneOf(vec![1, 2])
+            ]
+        );
+        assert_eq!(field.bounds(), (0, 65535));
+        assert!(Constraint::Range([126, 65535]).admits(126));
+        assert!(!Constraint::Range([126, 65535]).admits(125));
+        assert!(
+            from_yaml::<Field>("{name: a, bits: 1, signed: false, order: big-endian, width: 2}")
+                .is_err()
+        );
+        assert!(
+            from_yaml::<Field>(
+                "{name: a, bits: 1, signed: false, order: big-endian, constraints: [{between: [1, 2]}]}"
+            )
+            .is_err()
+        );
+        assert!(
+            from_yaml::<Field>(
+                "{name: a, bits: 1, signed: false, order: big-endian, presence: {field: b, equals: 1, not: 2}}"
+            )
+            .is_err()
+        );
+        let time: Overlay = read_yaml(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../profiles/time/overlay.yaml"),
+        )
+        .unwrap();
+        assert_eq!(time.layouts[0].epoch.as_deref(), Some("1900-01-01"));
+        assert!(time.layouts[0].fields[0].presence.is_none());
     }
 
     const OVERLAY_HEAD: &str = "format: rfcspec-overlay/1\nrfc: 1\nrequirements: []\nlayouts: []\nmachines: []\nfindings: []\n";

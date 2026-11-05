@@ -1,0 +1,143 @@
+format: ess-protospec/1
+name: rfc6455-websocket-close
+bounds:
+  max_steps: 64
+  max_states: 1024
+  max_time_ms: 30000
+participants:
+- name: client
+  initial: open
+  states:
+  - open
+  - closing
+  - closed
+  inputs:
+  - name: close
+    fields:
+    - name: code
+      type: Integer
+  timers:
+  - close-timeout
+  transitions:
+  - name: R7.1.2-1-start-closing-handshake
+    from: open
+    to: closing
+    trigger:
+      kind: input
+      name: close
+    effects:
+    - kind: send
+      channel: client-to-server
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R7.1.2-1-start-closing-handshake
+      payload:
+        code:
+          kind: input
+          field: code
+        masked:
+          kind: literal
+          value: true
+    - kind: arm
+      timer: close-timeout
+      after:
+        kind: fixed
+        millis: 5000
+  - name: R5.5.1-9-R7.1.2-2-close-echoed
+    from: closing
+    to: closed
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: close-frame
+    effects:
+    - kind: cancel
+      timer: close-timeout
+    - kind: emit
+      name: connection-closed
+    - kind: close
+  - name: R7.1.7-1-close-timeout
+    from: closing
+    to: closed
+    trigger:
+      kind: timer
+      name: close-timeout
+    effects:
+    - kind: emit
+      name: connection-failed
+  - name: R7.1.7-5-ignore-close-after-timeout
+    from: closed
+    to: closed
+    trigger:
+      kind: receive
+      channel: server-to-client
+      message: close-frame
+- name: server
+  initial: open
+  states:
+  - open
+  - closed
+  transitions:
+  - name: R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close
+    from: open
+    to: closed
+    trigger:
+      kind: receive
+      channel: client-to-server
+      message: close-frame
+    effects:
+    - kind: send
+      channel: server-to-client
+      message: close-frame
+      exchange:
+        kind: literal
+        value: session
+      logical:
+        kind: literal
+        value: R5.5.1-6-R5.5.1-7-R5.5.1-9-R5.5.1-10-echo-close
+      payload:
+        code:
+          kind: input
+          field: code
+        masked:
+          kind: literal
+          value: false
+    - kind: flush
+      channel: server-to-client
+    - kind: close
+messages:
+- name: close-frame
+  fields:
+  - name: code
+    type: Integer
+  - name: masked
+    type: Boolean
+channels:
+- name: client-to-server
+  from: client
+  to: server
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+- name: server-to-client
+  from: server
+  to: client
+  ordering: fifo
+  capacity: 4
+  loss: false
+  duplication: false
+properties:
+- kind: flush_before_close
+  name: server-flushes-close
+  participant: server
+  channel: server-to-client
+- kind: event_count
+  name: closed-once
+  participant: client
+  event: connection-closed
+  max: 1
