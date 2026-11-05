@@ -1,0 +1,903 @@
+{
+  "$defs": {
+    "rfcspec.catalogue.Bcp14Level": {
+      "description": "The eleven BCP 14 keywords.",
+      "enum": [
+        "MUST",
+        "MUST NOT",
+        "REQUIRED",
+        "SHALL",
+        "SHALL NOT",
+        "SHOULD",
+        "SHOULD NOT",
+        "RECOMMENDED",
+        "NOT RECOMMENDED",
+        "MAY",
+        "OPTIONAL"
+      ],
+      "title": "Bcp14Level",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.Bcp14Level",
+      "x-ess-variants": {
+        "MAY": "May",
+        "MUST": "Must",
+        "MUST NOT": "MustNot",
+        "NOT RECOMMENDED": "NotRecommended",
+        "OPTIONAL": "Optional",
+        "RECOMMENDED": "Recommended",
+        "REQUIRED": "Required",
+        "SHALL": "Shall",
+        "SHALL NOT": "ShallNot",
+        "SHOULD": "Should",
+        "SHOULD NOT": "ShouldNot"
+      }
+    },
+    "rfcspec.catalogue.ConstraintKind": {
+      "enum": [
+        "equals",
+        "range",
+        "one_of"
+      ],
+      "title": "ConstraintKind",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.ConstraintKind",
+      "x-ess-variants": {
+        "equals": "Equals",
+        "one_of": "OneOf",
+        "range": "Range"
+      }
+    },
+    "rfcspec.catalogue.DependentLength": {
+      "additionalProperties": false,
+      "description": "A field's length read from another field of the layout.",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "unit": {
+          "$ref": "#/$defs/rfcspec.catalogue.LengthUnit"
+        }
+      },
+      "required": [
+        "field",
+        "unit"
+      ],
+      "title": "DependentLength",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.DependentLength"
+    },
+    "rfcspec.catalogue.Digest": {
+      "description": "A SHA-256 digest in lower-case hexadecimal.",
+      "pattern": "^[0-9a-f]*$",
+      "title": "Digest",
+      "type": "string",
+      "x-ess-alphabet": "0123456789abcdef",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.Digest"
+    },
+    "rfcspec.catalogue.FieldConstraint": {
+      "additionalProperties": false,
+      "description": "A constraint on a field's value; a range gives its lower and upper bound.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/rfcspec.catalogue.ConstraintKind"
+        },
+        "values": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "values"
+      ],
+      "title": "FieldConstraint",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.FieldConstraint"
+    },
+    "rfcspec.catalogue.ItemId": {
+      "description": "The stable id of a catalogue or profile item, its kind in the spelling. Section rfc<N>/s/<anchor-or-number>; Requirement rfc<N>/R<section>-<ordinal>, the ordinal counting requirements in document order within the section; DefinedTerm rfc<N>/term/<slug>; Grammar rfc<N>/grammar/<slug>; Layout rfc<N>/layout/<slug>; Limit rfc<N>/limit/<slug>. A whole RFC is rfc<N> and a whole profile <profile>. A published RFC's ids never shift. Machines and statuses are keyed by structs (profile and slug, profile and requirement), not by an item id.",
+      "pattern": "^[\\u002D-9A-Z\\u005Fa-z]*$",
+      "title": "ItemId",
+      "type": "string",
+      "x-ess-alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/.-_",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.ItemId"
+    },
+    "rfcspec.catalogue.Layout.State": {
+      "enum": [
+        "read",
+        "stale"
+      ],
+      "title": "State",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.Layout.State",
+      "x-ess-variants": {
+        "read": "Read",
+        "stale": "Stale"
+      }
+    },
+    "rfcspec.catalogue.LayoutField": {
+      "additionalProperties": false,
+      "description": "One field of a parsed packet diagram.",
+      "properties": {
+        "bits": {
+          "description": "The bit width, absent where the length depends on another field.",
+          "type": "integer"
+        },
+        "constraints": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.FieldConstraint"
+          },
+          "type": "array"
+        },
+        "length": {
+          "$ref": "#/$defs/rfcspec.catalogue.DependentLength"
+        },
+        "name": {
+          "type": "string"
+        },
+        "presence": {
+          "$ref": "#/$defs/rfcspec.catalogue.Presence"
+        }
+      },
+      "required": [
+        "name",
+        "constraints"
+      ],
+      "title": "LayoutField",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.LayoutField"
+    },
+    "rfcspec.catalogue.Layouts.row": {
+      "additionalProperties": false,
+      "properties": {
+        "layout_id": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rfc": {
+          "$ref": "#/$defs/rfcspec.catalogue.RfcNumber"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.catalogue.Layout.State"
+        }
+      },
+      "required": [
+        "layout_id",
+        "state",
+        "rfc",
+        "name"
+      ],
+      "title": "Layouts row",
+      "type": "object",
+      "x-ess-kind": "view-row",
+      "x-ess-name": "rfcspec.catalogue.Layouts"
+    },
+    "rfcspec.catalogue.LengthUnit": {
+      "enum": [
+        "bits",
+        "octets"
+      ],
+      "title": "LengthUnit",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.catalogue.LengthUnit",
+      "x-ess-variants": {
+        "bits": "Bits",
+        "octets": "Octets"
+      }
+    },
+    "rfcspec.catalogue.LevelCount": {
+      "additionalProperties": false,
+      "description": "How many of an RFC's mechanically extracted requirements have one BCP 14 level, under the extractor version the bulk summary records; a level with none is not listed.",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/rfcspec.catalogue.Bcp14Level"
+        }
+      },
+      "required": [
+        "level",
+        "count"
+      ],
+      "title": "LevelCount",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.LevelCount"
+    },
+    "rfcspec.catalogue.Presence": {
+      "additionalProperties": false,
+      "description": "A field is present when another field of the layout equals the value.",
+      "properties": {
+        "equals": {
+          "type": "integer"
+        },
+        "field": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "equals"
+      ],
+      "title": "Presence",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.catalogue.Presence"
+    },
+    "rfcspec.catalogue.RfcNumber": {
+      "description": "The RFC Editor's number of the document.",
+      "title": "RfcNumber",
+      "type": "integer",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.catalogue.RfcNumber"
+    },
+    "rfcspec.profile.Evidence": {
+      "additionalProperties": false,
+      "description": "A piece of test evidence for a status, a test name or report path and the SHA-256 of what it names.",
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest"
+        },
+        "reference": {
+          "description": "A test name or a report path.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference",
+        "digest"
+      ],
+      "title": "Evidence",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.Evidence"
+    },
+    "rfcspec.profile.ExplorerDecision": {
+      "additionalProperties": false,
+      "description": "One review decision of a profile's overlay with the recorded proposal it decided: the proposal's model id and its file under the profile's proposals/.",
+      "properties": {
+        "model_id": {
+          "$ref": "#/$defs/rfcspec.review.ModelId"
+        },
+        "proposal_path": {
+          "description": "The proposal file, relative to the repository root.",
+          "type": "string"
+        },
+        "row": {
+          "$ref": "#/$defs/rfcspec.profile.ExplorerDecisionRow"
+        }
+      },
+      "required": [
+        "row"
+      ],
+      "title": "ExplorerDecision",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerDecision"
+    },
+    "rfcspec.profile.ExplorerDecisionRow": {
+      "additionalProperties": false,
+      "description": "One row of the view rfcspec.review.Decisions, field for field, as the RFC explorer reads it. The explorer writes no edit: the edited entry is the requirement entry it shows.",
+      "properties": {
+        "confirms": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKey"
+        },
+        "corrected_text": {
+          "type": "string"
+        },
+        "edit": {},
+        "errata_id": {
+          "type": "integer"
+        },
+        "errata_status": {
+          "$ref": "#/$defs/rfcspec.review.ErrataStatus"
+        },
+        "key": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKey"
+        },
+        "kind": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKind"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "proposal_id": {
+          "$ref": "#/$defs/rfcspec.review.ProposalId"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.review.Decision.State"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "profile",
+        "kind"
+      ],
+      "title": "ExplorerDecisionRow",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerDecisionRow"
+    },
+    "rfcspec.profile.ExplorerLayout": {
+      "additionalProperties": false,
+      "description": "One layout of a profile's overlay, its row and its fields with their bit widths.",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.LayoutField"
+          },
+          "type": "array"
+        },
+        "row": {
+          "$ref": "#/$defs/rfcspec.profile.ExplorerLayoutRow"
+        }
+      },
+      "required": [
+        "row",
+        "fields"
+      ],
+      "title": "ExplorerLayout",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerLayout"
+    },
+    "rfcspec.profile.ExplorerLayoutRow": {
+      "additionalProperties": false,
+      "description": "One row of the view rfcspec.catalogue.Layouts, field for field, as the RFC explorer reads it.",
+      "properties": {
+        "layout_id": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "rfc": {
+          "$ref": "#/$defs/rfcspec.catalogue.RfcNumber"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.catalogue.Layout.State"
+        }
+      },
+      "required": [
+        "layout_id",
+        "state",
+        "rfc",
+        "name"
+      ],
+      "title": "ExplorerLayoutRow",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerLayoutRow"
+    },
+    "rfcspec.profile.ExplorerMachine": {
+      "additionalProperties": false,
+      "description": "One machine of a profile's overlay: the fields of the view rfcspec.profile.Machines but unlinked_musts, which the lowering does not record, then its transport, the download of its lowered ess-protospec/1 document and its committed input witness.",
+      "properties": {
+        "download": {
+          "description": "The document's download, relative to the site's base URL.",
+          "type": "string"
+        },
+        "key": {
+          "$ref": "#/$defs/rfcspec.profile.MachineKey"
+        },
+        "name": {
+          "type": "string"
+        },
+        "protospec_digest": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest"
+        },
+        "protospec_path": {
+          "description": "The lowered document, relative to the repository root.",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.profile.Machine.State"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "witness": {
+          "description": "The input witness exploration reads, relative to the repository root.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "name",
+        "protospec_path",
+        "protospec_digest",
+        "transport",
+        "download",
+        "witness"
+      ],
+      "title": "ExplorerMachine",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerMachine"
+    },
+    "rfcspec.profile.ExplorerProfile": {
+      "additionalProperties": false,
+      "description": "The reviewed layer of one profile as the RFC explorer shows it below an RFC the profile locks, one file per profile with an overlay, generated from what its profile page is rendered from.",
+      "properties": {
+        "decisions": {
+          "description": "Every review decision of the overlay, in the order recorded.",
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.ExplorerDecision"
+          },
+          "type": "array"
+        },
+        "format": {
+          "description": "rfcspec-explorer-profile/1.",
+          "type": "string"
+        },
+        "layouts": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.ExplorerLayout"
+          },
+          "type": "array"
+        },
+        "machines": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.ExplorerMachine"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "The profile directory, relative to the repository root.",
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "requirements": {
+          "description": "Every requirement entry of the overlay, in its order.",
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.ExplorerRequirement"
+          },
+          "type": "array"
+        },
+        "rfc": {
+          "$ref": "#/$defs/rfcspec.catalogue.RfcNumber",
+          "description": "The RFC of the profile's overlay."
+        },
+        "unreviewed": {
+          "description": "The requirements of the RFC's mechanical catalogue without a status, counted by level as the profile page counts them; absent when the profile holds no locked source.",
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.LevelCount"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "format",
+        "profile",
+        "path",
+        "rfc",
+        "requirements",
+        "decisions",
+        "machines",
+        "layouts"
+      ],
+      "title": "ExplorerProfile",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerProfile"
+    },
+    "rfcspec.profile.ExplorerRequirement": {
+      "additionalProperties": false,
+      "description": "One requirement entry of a profile's overlay as its profile page publishes it: its status row, level, transports, quote, line span and the ESS gap its reason names.",
+      "properties": {
+        "end_line": {
+          "type": "integer"
+        },
+        "gap": {
+          "description": "The number of the ESS gap an unsupported status's reason names.",
+          "type": "integer"
+        },
+        "level": {
+          "description": "The level as the reviewer reads it; a prose requirement has one too.",
+          "type": "string"
+        },
+        "quote": {
+          "description": "The quote the overlay holds and the profile page publishes; no other RFC text.",
+          "type": "string"
+        },
+        "start_line": {
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/rfcspec.profile.ExplorerStatus"
+        },
+        "transports": {
+          "description": "The transports it applies to; empty means every transport.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "level",
+        "transports",
+        "quote",
+        "start_line",
+        "end_line"
+      ],
+      "title": "ExplorerRequirement",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerRequirement"
+    },
+    "rfcspec.profile.ExplorerStatus": {
+      "additionalProperties": false,
+      "description": "One row of the view rfcspec.profile.Statuses, field for field, as the RFC explorer reads it: the status one requirement of a profile's overlay has. A view row cannot be named as a field type, so its fields are declared here, and a test reads each one back as the row.",
+      "properties": {
+        "element": {
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.Evidence"
+          },
+          "type": "array"
+        },
+        "key": {
+          "$ref": "#/$defs/rfcspec.profile.StatusKey"
+        },
+        "kind": {
+          "$ref": "#/$defs/rfcspec.profile.StatusKind"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "requirement_id": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.profile.Status.State"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "profile",
+        "requirement_id",
+        "kind"
+      ],
+      "title": "ExplorerStatus",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.ExplorerStatus"
+    },
+    "rfcspec.profile.Machine.State": {
+      "enum": [
+        "Recorded"
+      ],
+      "title": "State",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.profile.Machine.State"
+    },
+    "rfcspec.profile.MachineKey": {
+      "additionalProperties": false,
+      "description": "A machine's identity, unique per profile and slug.",
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "slug"
+      ],
+      "title": "MachineKey",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.MachineKey"
+    },
+    "rfcspec.profile.Machines.row": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/rfcspec.profile.MachineKey"
+        },
+        "name": {
+          "type": "string"
+        },
+        "protospec_digest": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest"
+        },
+        "protospec_path": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.profile.Machine.State"
+        },
+        "unlinked_musts": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "name",
+        "protospec_path",
+        "protospec_digest",
+        "unlinked_musts"
+      ],
+      "title": "Machines row",
+      "type": "object",
+      "x-ess-kind": "view-row",
+      "x-ess-name": "rfcspec.profile.Machines"
+    },
+    "rfcspec.profile.ProfileName": {
+      "description": "The name of a profile, such as websocket.",
+      "title": "ProfileName",
+      "type": "string",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.profile.ProfileName"
+    },
+    "rfcspec.profile.Status.State": {
+      "enum": [
+        "Recorded"
+      ],
+      "title": "State",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.profile.Status.State"
+    },
+    "rfcspec.profile.StatusKey": {
+      "additionalProperties": false,
+      "description": "A status's identity, so one profile holds at most one status per requirement.",
+      "properties": {
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "requirement": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        }
+      },
+      "required": [
+        "profile",
+        "requirement"
+      ],
+      "title": "StatusKey",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.profile.StatusKey"
+    },
+    "rfcspec.profile.StatusKind": {
+      "enum": [
+        "satisfied",
+        "unsupported",
+        "not-applicable"
+      ],
+      "title": "StatusKind",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.profile.StatusKind",
+      "x-ess-variants": {
+        "not-applicable": "NotApplicable",
+        "satisfied": "Satisfied",
+        "unsupported": "Unsupported"
+      }
+    },
+    "rfcspec.profile.Statuses.row": {
+      "additionalProperties": false,
+      "properties": {
+        "element": {
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/rfcspec.profile.Evidence"
+          },
+          "type": "array"
+        },
+        "key": {
+          "$ref": "#/$defs/rfcspec.profile.StatusKey"
+        },
+        "kind": {
+          "$ref": "#/$defs/rfcspec.profile.StatusKind"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "requirement_id": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.profile.Status.State"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "profile",
+        "requirement_id",
+        "kind"
+      ],
+      "title": "Statuses row",
+      "type": "object",
+      "x-ess-kind": "view-row",
+      "x-ess-name": "rfcspec.profile.Statuses"
+    },
+    "rfcspec.review.Decision.State": {
+      "enum": [
+        "current",
+        "stale"
+      ],
+      "title": "State",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.review.Decision.State",
+      "x-ess-variants": {
+        "current": "Current",
+        "stale": "Stale"
+      }
+    },
+    "rfcspec.review.DecisionKey": {
+      "additionalProperties": false,
+      "description": "A decision's identity: the profile whose overlay holds it, the item's stable id and the digest of the text it judged. Overlays are per profile, so two profiles each hold their own decision on one item and digest.",
+      "properties": {
+        "item": {
+          "$ref": "#/$defs/rfcspec.catalogue.ItemId"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "text_digest": {
+          "$ref": "#/$defs/rfcspec.catalogue.Digest"
+        }
+      },
+      "required": [
+        "profile",
+        "item",
+        "text_digest"
+      ],
+      "title": "DecisionKey",
+      "type": "object",
+      "x-ess-kind": "struct",
+      "x-ess-name": "rfcspec.review.DecisionKey"
+    },
+    "rfcspec.review.DecisionKind": {
+      "description": "What an overlay entry does to its item.",
+      "enum": [
+        "accept",
+        "edit",
+        "reject",
+        "erratum"
+      ],
+      "title": "DecisionKind",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.review.DecisionKind",
+      "x-ess-variants": {
+        "accept": "Accept",
+        "edit": "Edit",
+        "erratum": "Erratum",
+        "reject": "Reject"
+      }
+    },
+    "rfcspec.review.Decisions.row": {
+      "additionalProperties": false,
+      "properties": {
+        "confirms": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKey"
+        },
+        "corrected_text": {
+          "type": "string"
+        },
+        "edit": {},
+        "errata_id": {
+          "type": "integer"
+        },
+        "errata_status": {
+          "$ref": "#/$defs/rfcspec.review.ErrataStatus"
+        },
+        "key": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKey"
+        },
+        "kind": {
+          "$ref": "#/$defs/rfcspec.review.DecisionKind"
+        },
+        "profile": {
+          "$ref": "#/$defs/rfcspec.profile.ProfileName"
+        },
+        "proposal_id": {
+          "$ref": "#/$defs/rfcspec.review.ProposalId"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/rfcspec.review.Decision.State"
+        }
+      },
+      "required": [
+        "key",
+        "state",
+        "profile",
+        "kind"
+      ],
+      "title": "Decisions row",
+      "type": "object",
+      "x-ess-kind": "view-row",
+      "x-ess-name": "rfcspec.review.Decisions"
+    },
+    "rfcspec.review.ErrataStatus": {
+      "description": "The status the RFC Editor gives an erratum.",
+      "enum": [
+        "verified",
+        "reported",
+        "held",
+        "rejected"
+      ],
+      "title": "ErrataStatus",
+      "type": "string",
+      "x-ess-kind": "enum",
+      "x-ess-name": "rfcspec.review.ErrataStatus",
+      "x-ess-variants": {
+        "held": "Held",
+        "rejected": "Rejected",
+        "reported": "Reported",
+        "verified": "Verified"
+      }
+    },
+    "rfcspec.review.ModelId": {
+      "description": "The id of the model that produced a proposal.",
+      "title": "ModelId",
+      "type": "string",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.review.ModelId"
+    },
+    "rfcspec.review.ProposalId": {
+      "description": "The SHA-256 of the proposal's task, model id and input digest. Replay looks a recording up by this id, so the same inputs return the recorded response.",
+      "pattern": "^[0-9a-f]*$",
+      "title": "ProposalId",
+      "type": "string",
+      "x-ess-alphabet": "0123456789abcdef",
+      "x-ess-kind": "newtype",
+      "x-ess-name": "rfcspec.review.ProposalId"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-ess-provenance": {
+    "contract_digest": "slice-sha256/2:383632e6442caf05ec755e98cf8c94365b490f51ee0d9f667737ee54e432bb15",
+    "source_digest": "44bb4dff6a0be5a627cd5a1de5f0e132092d9eaf2299201ad0061a49618608fd",
+    "specification_version": "v1",
+    "system": "rfcspec"
+  }
+}

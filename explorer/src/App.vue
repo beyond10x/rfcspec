@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import type { ExplorerIndex, ExplorerShard } from './generated/types.ts';
+import type { RfcspecProfileExplorerProfile as Profile } from './generated-profile/types.ts';
 import { requestedRfc, shardUrl } from './lib/shard.ts';
+import { type ProfileNote, profileUrl } from './lib/profile.ts';
 import { type Filter, indexUrl, readFilter, writeFilter } from './lib/search.ts';
 import ListView from './components/ListView.vue';
 import RfcView from './components/RfcView.vue';
@@ -12,8 +14,14 @@ type State =
   | { kind: 'unlisted'; reason: string }
   | { kind: 'unknown'; asked: string }
   | { kind: 'loading'; rfc: number }
-  | { kind: 'loaded'; rfc: number; shard: ExplorerShard | null }
+  | { kind: 'loaded'; rfc: number; shard: ExplorerShard | null; layer: Layer }
   | { kind: 'failed'; rfc: number; reason: string };
+
+/**
+ * The profile files loaded for an RFC; a note for each mark whose reviewed layer is not shown, and
+ * why; an error when the index naming the marks could not be read.
+ */
+type Layer = { profiles: Profile[]; notes: ProfileNote[]; error: string | null };
 
 const state = ref<State>({ kind: 'listing' });
 const typed = ref('');
@@ -33,17 +41,60 @@ async function list(): Promise<void> {
   }
 }
 
-/** The RFC view of the number ?rfc= names. */
+/**
+ * The reviewed layer of an RFC: the file of each profile the index marks it with, the one source
+ * of which profiles lock it. None for an RFC without a mark.
+ */
+async function layer(rfc: number): Promise<Layer> {
+  let marks: string[];
+  try {
+    const response = await fetch(indexUrl(window.location.href));
+    if (!response.ok) {
+      return { profiles: [], notes: [], error: `the RFC index: HTTP ${response.status}` };
+    }
+    const index = (await response.json()) as ExplorerIndex;
+    marks = index.rfcs.find((row) => row.rfc === rfc)?.profiles ?? [];
+  } catch (error) {
+    return { profiles: [], notes: [], error: String(error) };
+  }
+  const profiles: Profile[] = [];
+  const notes: ProfileNote[] = [];
+  for (const name of marks) {
+    const note = (text: string) => notes.push({ profile: name, text: `Profile ${name}: ${text}` });
+    try {
+      const file = await fetch(profileUrl(name, window.location.href));
+      if (file.status === 404) {
+        note('No reviewed overlay yet.');
+      } else if (!file.ok) {
+        note(`its reviewed layer could not be loaded: HTTP ${file.status}`);
+      } else {
+        const profile = (await file.json()) as Profile;
+        if (profile.rfc === rfc) {
+          profiles.push(profile);
+        } else {
+          note(`its file is of RFC ${profile.rfc}, not RFC ${rfc}, so its reviewed layer is not shown.`);
+        }
+      }
+    } catch (error) {
+      note(`its reviewed layer could not be loaded: ${String(error)}`);
+    }
+  }
+  return { profiles, notes, error: null };
+}
+
+/** The RFC view of the number ?rfc= names, its shard and its reviewed layer read together. */
 async function view(rfc: number): Promise<void> {
   state.value = { kind: 'loading', rfc };
+  const reviewed = layer(rfc);
   try {
     const response = await fetch(shardUrl(rfc, window.location.href));
     if (response.status === 404) {
-      state.value = { kind: 'loaded', rfc, shard: null };
+      state.value = { kind: 'loaded', rfc, shard: null, layer: await reviewed };
     } else if (!response.ok) {
       state.value = { kind: 'failed', rfc, reason: `HTTP ${response.status}` };
     } else {
-      state.value = { kind: 'loaded', rfc, shard: (await response.json()) as ExplorerShard };
+      const shard = (await response.json()) as ExplorerShard;
+      state.value = { kind: 'loaded', rfc, shard, layer: await reviewed };
     }
   } catch (error) {
     state.value = { kind: 'failed', rfc, reason: String(error) };
@@ -92,6 +143,13 @@ function open(): void {
     <p v-else-if="state.kind === 'unknown'" class="missing">RFC {{ state.asked }} is not in the index.</p>
     <p v-else-if="state.kind === 'loading'">Loading RFC {{ state.rfc }}…</p>
     <p v-else-if="state.kind === 'failed'" class="missing">RFC {{ state.rfc }} could not be loaded: {{ state.reason }}</p>
-    <RfcView v-else :shard="state.shard" :rfc="state.rfc" />
+    <RfcView
+      v-else
+      :shard="state.shard"
+      :rfc="state.rfc"
+      :profiles="state.layer.profiles"
+      :notes="state.layer.notes"
+      :layer-error="state.layer.error"
+    />
   </main>
 </template>

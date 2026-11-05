@@ -17,9 +17,9 @@ Part of the [protocol catalogue](/docs/catalog). Kind K1, stage reached S6, conf
 
 ## RFCs
 
-| RFC | Title | Sections in scope | Kind |
-|---|---|---|---|
-| [RFC 5905](https://www.rfc-editor.org/rfc/rfc5905) | Network Time Protocol Version 4: Protocol and Algorithms Specification | 7.2; 7.3; 8; 9.2; 13 | K1 wire protocol |
+| RFC | Title | Sections in scope | Kind | Explorer |
+|---|---|---|---|---|
+| [RFC 5905](https://www.rfc-editor.org/rfc/rfc5905) | Network Time Protocol Version 4: Protocol and Algorithms Specification | 7.2; 7.3; 8; 9.2; 13 | K1 wire protocol | [RFC 5905 in the explorer](pathname:///rfcspec/explorer/?rfc=5905) |
 
 ## Communication semantics
 
