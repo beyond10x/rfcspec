@@ -143,11 +143,9 @@ impl Entry {
 fn read_catalogue(dir: &Path, overlay: Option<&Overlay>) -> Option<Catalogue> {
     let rfc = overlay?.rfc;
     let locked = rfcspec_source::read_locked(dir, rfc).ok()?;
-    Some(rfcspec_extract::extract(&rfcspec_doc::read(
-        rfc,
-        &locked.entry.sha256,
-        &locked.text,
-    )))
+    let document =
+        rfcspec_doc::read_format(rfc, locked.format, &locked.entry.sha256, &locked.text).ok()?;
+    Some(rfcspec_extract::extract(&document))
 }
 
 fn walk(base: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
