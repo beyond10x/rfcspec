@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:explorer-look
 kind: story
-status: proposed
+status: active
 title: The RFC explorer takes the documentation site's look and feel
 relations:
 - decomposes: epic:rfc-explorer
@@ -13,9 +13,10 @@ scope:
   path: explorer/src/components
 - confidence: cited
   path: explorer/src/style.css
-revision: 5
+revision: 6
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T21:53:33Z", actor: "human:timo", revision: 3}
+- {from: "proposed", to: "active", at: "2026-11-05T23:08:42Z", actor: "human:timo", revision: 6}
 ---
 ## Story
 

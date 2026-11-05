@@ -2,16 +2,17 @@
 format: aep.planning-md/3
 id: story:fixed-arm-bounds-check
 kind: story
-status: proposed
+status: active
 title: Refuse a fixed timer arm of 0 ms or above max_time_ms
 relations:
 - depends_on: story:send-payload-type-check
 scope:
 - confidence: cited
   path: crates/rfcspec-extract/src/check.rs
-revision: 5
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T20:58:31Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":2}}}
+- {from: "proposed", to: "active", at: "2026-11-05T23:08:42Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"review_outcome":3}}}
 ---
 ## Outcome
 
@@ -21,7 +22,7 @@ Source: review-result:ntp-timer-adversary-1, finding 3 (pre-existing, `crates/rf
 
 ## Acceptance
 
-Both refusals follow the backoff form already in `crates/rfcspec-extract/src/check.rs` (lines 275-297): `let head = format!("{item}: arm {} with backoff", arm.timer);` followed by `"{head} ceiling_ms 0, not a positive integer"` and `"{head} ceiling_ms {} above the machine's max_time_ms {max_time_ms}"`. The existing test reads, for example, `"{CLOSE_START}: arm close-timeout with backoff ceiling_ms 30001 above the machine's max_time_ms 30000"` (line 1380), where `CLOSE_START` is `transition close.client.R7.1.2-1-start-closing-handshake` (line 1332).
+Both refusals follow the backoff form already in `crates/rfcspec-extract/src/check.rs` (the `with backoff` branch; line numbers drift, so the quoted strings locate it): `let head = format!("{item}: arm {} with backoff", arm.timer);` followed by `"{head} ceiling_ms 0, not a positive integer"` and `"{head} ceiling_ms {} above the machine's max_time_ms {max_time_ms}"`. The existing test reads, for example, `"{CLOSE_START}: arm close-timeout with backoff ceiling_ms 30001 above the machine's max_time_ms 30000"`, where `CLOSE_START` is the test constant `transition close.client.R7.1.2-1-start-closing-handshake`.
 
 - Unit tests in `check.rs`, on the websocket `close` machine (`max_time_ms: 30000`, `profiles/websocket/overlay.yaml:1310`), with its fixed `arm` of `close-timeout` changed:
   - `millis: 0` gives exactly `transition close.client.R7.1.2-1-start-closing-handshake: arm close-timeout with millis 0, not a positive integer`;
