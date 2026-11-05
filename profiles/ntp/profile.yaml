@@ -1,0 +1,5 @@
+name: ntp
+rfcs:
+  - number: 5905
+    title: "Network Time Protocol Version 4: Protocol and Algorithms Specification"
+    sections: ["7.2", "7.3", "8", "9.2", "13"]

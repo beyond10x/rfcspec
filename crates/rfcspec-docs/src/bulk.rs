@@ -310,7 +310,12 @@ mod tests {
             repository.join("crates/rfcspec-cli/tests/fixtures/bulk/rfc-index.xml"),
         )
         .unwrap();
-        let profiles = [(868, "time"), (1035, "dns"), (6455, "websocket")];
+        let profiles = [
+            (868, "time"),
+            (1035, "dns"),
+            (5905, "ntp"),
+            (6455, "websocket"),
+        ];
         let mut rows: Vec<BulkRow> = parse_index(&xml)
             .unwrap()
             .into_iter()
@@ -387,11 +392,12 @@ mod tests {
     }
 
     #[test]
-    fn the_profiles_lock_868_1035_and_6455() {
+    fn the_profiles_lock_868_1035_5905_and_6455() {
         assert_eq!(
             profiles(),
             [
                 ("dns".to_owned(), vec![1035]),
+                ("ntp".to_owned(), vec![5905]),
                 ("time".to_owned(), vec![868]),
                 ("websocket".to_owned(), vec![6455]),
             ]
@@ -407,9 +413,16 @@ mod tests {
             [
                 "website/docs/catalog/rfcs/00000.md",
                 "website/docs/catalog/rfcs/01000.md",
+                "website/docs/catalog/rfcs/05000.md",
                 "website/docs/catalog/rfcs/06000.md",
                 "website/docs/catalog/rfcs/08000.md",
                 "website/docs/catalog/rfcs/index.md",
+            ]
+        );
+        assert_eq!(
+            rows(&pages["website/docs/catalog/rfcs/05000.md"]),
+            [
+                "| [5905](https://www.rfc-editor.org/rfc/rfc5905) | Network Time Protocol Version 4: Protocol and Algorithms Specification | PROPOSED STANDARD | IETF | int | 2010-06 |  | 7822, 8573, 9109, 9748, 9769 | 6 MUST, 1 MUST NOT, 3 SHOULD, 3 MAY | [ntp](/docs/catalog/ntp) |"
             ]
         );
 
@@ -443,14 +456,16 @@ mod tests {
         for line in [
             format!("- Index SHA-256: `{index_sha256}`"),
             format!("- Extractor version: {EXTRACTOR_VERSION}"),
-            "- RFCs: 4".to_owned(),
-            "- RFCs with at least one requirement: 2".to_owned(),
-            "- Requirements by level: 110 MUST, 23 MUST NOT, 18 SHOULD, 4 SHOULD NOT, 43 MAY, 1 OPTIONAL".to_owned(),
+            "- RFCs: 5".to_owned(),
+            "- RFCs with at least one requirement: 3".to_owned(),
+            "- Requirements by level: 116 MUST, 24 MUST NOT, 21 SHOULD, 4 SHOULD NOT, 46 MAY, 1 OPTIONAL".to_owned(),
             "| [dns](/docs/catalog/dns) | [RFC 1035](/docs/catalog/rfcs/01000) |".to_owned(),
+            "| [ntp](/docs/catalog/ntp) | [RFC 5905](/docs/catalog/rfcs/05000) |".to_owned(),
             "| [time](/docs/catalog/time) | [RFC 868](/docs/catalog/rfcs/00000) |".to_owned(),
             "| [websocket](/docs/catalog/websocket) | [RFC 6455](/docs/catalog/rfcs/06000) |".to_owned(),
             "| [RFC 1 to 999](/docs/catalog/rfcs/00000) | 1 |".to_owned(),
             "| [RFC 1000 to 1999](/docs/catalog/rfcs/01000) | 1 |".to_owned(),
+            "| [RFC 5000 to 5999](/docs/catalog/rfcs/05000) | 1 |".to_owned(),
             "| [RFC 6000 to 6999](/docs/catalog/rfcs/06000) | 1 |".to_owned(),
             "| [RFC 8000 to 8999](/docs/catalog/rfcs/08000) | 1 |".to_owned(),
         ] {
@@ -470,9 +485,10 @@ mod tests {
         let text = fixture_summary(&[]);
         assert!(parse(&text).is_ok());
         assert!(parse(&text.replacen("rfcspec-bulk/1", "rfcspec-bulk/2", 1)).is_err());
-        assert!(parse(&text.replacen("\"rows\":3", "\"rows\":4", 1)).is_err());
+        assert!(text.contains("\"rows\":4"), "{text}");
+        assert!(parse(&text.replacen("\"rows\":4", "\"rows\":5", 1)).is_err());
         let error = parse(&format!("{text}not json\n")).unwrap_err().to_string();
-        assert!(error.contains("line 5"), "{error}");
+        assert!(error.contains("line 6"), "{error}");
     }
 
     #[test]

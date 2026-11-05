@@ -28,6 +28,7 @@ One row per RFC that the [RFC Editor's index](https://www.rfc-editor.org/rfc-ind
 | Profile | RFCs |
 |---|---|
 | [dns](/docs/catalog/dns) | [RFC 1035](/docs/catalog/rfcs/01000) |
+| [ntp](/docs/catalog/ntp) | [RFC 5905](/docs/catalog/rfcs/05000) |
 | [time](/docs/catalog/time) | [RFC 868](/docs/catalog/rfcs/00000) |
 | [websocket](/docs/catalog/websocket) | [RFC 6455](/docs/catalog/rfcs/06000) |
 

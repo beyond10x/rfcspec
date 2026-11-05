@@ -103,7 +103,7 @@ fn the_rfc1035_catalogue_is_byte_identical_across_two_runs() {
 }
 
 #[test]
-fn check_all_profiles_checks_dns_time_and_websocket() {
+fn check_all_profiles_checks_dns_ntp_time_and_websocket() {
     let stdout = succeeded(&rfcspec(&["check", "--all", "profiles"]));
     let names: Vec<&str> = stdout
         .lines()
@@ -112,7 +112,12 @@ fn check_all_profiles_checks_dns_time_and_websocket() {
         .collect();
     assert_eq!(
         names,
-        ["profiles/dns", "profiles/time", "profiles/websocket"],
+        [
+            "profiles/dns",
+            "profiles/ntp",
+            "profiles/time",
+            "profiles/websocket"
+        ],
         "{stdout}"
     );
     assert!(
@@ -515,24 +520,28 @@ fn fetch_of_rfc_1035_twice_from_a_local_server_writes_the_committed_lock_and_cha
 }
 
 #[test]
-fn the_catalogue_lists_dns_beside_time_and_websocket_and_writes_its_page() {
+fn the_catalogue_lists_dns_beside_ntp_time_and_websocket_and_writes_its_page() {
     let outputs = catalog::outputs(&repository()).unwrap();
     let index = &outputs["website/docs/catalog/index.md"];
     let rows: Vec<&str> = index
         .lines()
         .filter(|line| line.starts_with("| ["))
         .collect();
-    assert_eq!(rows.len(), 3, "{index}");
+    assert_eq!(rows.len(), 4, "{index}");
     assert!(
         rows[0].starts_with("| [dns](/docs/catalog/dns) |"),
         "{index}"
     );
     assert!(
-        rows[1].starts_with("| [time](/docs/catalog/time) |"),
+        rows[1].starts_with("| [ntp](/docs/catalog/ntp) |"),
         "{index}"
     );
     assert!(
-        rows[2].starts_with("| [websocket](/docs/catalog/websocket) |"),
+        rows[2].starts_with("| [time](/docs/catalog/time) |"),
+        "{index}"
+    );
+    assert!(
+        rows[3].starts_with("| [websocket](/docs/catalog/websocket) |"),
         "{index}"
     );
     assert_eq!(

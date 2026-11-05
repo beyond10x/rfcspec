@@ -309,7 +309,7 @@ fn replay_of_the_recorded_proposals_exits_0_and_changes_no_byte() {
 }
 
 #[test]
-fn check_all_profiles_checks_dns_time_and_websocket() {
+fn check_all_profiles_checks_dns_ntp_time_and_websocket() {
     let output = rfcspec(&["check", "--all", "profiles"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(
@@ -318,13 +318,13 @@ fn check_all_profiles_checks_dns_time_and_websocket() {
         "{stdout}{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    for name in ["dns", "time", "websocket"] {
+    for name in ["dns", "ntp", "time", "websocket"] {
         assert!(
             stdout.contains(&format!("profiles/{name}: overlay holds")),
             "{stdout}"
         );
     }
-    assert_eq!(stdout.lines().count(), 3, "{stdout}");
+    assert_eq!(stdout.lines().count(), 4, "{stdout}");
 }
 
 #[test]
