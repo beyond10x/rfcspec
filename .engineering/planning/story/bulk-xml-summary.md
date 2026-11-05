@@ -2,7 +2,7 @@
 format: aep.planning-md/3
 id: story:bulk-xml-summary
 kind: story
-status: draft
+status: proposed
 title: Bulk fetch and summarise RFCXML where the index lists it, recording each row's source format
 relations:
 - decomposes: epic:rfcxml-reader
@@ -28,7 +28,9 @@ scope:
   path: crates/rfcspec-source/src/index.rs
 - confidence: inferred
   path: ess/domains/catalogue.yaml
-revision: 5
+revision: 6
+transitions:
+- {from: "draft", to: "proposed", at: "2026-11-05T15:46:56Z", actor: "human:timo", revision: 6, decided_on: {"recorded":{"review_outcome":2}}}
 ---
 ## Story
 
