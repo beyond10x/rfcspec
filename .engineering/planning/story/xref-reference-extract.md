@@ -2,14 +2,15 @@
 format: aep.planning-md/3
 id: story:xref-reference-extract
 kind: story
-status: active
+status: implemented
 title: Record xref citations of other RFCs as catalogue References
 relations:
 - decomposes: epic:rfc-explorer
-revision: 5
+revision: 7
 transitions:
 - {from: "draft", to: "proposed", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 4, decided_on: {"recorded":{"review_outcome":3}}}
 - {from: "proposed", to: "active", at: "2026-11-05T17:48:52Z", actor: "human:timo", revision: 5, decided_on: {"recorded":{"review_outcome":3}}}
+- {from: "active", to: "implemented", at: "2026-11-05T18:04:21Z", actor: "human:timo", revision: 7, decided_on: {"recorded":{"test_result":1,"review_outcome":4}}}
 ---
 ## Story
 
@@ -26,7 +27,7 @@ Reading an RFC from its RFCXML source records each `<xref>` to another RFC as a
 Self-references and references to non-RFC documents are counted, not stored. A self-reference is
 an xref to an anchor inside the same RFC, or a `<reference>` whose RFC number is the citing RFC. A
 non-RFC reference is a `<reference>` with no RFC `seriesInfo`. The counts go into the document JSON
-as `reference_counts: {self_references: N, non_rfc: M}`, omitted for text documents, because
+as `reference_counts: {self_references: N, non_rfc: M, unresolved: U}`, omitted for text documents, because
 `rfcspec read` prints only the document JSON and has no separate summary
 (`crates/rfcspec-cli/src/main.rs`, `Command::Read`).
 
@@ -51,7 +52,8 @@ before acceptance.
 
 Checked by:
 
-- The document JSON carries `reference_counts: {self_references: 16, non_rfc: 0}` for RFC 9220.
+- The document JSON carries `reference_counts: {self_references: 16, non_rfc: 0, unresolved: 0}` for RFC 9220.
+- An xref whose target matches no anchor counts as `unresolved`, not as a self-reference. An xref to a `<referencegroup>` cites each member RFC, one Reference per member, keeping `target_section` only for a group of one (adversary pass 1, 2026-11-05).
 - Each entry holds the citing section, the target RFC, the target section if any, and the kind.
 - RFC 9220's entries include target RFC 8441 (normative) and target RFC 9110 section `15.6.2`
   (normative).
