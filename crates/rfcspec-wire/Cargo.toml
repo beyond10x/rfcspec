@@ -1,0 +1,16 @@
+[package]
+name = "rfcspec-wire"
+description = "The rfcspec-wire/1 layer: grammars and packet-diagram layouts collected from an RFC's normalized document."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+rfcspec-abnf = { path = "../rfcspec-abnf" }
+rfcspec-doc = { path = "../rfcspec-doc" }
+rfcspec-model = { path = "../rfcspec-model" }
+
+[lints]
+workspace = true
