@@ -73,7 +73,7 @@ the `ntp` task (`rfcspec lower --profile profiles/ntp --check`, exploration of t
 `cargo test -p rfc5905-ntp`),
 the `bulk` task (`rfcspec bulk check --summary bulk/rfc-summary.jsonl --profiles profiles --sections bulk/rfc-sections.jsonl`, offline),
 `rfcspec-docs generate --check`, `cargo fmt --check`, strict Clippy, `cargo test --workspace`.
-CI (`.github/workflows/check.yml`) pins `ess` 0.86.0 and `aep` 0.79.0. The site build is separate:
+CI (`.github/workflows/check.yml`) pins `ess` 0.87.0 and `aep` 0.79.0. The site build is separate:
 `task website` (`task explorer` first, then `npm ci --allow-git=root` locally; CI's Node 22 needs no flag; the Pages workflow builds the explorer with `corepack enable` and pnpm before the Docusaurus build).
 
 ## Release
