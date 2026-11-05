@@ -5,8 +5,8 @@
 //! A machine carries inputs with typed fields, timers armed for a fixed delay, payload values that
 //! are literals or fields of the triggering input or received message, `flush`, and the
 //! `event_count`, `flush_before_close`, `never_state` and `state_implication` properties; its
-//! bounds default to [`BOUNDS`]. A participant may declare local fields (`Integer` or `Boolean`,
-//! with an initial literal), which the `set` effect assigns from a literal or a trigger field; a
+//! bounds default to [`BOUNDS`] and its channel capacity to 4. A participant may declare local
+//! fields (`Integer` or `Boolean`, with an initial literal), which the `set` effect assigns from a literal or a trigger field; a
 //! transition may carry `guards`, a conjunction of equalities whose operands are literals, local
 //! fields or trigger fields. Absent local fields, guards and properties are not written.
 //!
@@ -28,7 +28,7 @@ pub const BOUNDS: Bounds = Bounds {
     max_time_ms: 1000,
 };
 
-/// The capacity of each lowered channel.
+/// The capacity of each lowered channel of a machine that declares none.
 const CAPACITY: u32 = 4;
 
 /// Lower every machine of an overlay to `<machine>.protospec.yaml`. `profile` names the models
@@ -481,7 +481,7 @@ fn model(rfc: u32, profile: &str, machine: &Machine) -> Result<Model> {
                 from: from.into(),
                 to: to.into(),
                 ordering: "fifo",
-                capacity: CAPACITY,
+                capacity: machine.capacity.unwrap_or(CAPACITY),
                 loss: false,
                 duplication: false,
             })
@@ -903,12 +903,108 @@ mod tests {
             model["properties"],
             serde_json::json!([{"kind": "never_state", "name": "server-never-fails", "participant": "server", "state": "failed"}])
         );
+        let capacities: Vec<&serde_json::Value> = model["channels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| &c["capacity"])
+            .collect();
+        assert_eq!(capacities, [8, 8]);
         let report = explore(
             &websocket().join("generated/fragments.protospec.yaml"),
             &websocket().join("witnesses/fragments.inputs.json"),
         )
         .unwrap();
         assert_eq!(report["verdict"], "passed", "{report:#}");
+    }
+
+    /// The labels of the fragments client's one path, in the order it takes them.
+    const FRAGMENTS_PATH: [&str; 6] = [
+        "send-text",
+        "start-message",
+        "send-pong",
+        "continue-message",
+        "finish-message",
+        "close-after-message",
+    ];
+
+    #[test]
+    fn the_fragments_client_offers_no_choice_and_one_trace_takes_its_whole_path() {
+        let model: serde_json::Value = rfcspec_model::from_yaml(
+            &fs::read_to_string(websocket().join("generated/fragments.protospec.yaml")).unwrap(),
+        )
+        .unwrap();
+        let client = participant(&model, "client");
+        let all = transitions(&model, "client");
+        let mut state = client["initial"].as_str().unwrap();
+        let mut path = Vec::new();
+        loop {
+            let offered: Vec<&&serde_json::Value> =
+                all.iter().filter(|t| t["from"] == state).collect();
+            assert!(
+                offered.len() <= 1,
+                "the client offers a choice in {state}: {offered:#?}"
+            );
+            let Some(next) = offered.first() else { break };
+            path.push(next["name"].as_str().unwrap());
+            state = next["to"].as_str().unwrap();
+            assert!(path.len() <= all.len(), "the client path cycles: {path:?}");
+        }
+        assert_eq!(state, "closed");
+        assert_eq!(
+            path.len(),
+            all.len(),
+            "every client transition is on the path"
+        );
+        assert_eq!(path.len(), FRAGMENTS_PATH.len(), "{path:?}");
+        for (name, label) in path.iter().zip(FRAGMENTS_PATH) {
+            assert!(name.ends_with(&format!("-{label}")), "{path:?}");
+        }
+
+        let mut overlay = websocket_overlay();
+        let machine = overlay
+            .machines
+            .iter_mut()
+            .find(|m| m.name == "fragments")
+            .unwrap();
+        machine.properties = vec![OverlayProperty::NeverState(NeverState {
+            name: "client-never-closes".into(),
+            participant: "client".into(),
+            state: "closed".into(),
+        })];
+        let out = tempfile::tempdir().unwrap();
+        write(out.path(), &lower(&overlay, "websocket").unwrap()).unwrap();
+        let report = explore(
+            &out.path().join("fragments.protospec.yaml"),
+            &websocket().join("witnesses/fragments.inputs.json"),
+        )
+        .unwrap();
+        assert_eq!(report["verdict"], "failed", "{report:#}");
+        let sent: Vec<&str> = report["counterexample"]["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|step| step["observations"].as_array().unwrap())
+            .filter(|o| o["kind"] == "sent")
+            .map(|o| o["message"]["logical"].as_str().unwrap())
+            .collect();
+        assert_eq!(sent, path, "{report:#}");
+    }
+
+    #[test]
+    fn a_declared_capacity_lowers_on_both_channels_and_an_absent_one_is_four() {
+        let capacities = |overlay: &Overlay| -> Vec<serde_json::Value> {
+            parsed(&lower(overlay, "test").unwrap()[0])["channels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|c| c["capacity"].clone())
+                .collect()
+        };
+        let mut overlay = echo_machine(echo_value(), vec![]);
+        assert_eq!(capacities(&overlay), [4, 4]);
+        overlay.machines[0].capacity = Some(8);
+        assert_eq!(capacities(&overlay), [8, 8]);
     }
 
     #[test]
@@ -1053,6 +1149,7 @@ mod tests {
             machines: vec![Machine {
                 name: "echo".into(),
                 transport: "tcp".into(),
+                capacity: None,
                 bounds: None,
                 messages: ["ping", "pong"]
                     .map(|name| Message {

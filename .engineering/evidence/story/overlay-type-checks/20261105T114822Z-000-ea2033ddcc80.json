@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T11:48:22Z",
+  "actor": "human:timo",
+  "artifact": "story:overlay-type-checks",
+  "kind": "story",
+  "revision": 4,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-extract (50) -p rfcspec-cli exit 0; rfcspec check --all profiles; task time/websocket/dns; clippy -p rfcspec-extract"
+  }
+}

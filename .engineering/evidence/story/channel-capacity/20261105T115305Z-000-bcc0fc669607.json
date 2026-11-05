@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-05T11:53:05Z",
+  "actor": "human:timo",
+  "artifact": "story:channel-capacity",
+  "kind": "story",
+  "revision": 6,
+  "change": {
+    "change": "evidence",
+    "kind": "test_result",
+    "source": "cargo test -p rfcspec-model (21) -p rfcspec-ess (26) -p rfcspec-extract (51) -p rfcspec-cli -p rfcspec-docs exit 0; explore fragments passed with capacity 8, inconclusive at 4; task time/websocket/dns; docs-check; clippy --workspace"
+  }
+}

@@ -1,7 +1,10 @@
 //! The overlay check: every quote occurs verbatim in the source at the span it names, every id
 //! an overlay item refers to exists, and a requirement read mechanically (`capitals-text`,
-//! `abnf-comment`) keeps its catalogue id and lies within its catalogue span; and every review
-//! decision judges the current catalogue text of its item.
+//! `abnf-comment`) keeps its catalogue id and lies within its catalogue span; a participant's
+//! local fields have distinct names, a guard compares operands of one type and a `set` writes a
+//! value of its field's type (a literal has its own type, a local operand its field's, an input
+//! operand its trigger field's); a machine's declared channel capacity is a positive integer; and
+//! every review decision judges the current catalogue text of its item.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -82,14 +85,24 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
         .map(|s| s.id.as_str())
         .collect();
     for machine in &overlay.machines {
+        if machine.capacity == Some(0) {
+            problems.push(format!(
+                "machine {}: capacity 0 is not a positive integer",
+                machine.name
+            ));
+        }
         let messages: BTreeSet<&str> = machine.messages.iter().map(|m| m.name.as_str()).collect();
         for participant in &machine.participants {
             let states: BTreeSet<&str> = participant.states.iter().map(String::as_str).collect();
+            let mut names = BTreeSet::new();
             for field in &participant.fields {
                 let item = format!(
                     "local field {}.{}.{}",
                     machine.name, participant.name, field.name
                 );
+                if !names.insert(field.name.as_str()) {
+                    problems.push(format!("{item}: a second local field of this name"));
+                }
                 let article = match field.kind.as_str() {
                     "Integer" => "an",
                     "Boolean" => "a",
@@ -166,14 +179,59 @@ pub fn check(overlay: &Overlay, catalogue: &Catalogue, source: &str) -> Vec<Stri
                         _ => {}
                     }
                 }
+                let typed = |operand: &Operand| -> Option<(String, String)> {
+                    match operand {
+                        Operand::Integer(n) => Some((n.to_string(), "Integer".into())),
+                        Operand::Boolean(b) => Some((b.to_string(), "Boolean".into())),
+                        Operand::Local(local) => participant
+                            .field(&local.local)
+                            .map(|f| (format!("local {}", local.local), f.kind.clone())),
+                        Operand::Input(source) => trigger_fields
+                            .get(&source.input)
+                            .map(|kind| (format!("input {}", source.input), kind.clone())),
+                    }
+                };
+                for guard in &transition.guards {
+                    if let (Some((left, left_kind)), Some((right, right_kind))) =
+                        (typed(&guard.left), typed(&guard.right))
+                        && left_kind != right_kind
+                    {
+                        problems.push(format!(
+                            "{item}: guard compares {left} ({left_kind}) with {right} ({right_kind})"
+                        ));
+                    }
+                }
                 for effect in &transition.effects {
                     match effect {
                         Effect::Set(set) => {
-                            if participant.field(&set.field).is_none() {
-                                problems.push(format!(
+                            match participant.field(&set.field) {
+                                None => problems.push(format!(
                                     "{item}: set {}, which is no local field of the participant",
                                     set.field
-                                ));
+                                )),
+                                Some(field) => {
+                                    let value = match &set.value {
+                                        Value::Integer(n) => {
+                                            Some((n.to_string(), "Integer".to_owned()))
+                                        }
+                                        Value::Boolean(b) => {
+                                            Some((b.to_string(), "Boolean".to_owned()))
+                                        }
+                                        Value::Field(source) => {
+                                            trigger_fields.get(&source.input).map(|kind| {
+                                                (format!("input {}", source.input), kind.clone())
+                                            })
+                                        }
+                                    };
+                                    if let Some((value, kind)) = value
+                                        && kind != field.kind
+                                    {
+                                        problems.push(format!(
+                                            "{item}: set {} ({}) to {value} ({kind})",
+                                            set.field, field.kind
+                                        ));
+                                    }
+                                }
                             }
                             if let Value::Field(source) = &set.value
                                 && !trigger_fields.contains_key(&source.input)
@@ -1102,6 +1160,111 @@ mod tests {
                 "local field close.client.seen: initial 0 is not a Boolean",
                 "local field close.client.text: type String, not Integer or Boolean",
             ]
+        );
+    }
+
+    fn machine<'a>(overlay: &'a mut Overlay, name: &str) -> &'a mut rfcspec_model::Machine {
+        overlay
+            .machines
+            .iter_mut()
+            .find(|m| m.name == name)
+            .unwrap()
+    }
+
+    #[test]
+    fn a_guard_comparing_operands_of_different_types_is_named() {
+        let mut overlay = committed_websocket();
+        let server = &mut machine(&mut overlay, "fragments").participants[1];
+        assert_eq!(server.name, "server");
+        let guard = &mut server.transitions[0].guards[1];
+        assert_eq!(guard.left, Operand::Input(input("fin")));
+        guard.right = Operand::Integer(1);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [
+                "transition fragments.server.R5.2-1-text-message: guard compares input fin (Boolean) with 1 (Integer)"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_guard_operand_takes_the_type_of_its_trigger_field_literal_or_local_field() {
+        let mut overlay = committed_websocket();
+        let client = &mut machine(&mut overlay, "ping").participants[0];
+        client.fields.push(LocalField {
+            name: "seen".into(),
+            kind: "Boolean".into(),
+            initial: Literal::Boolean(false),
+        });
+        client.transitions[1].guards = vec![
+            Guard {
+                left: Operand::Input(input("data")),
+                right: Operand::Integer(7),
+            },
+            Guard {
+                left: Operand::Local(LocalRef {
+                    local: "seen".into(),
+                }),
+                right: Operand::Boolean(true),
+            },
+            Guard {
+                left: Operand::Local(LocalRef {
+                    local: "seen".into(),
+                }),
+                right: Operand::Input(input("data")),
+            },
+        ];
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [
+                "transition ping.client.R5.5.2-2-pong-echoed: guard compares local seen (Boolean) with input data (Integer)"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_set_whose_value_type_differs_from_its_field_is_named() {
+        let mut overlay = committed_websocket();
+        let client = &mut machine(&mut overlay, "ping").participants[0];
+        let Effect::Set(set) = &mut client.transitions[0].effects[0] else {
+            panic!("the first effect sets");
+        };
+        set.value = Value::Boolean(true);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            [
+                "transition ping.client.R5.5.2-1-R5.5.2-4-send-ping: set ping-data (Integer) to true (Boolean)"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_capacity_of_zero_is_named_and_a_positive_one_holds() {
+        let mut overlay = committed_websocket();
+        machine(&mut overlay, "close").capacity = Some(1);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            Vec::<String>::new()
+        );
+        machine(&mut overlay, "close").capacity = Some(0);
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            ["machine close: capacity 0 is not a positive integer"]
+        );
+    }
+
+    #[test]
+    fn two_local_fields_of_one_name_are_named() {
+        let mut overlay = committed_websocket();
+        let client = &mut machine(&mut overlay, "ping").participants[0];
+        client.fields.push(LocalField {
+            name: "ping-data".into(),
+            kind: "Integer".into(),
+            initial: Literal::Integer(1),
+        });
+        assert_eq!(
+            check(&overlay, &catalogue_6455(), &source_6455()),
+            ["local field ping.client.ping-data: a second local field of this name"]
         );
     }
 

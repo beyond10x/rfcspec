@@ -51,7 +51,7 @@ requirements:
       start: 1519
       end: 1521
     status:
-      unsupported: data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake
+      unsupported: data frames are modelled only along the one path of the fragments machine (text, start, Pong, continue, finish, close), not at any time after the opening handshake
   - id: R5.2-1
     source: capitals-text
     level: MAY
@@ -659,6 +659,7 @@ machines:
     properties: []
   - name: fragments
     transport: tcp
+    capacity: 8
     messages:
       - {name: data-frame, fields: {opcode: Integer, fin: Boolean}}
       - {name: pong, fields: {fin: Boolean}}
@@ -684,7 +685,7 @@ machines:
               - {send: {message: data-frame, payload: {opcode: 1, fin: true}}}
           - implements: [R5.4-12]
             label: start-message
-            from: open
+            from: texted
             to: in-message
             on: {input: start}
             effects:
@@ -698,18 +699,11 @@ machines:
               - {send: {message: pong, payload: {fin: true}}}
           - implements: [R5.4-12]
             label: continue-message
-            from: in-message
+            from: ponged
             to: continued
             on: {input: continue}
             effects:
               - {send: {message: data-frame, payload: {opcode: 0, fin: false}}}
-          - implements: [R5.4-12]
-            label: finish-after-pong
-            from: ponged
-            to: finished
-            on: {input: finish}
-            effects:
-              - {send: {message: data-frame, payload: {opcode: 0, fin: true}}}
           - implements: [R5.4-12]
             label: finish-message
             from: continued
@@ -717,20 +711,6 @@ machines:
             on: {input: finish}
             effects:
               - {send: {message: data-frame, payload: {opcode: 0, fin: true}}}
-          - implements: [R5.5.1-5, R5.5.1-8]
-            label: close
-            from: open
-            to: closed
-            on: {input: close}
-            effects:
-              - {send: {message: close-frame, payload: {code: {input: code}}}}
-          - implements: [R5.5.1-5, R5.5.1-8]
-            label: close-after-text
-            from: texted
-            to: closed
-            on: {input: close}
-            effects:
-              - {send: {message: close-frame, payload: {code: {input: code}}}}
           - implements: [R5.5.1-5, R5.5.1-8]
             label: close-after-message
             from: finished
@@ -853,7 +833,7 @@ decisions:
       start: 1519
       end: 1521
     status:
-      unsupported: data frames are modelled only along the three paths of the fragments machine (text then close; start, Pong, finish, close; start, continue, finish, close), not at any time after the opening handshake
+      unsupported: data frames are modelled only along the one path of the fragments machine (text, start, Pong, continue, finish, close), not at any time after the opening handshake
 - item: rfc6455/R5.1-4
   text_digest: a2ddd22cda2028ec12d1a85d708da54806c8d45d4b65f1c5f893fde2e0a07549
   kind: reject

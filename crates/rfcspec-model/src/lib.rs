@@ -512,6 +512,10 @@ pub struct Finding {
 pub struct Machine {
     pub name: String,
     pub transport: String,
+    /// The capacity of each channel of the lowered model on this transport, a positive integer;
+    /// absent means the lowering's default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capacity: Option<u32>,
     /// The exploration bounds of the lowered model; absent means the lowering's defaults.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<Bounds>,
@@ -1189,6 +1193,19 @@ mod tests {
             assert!(edit.requirement().is_none());
             assert_eq!(to_yaml(&edit).unwrap(), text);
         }
+    }
+
+    #[test]
+    fn a_machine_capacity_reads_and_is_omitted_when_absent() {
+        let absent = "name: m\ntransport: tcp\nmessages: []\nparticipants: []\nproperties: []\n";
+        let machine: Machine = from_yaml(absent).unwrap();
+        assert_eq!(machine.capacity, None);
+        assert_eq!(to_yaml(&machine).unwrap(), absent);
+        let declared = "name: m\ntransport: tcp\ncapacity: 8\nmessages: []\nparticipants: []\nproperties: []\n";
+        let machine: Machine = from_yaml(declared).unwrap();
+        assert_eq!(machine.capacity, Some(8));
+        assert_eq!(to_yaml(&machine).unwrap(), declared);
+        assert!(from_yaml::<Machine>(&declared.replace("8", "-1")).is_err());
     }
 
     #[test]

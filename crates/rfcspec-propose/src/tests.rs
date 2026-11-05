@@ -213,6 +213,63 @@ fn an_answer_failing_a_check_writes_nothing_and_names_the_proposal_and_the_reaso
     }
 }
 
+/// `R5.1-1` is a MUST in the catalogue: a `status` answer giving it as MAY is refused, nothing is
+/// written, and the error names the proposal, the catalogue level and the proposed one.
+#[test]
+fn a_status_answer_whose_level_differs_from_the_catalogue_keyword_is_refused() {
+    let (_temp, dir) = websocket("status-level");
+    let workspace = Workspace::load(&dir).unwrap();
+    let mut answer = answer();
+    answer["level"] = json!("MAY");
+    let model = Double::new("double-model", [answer]);
+    let error = record_blocking(&workspace, &model, "double-model", Task::Status, "R5.1-1")
+        .expect_err("refused");
+    let ProposeError::CheckFailed { proposal_id, .. } = &error else {
+        panic!("{error}");
+    };
+    let message = error.to_string();
+    assert!(message.contains(proposal_id.as_str()), "{message}");
+    assert!(message.contains("MUST"), "{message}");
+    assert!(message.contains("MAY"), "{message}");
+    assert!(message.contains("level"), "{message}");
+    assert_eq!(proposals(&dir), Vec::<PathBuf>::new());
+}
+
+/// A prose candidate has no BCP 14 keyword: a `requirement-from-prose` answer chooses its
+/// level, here MUST for a sentence whose prose keyword is "may".
+#[test]
+fn a_prose_answer_keeps_choosing_its_level() {
+    let (_temp, dir) = dns("prose-level");
+    let workspace = Workspace::load(&dir).unwrap();
+    let candidate = workspace
+        .catalogue
+        .prose_candidates
+        .iter()
+        .find(|c| c.id == "P-58")
+        .unwrap()
+        .clone();
+    assert_ne!(candidate.keyword, "MUST");
+    let model = Double::new(
+        "double-model",
+        [prose(
+            "P-58",
+            &candidate.text,
+            candidate.span.start,
+            candidate.span.end,
+        )],
+    );
+    match record_blocking(
+        &workspace,
+        &model,
+        "double-model",
+        Task::RequirementFromProse,
+        "P-58",
+    ) {
+        Ok(Outcome::Recorded(_)) => {}
+        other => panic!("{other:?}"),
+    }
+}
+
 #[test]
 fn an_answer_that_is_no_overlay_requirement_entry_is_refused() {
     let (_temp, dir) = websocket("not-an-entry");

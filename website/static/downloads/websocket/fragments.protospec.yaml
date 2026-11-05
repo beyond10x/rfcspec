@@ -55,7 +55,7 @@ participants:
           kind: literal
           value: 1
   - name: R5.4-12-start-message
-    from: open
+    from: texted
     to: in-message
     trigger:
       kind: input
@@ -98,7 +98,7 @@ participants:
           kind: literal
           value: true
   - name: R5.4-12-continue-message
-    from: in-message
+    from: ponged
     to: continued
     trigger:
       kind: input
@@ -117,29 +117,6 @@ participants:
         fin:
           kind: literal
           value: false
-        opcode:
-          kind: literal
-          value: 0
-  - name: R5.4-12-finish-after-pong
-    from: ponged
-    to: finished
-    trigger:
-      kind: input
-      name: finish
-    effects:
-    - kind: send
-      channel: client-to-server
-      message: data-frame
-      exchange:
-        kind: literal
-        value: session
-      logical:
-        kind: literal
-        value: R5.4-12-finish-after-pong
-      payload:
-        fin:
-          kind: literal
-          value: true
         opcode:
           kind: literal
           value: 0
@@ -166,46 +143,6 @@ participants:
         opcode:
           kind: literal
           value: 0
-  - name: R5.5.1-5-R5.5.1-8-close
-    from: open
-    to: closed
-    trigger:
-      kind: input
-      name: close
-    effects:
-    - kind: send
-      channel: client-to-server
-      message: close-frame
-      exchange:
-        kind: literal
-        value: session
-      logical:
-        kind: literal
-        value: R5.5.1-5-R5.5.1-8-close
-      payload:
-        code:
-          kind: input
-          field: code
-  - name: R5.5.1-5-R5.5.1-8-close-after-text
-    from: texted
-    to: closed
-    trigger:
-      kind: input
-      name: close
-    effects:
-    - kind: send
-      channel: client-to-server
-      message: close-frame
-      exchange:
-        kind: literal
-        value: session
-      logical:
-        kind: literal
-        value: R5.5.1-5-R5.5.1-8-close-after-text
-      payload:
-        code:
-          kind: input
-          field: code
   - name: R5.5.1-5-R5.5.1-8-close-after-message
     from: finished
     to: closed
@@ -403,14 +340,14 @@ channels:
   from: client
   to: server
   ordering: fifo
-  capacity: 4
+  capacity: 8
   loss: false
   duplication: false
 - name: server-to-client
   from: server
   to: client
   ordering: fifo
-  capacity: 4
+  capacity: 8
   loss: false
   duplication: false
 properties:
