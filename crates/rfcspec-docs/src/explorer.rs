@@ -5,6 +5,10 @@
 //! `rfcspec.catalogue.ExplorerShard` (`generated/rust/rfcspec-explorer-types`); the explorer app
 //! (`explorer/`) reads it through the TypeScript declarations generated from the same type. It
 //! holds no requirement text.
+//!
+//! Beside the shards, the index `website/static/data/rfc-index.json` (`rfcspec-explorer-index/1`,
+//! `rfcspec.catalogue.ExplorerIndex`) lists every summary row with its metadata, counts by level
+//! and the profiles locking it, no SHA-256; the explorer's front page filters it in the browser.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -14,14 +18,15 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use rfcspec_explorer_types::{
-    Bcp14Level, Digest, EssPresence, ExplorerReference, ExplorerRfc, ExplorerSection,
-    ExplorerShard, LevelCount, ReferenceKind, RfcNumber, SourceFormat, YearMonth,
+    Bcp14Level, Digest, EssPresence, ExplorerIndex, ExplorerIndexRow, ExplorerReference,
+    ExplorerRfc, ExplorerSection, ExplorerShard, LevelCount, ReferenceKind, RfcNumber,
+    SourceFormat, YearMonth,
 };
 use rfcspec_model::{BulkHeader, BulkRow, SECTIONS_FORMAT, SectionsRow};
 use serde_json::Number;
 
 use crate::{
-    bulk::{SUMMARY, Summary},
+    bulk::{SUMMARY, Summary, locked},
     catalog::rank,
     page::BASE_URL,
 };
@@ -32,10 +37,19 @@ pub const SECTIONS: &str = "bulk/rfc-sections.jsonl";
 pub const DIR: &str = "website/static/data/rfcs";
 /// The shard format.
 pub const FORMAT: &str = "rfcspec-explorer/1";
+/// The index the explorer's front page lists and filters, relative to the repository root.
+pub const INDEX: &str = "website/static/data/rfc-index.json";
+/// The index format.
+pub const INDEX_FORMAT: &str = "rfcspec-explorer-index/1";
 
 /// The explorer's view of an RFC, as a link a generated page can carry.
 pub fn link(rfc: u32) -> String {
     format!("pathname://{BASE_URL}explorer/?rfc={rfc}")
+}
+
+/// The explorer's front page, the filtered list of every RFC, as a link a generated page can carry.
+pub fn front() -> String {
+    format!("pathname://{BASE_URL}explorer/")
 }
 
 /// A section sidecar, read: its header and rows.
@@ -112,6 +126,13 @@ fn present(value: Option<&String>) -> EssPresence<String> {
     })
 }
 
+fn format(format: rfcspec_model::SourceFormat) -> SourceFormat {
+    match format {
+        rfcspec_model::SourceFormat::Xml => SourceFormat::Xml,
+        rfcspec_model::SourceFormat::Text => SourceFormat::Text,
+    }
+}
+
 /// One RFC as the explorer reads it: its summary row and its sidecar row.
 fn rfc(row: &BulkRow, sections: &SectionsRow) -> Result<ExplorerRfc> {
     Ok(ExplorerRfc {
@@ -121,10 +142,7 @@ fn rfc(row: &BulkRow, sections: &SectionsRow) -> Result<ExplorerRfc> {
         stream: row.stream.clone(),
         area: present(row.area.as_ref()),
         date: YearMonth(row.date.clone()),
-        format: match row.format {
-            rfcspec_model::SourceFormat::Xml => SourceFormat::Xml,
-            rfcspec_model::SourceFormat::Text => SourceFormat::Text,
-        },
+        format: format(row.format),
         sha256: Digest(row.sha256.clone()),
         counts: levels(&row.counts)?,
         obsoletes: numbers(&row.obsoletes),
@@ -159,26 +177,71 @@ fn rfc(row: &BulkRow, sections: &SectionsRow) -> Result<ExplorerRfc> {
     })
 }
 
-/// A shard's JSON: the shard's members in declared order with one RFC per line, so a changed RFC
-/// changes one line.
-fn write(shard: &ExplorerShard) -> Result<String> {
-    let head = ExplorerShard {
-        rfcs: Vec::new(),
-        ..shard.clone()
-    };
-    let head = serde_json::to_string(&head)?;
-    let rows = shard
-        .rfcs
-        .iter()
-        .map(serde_json::to_string)
-        .collect::<serde_json::Result<Vec<_>>>()?;
+/// A document's JSON given its other members serialised around an empty `rfcs` list: the members
+/// in declared order with one RFC per line, so a changed RFC changes one line.
+fn one_per_line(head: &str, rows: &[String]) -> Result<String> {
     let Some((before, after)) = head.split_once("\"rfcs\":[]") else {
-        bail!("a shard without its rfcs member: {head}");
+        bail!("a document without its rfcs member: {head}");
     };
     Ok(format!(
         "{before}\"rfcs\":[\n{}\n]{after}\n",
         rows.join(",\n")
     ))
+}
+
+/// A shard's JSON, one RFC per line.
+fn write(shard: &ExplorerShard) -> Result<String> {
+    let head = ExplorerShard {
+        rfcs: Vec::new(),
+        ..shard.clone()
+    };
+    one_per_line(
+        &serde_json::to_string(&head)?,
+        &shard
+            .rfcs
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<serde_json::Result<Vec<_>>>()?,
+    )
+}
+
+/// The explorer index of a summary: one row per summary row, in its order, each with the name of
+/// every profile whose lock holds it, in the order `profiles` lists them; one RFC per line.
+pub fn index(summary: &Summary, profiles: &[(String, Vec<u32>)]) -> Result<String> {
+    let mut locking: BTreeMap<u32, Vec<String>> = BTreeMap::new();
+    for (name, rfcs) in profiles {
+        for rfc in rfcs {
+            locking.entry(*rfc).or_default().push(name.clone());
+        }
+    }
+    let rfcs = summary
+        .rows
+        .iter()
+        .map(|row| {
+            Ok(ExplorerIndexRow {
+                rfc: RfcNumber(Number::from(row.rfc)),
+                title: row.title.clone(),
+                status: row.status.clone(),
+                stream: row.stream.clone(),
+                area: present(row.area.as_ref()),
+                date: YearMonth(row.date.clone()),
+                format: format(row.format),
+                counts: levels(&row.counts)?,
+                profiles: locking.remove(&row.rfc).unwrap_or_default(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let head = ExplorerIndex {
+        format: INDEX_FORMAT.into(),
+        rfcs: Vec::new(),
+    };
+    one_per_line(
+        &serde_json::to_string(&head)?,
+        &rfcs
+            .iter()
+            .map(serde_json::to_string)
+            .collect::<serde_json::Result<Vec<_>>>()?,
+    )
 }
 
 /// The shards of a summary and its sidecar, by path relative to the repository root. Refused
@@ -240,8 +303,8 @@ pub fn render(summary: &Summary, sidecar: &Sidecar) -> Result<BTreeMap<String, S
     Ok(out)
 }
 
-/// Every shard, by path relative to the repository root; none without a summary. Refused when
-/// the summary has no sidecar.
+/// Every shard and the index, by path relative to the repository root; none without a summary.
+/// Refused when the summary has no sidecar.
 pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
     let summary_path = root.join(SUMMARY);
     if !summary_path.is_file() {
@@ -255,7 +318,9 @@ pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
         &fs::read_to_string(root.join(SECTIONS)).with_context(|| format!("reading {SECTIONS}"))?,
     )
     .with_context(|| format!("reading {SECTIONS}"))?;
-    render(&summary, &sidecar)
+    let mut out = render(&summary, &sidecar)?;
+    out.insert(INDEX.to_owned(), index(&summary, &locked(root)?)?);
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -436,6 +501,96 @@ mod tests {
     }
 
     #[test]
+    fn the_index_holds_one_row_per_summary_row_in_order_one_per_line_with_profiles_and_no_sha256() {
+        let (summary, _) = fixture();
+        let profiles = [
+            ("dns".to_owned(), vec![99, 2500]),
+            ("time".to_owned(), vec![99, 4000]),
+        ];
+        let text = index(&summary, &profiles).unwrap();
+        assert!(
+            text.starts_with(&format!(
+                "{{\"format\":\"{INDEX_FORMAT}\",\"rfcs\":[\n{{\"rfc\":1,"
+            )),
+            "{text}"
+        );
+        assert!(text.ends_with("\n]}\n"), "{text}");
+        assert_eq!(text.lines().count(), 6, "{text}");
+        assert!(!text.contains("sha256"), "{text}");
+        let parsed: ExplorerIndex = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed.format, INDEX_FORMAT);
+        assert_eq!(
+            parsed
+                .rfcs
+                .iter()
+                .map(|r| number(&r.rfc.0))
+                .collect::<Vec<_>>(),
+            [1, 99, 1000, 2500]
+        );
+        assert_eq!(
+            serde_json::to_value(&parsed.rfcs[1]).unwrap(),
+            serde_json::json!({
+                "rfc": 99,
+                "title": "RFC 99 title",
+                "status": "PROPOSED STANDARD",
+                "stream": "IETF",
+                "date": "2020-01",
+                "format": "text",
+                "counts": [{"level": "MUST", "count": 2}, {"level": "MAY", "count": 1}],
+                "profiles": ["dns", "time"]
+            })
+        );
+        assert_eq!(parsed.rfcs[3].profiles, ["dns"]);
+        assert_eq!(serde_json::to_value(&parsed.rfcs[3].format).unwrap(), "xml");
+        assert!(parsed.rfcs[0].profiles.is_empty());
+        assert!(parsed.rfcs[0].counts.is_empty());
+    }
+
+    #[test]
+    fn the_repository_index_holds_every_summary_row_in_order_with_the_profile_marks_under_3_mib() {
+        let root = repository();
+        let (summary, outputs) = committed();
+        let text = fs::read_to_string(root.join(INDEX)).unwrap();
+        assert_eq!(text, outputs[INDEX], "{INDEX} is current");
+        assert!(
+            text.len() < 3 * 1024 * 1024,
+            "{INDEX} is {} bytes",
+            text.len()
+        );
+        assert!(!text.contains("sha256"));
+        let parsed: ExplorerIndex = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed.format, INDEX_FORMAT);
+        let numbers: Vec<u32> = parsed.rfcs.iter().map(|r| number(&r.rfc.0)).collect();
+        let expected: Vec<u32> = summary.rows.iter().map(|r| r.rfc).collect();
+        assert_eq!(numbers, expected, "every summary row once, in number order");
+        let marked: Vec<(u32, Vec<String>)> = parsed
+            .rfcs
+            .iter()
+            .filter(|r| !r.profiles.is_empty())
+            .map(|r| (number(&r.rfc.0), r.profiles.clone()))
+            .collect();
+        assert_eq!(
+            marked,
+            [
+                (868, vec!["time".to_owned()]),
+                (1035, vec!["dns".to_owned()]),
+                (5905, vec!["ntp".to_owned()]),
+                (6455, vec!["websocket".to_owned()]),
+            ]
+        );
+        for (row, entry) in summary.rows.iter().zip(&parsed.rfcs) {
+            assert_eq!(entry.title, row.title);
+            assert_eq!(entry.status, row.status);
+            assert_eq!(
+                serde_json::to_value(&entry.counts).unwrap(),
+                serde_json::to_value(levels(&row.counts).unwrap()).unwrap(),
+                "RFC {}",
+                row.rfc
+            );
+        }
+    }
+
+    #[test]
     fn a_sidecar_of_another_index_or_other_rfcs_is_refused() {
         let (summary, mut sidecar) = fixture();
         sidecar.header.index_sha256 = "2".repeat(64);
@@ -465,7 +620,11 @@ mod tests {
 
     #[test]
     fn the_repository_has_a_shard_per_hundred_with_rows_holding_every_row_once_under_the_caps() {
-        let (summary, shards) = committed();
+        let (summary, mut shards) = committed();
+        assert!(
+            shards.remove(INDEX).is_some(),
+            "the index beside the shards"
+        );
         let hundreds: BTreeSet<u32> = summary.rows.iter().map(|r| range(r.rfc)).collect();
         let expected_paths: Vec<String> = hundreds.iter().map(|start| path(*start)).collect();
         let paths: Vec<&String> = shards.keys().collect();

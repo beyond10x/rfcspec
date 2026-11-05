@@ -1,12 +1,12 @@
 {
   "format": "ess-types-report/3",
-  "source_digest": "6e3653b8f09794e43fa325c40474ef22ffd92694710fbf58ba04d1b7237b88ea",
+  "source_digest": "a316a467b3bf74a2f9d92b7bb8b727d587168559ff3f5424f911a64eb79192b8",
   "input": {
     "kind": "model",
     "system": "rfcspec",
     "specification_version": "v1",
-    "contract_digest": "slice-sha256/2:0eeb2d66c6876c4a55dcd5efe7e924c89600b7bde43d02eb88d5d2eaafb54193",
-    "projection_digest": "f8d54c6926ef9c0f21907b66c3d66d659e91ce95144c33ae724bb14775e60815"
+    "contract_digest": "slice-sha256/2:65ee1a2d0cbb0755d952afc64764f59dd75647d43fff6a5f20062e29c0c6a028",
+    "projection_digest": "ad7a1858b7f05baa4b7a4f358a22bd72c57cd83064487d87f3107530bd3651d8"
   },
   "generator_version": "0.86.0",
   "target": "typescript",
@@ -15,11 +15,14 @@
     "declared_field_order": true
   },
   "roots": [
+    "rfcspec.catalogue.ExplorerIndex",
     "rfcspec.catalogue.ExplorerShard"
   ],
   "declarations": {
     "rfcspec.catalogue.Bcp14Level": "Bcp14Level",
     "rfcspec.catalogue.Digest": "Digest",
+    "rfcspec.catalogue.ExplorerIndex": "ExplorerIndex",
+    "rfcspec.catalogue.ExplorerIndexRow": "ExplorerIndexRow",
     "rfcspec.catalogue.ExplorerReference": "ExplorerReference",
     "rfcspec.catalogue.ExplorerRfc": "ExplorerRfc",
     "rfcspec.catalogue.ExplorerSection": "ExplorerSection",
@@ -73,6 +76,61 @@
     },
     {
       "pointer": "/$defs/rfcspec.catalogue.Digest/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/properties/format/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/properties/rfcs/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow/properties/profiles/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow/x-ess-name",
       "rule": "x-ess-name",
       "detail": "model identity and wire mapping retained in source.schema.json"
     },
@@ -332,6 +390,16 @@
       "pointer": "/$defs/rfcspec.catalogue.Digest/x-ess-alphabet",
       "rule": "model_alphabet",
       "detail": "enforce the retained model alphabet: every character of the text is one of it; structural codecs do not check characters"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndex",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerIndexRow",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
     },
     {
       "pointer": "/$defs/rfcspec.catalogue.ExplorerReference",

@@ -11,7 +11,8 @@
 //! - the RFC index (`website/docs/catalog/rfcs/`), an overview and one page per thousand RFC
 //!   numbers, from the bulk summary `bulk/rfc-summary.jsonl` and the profiles' locks ([`bulk`]);
 //! - the RFC explorer's data (`website/static/data/rfcs/`), one JSON shard per hundred RFC
-//!   numbers that hold a row, from the summary and its section sidecar `bulk/rfc-sections.jsonl`
+//!   numbers that hold a row, from the summary and its section sidecar `bulk/rfc-sections.jsonl`,
+//!   and its index `website/static/data/rfc-index.json` from the summary and the profiles' locks
 //!   ([`explorer`]).
 //!
 //! The catalogue directories hold nothing else: a file there that `generate` would not write is
@@ -482,7 +483,12 @@ mod tests {
         write(&root, &outputs).unwrap();
         assert_eq!(check(&root), Vec::<String>::new());
 
-        for path in [bulk::OVERVIEW, "website/docs/catalog/rfcs/06000.md"] {
+        assert!(outputs.contains_key(explorer::INDEX));
+        for path in [
+            bulk::OVERVIEW,
+            "website/docs/catalog/rfcs/06000.md",
+            explorer::INDEX,
+        ] {
             let mut bytes = fs::read(root.join(path)).unwrap();
             bytes.extend_from_slice(b"edited\n");
             fs::write(root.join(path), &bytes).unwrap();
@@ -509,9 +515,10 @@ mod tests {
             check(&root),
             [
                 "stale or edited website/docs/catalog/rfcs/06000.md",
+                "stale or edited website/static/data/rfc-index.json",
                 "stale or edited website/static/data/rfcs/06400.json"
             ],
-            "a changed row makes its range page and its shard stale"
+            "a changed row makes its range page, the explorer index and its shard stale"
         );
 
         write_summary(&root, &[868, 6455], |_| {});
@@ -519,6 +526,7 @@ mod tests {
             check(&root),
             [
                 format!("stale or edited {}", bulk::OVERVIEW),
+                format!("stale or edited {}", explorer::INDEX),
                 "unexpected website/docs/catalog/rfcs/01000.md".to_owned(),
                 "unexpected website/static/data/rfcs/01000.json".to_owned(),
             ],
