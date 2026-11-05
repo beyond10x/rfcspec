@@ -256,7 +256,7 @@ pub fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
 }
 
 /// The rank of a BCP 14 level, so counts read MUST before SHOULD before MAY.
-fn rank(level: &str) -> usize {
+pub(crate) fn rank(level: &str) -> usize {
     [
         "MUST",
         "MUST NOT",

@@ -187,7 +187,9 @@ enum BulkCommand {
     /// counted by BCP 14 level. Reads `<cache>/rfc-index.xml`, `<cache>/txt/` and `<cache>/xml/`
     /// (the cache `bulk fetch` writes, by default its default) unless `--index`, `--texts` and
     /// `--xml` are given. Exits 1, writing nothing, naming each RFC whose source is missing or
-    /// whose XML does not read. Reads no network.
+    /// whose XML does not read. Reads no network. With `--sections`, also writes the section
+    /// sidecar (`rfcspec-sections/1`): per summary row, the requirements counted by numbered
+    /// section and level, and, for a row read from RFCXML, its References.
     Summarise {
         #[arg(long, value_name = "DIR", conflicts_with_all = ["index", "texts", "xml"])]
         cache: Option<PathBuf>,
@@ -199,15 +201,22 @@ enum BulkCommand {
         xml: Option<PathBuf>,
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
+        #[arg(long, value_name = "FILE")]
+        sections: Option<PathBuf>,
     },
     /// Check a summary offline: its header, row order, row formats, digests and counts, and every
     /// RFC locked in `<profiles>/*/rfcspec.lock` against its locked source, read in the locked
-    /// format, which must be the row's. Exits 1 naming each line that fails.
+    /// format, which must be the row's. With `--sections`, also the section sidecar against
+    /// the summary: its header, its RFC numbers, section counts adding up to the row counts,
+    /// References only on rows read from RFCXML, and every locked RFC's row against its locked
+    /// source. Exits 1 naming each line that fails.
     Check {
         #[arg(long, value_name = "FILE")]
         summary: PathBuf,
         #[arg(long, value_name = "DIR")]
         profiles: PathBuf,
+        #[arg(long, value_name = "FILE")]
+        sections: Option<PathBuf>,
     },
 }
 
@@ -448,6 +457,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
                     texts,
                     xml,
                     out,
+                    sections,
                 },
         } => {
             use rfcspec_source::corpus::{INDEX_FILE, TEXT_DIR, XML_DIR, default_cache};
@@ -462,24 +472,45 @@ fn run(cli: Cli) -> Result<ExitCode> {
                     )
                 }
             };
-            let summary = bulk::summarise(&index, &texts, &xml)?;
-            if let Some(parent) = out.parent().filter(|parent| !parent.as_os_str().is_empty()) {
-                std::fs::create_dir_all(parent)
-                    .with_context(|| format!("creating {}", parent.display()))?;
+            let (summary, sidecar) = bulk::summarise(&index, &texts, &xml)?;
+            let mut written = vec![(out, summary)];
+            written.extend(sections.map(|sections| (sections, sidecar)));
+            for (out, text) in &written {
+                if let Some(parent) = out.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+                    std::fs::create_dir_all(parent)
+                        .with_context(|| format!("creating {}", parent.display()))?;
+                }
+                std::fs::write(out, text).with_context(|| format!("writing {}", out.display()))?;
             }
-            std::fs::write(&out, &summary).with_context(|| format!("writing {}", out.display()))?;
-            println!(
-                "rfcspec bulk: wrote {} ({} rows)",
-                out.display(),
-                summary.lines().count() - 1
-            );
+            for (out, text) in &written {
+                println!(
+                    "rfcspec bulk: wrote {} ({} rows)",
+                    out.display(),
+                    text.lines().count() - 1
+                );
+            }
         }
         Command::Bulk {
-            command: BulkCommand::Check { summary, profiles },
+            command:
+                BulkCommand::Check {
+                    summary,
+                    profiles,
+                    sections,
+                },
         } => {
-            let problems = bulk::check(&summary, &profiles)?;
+            let mut problems: Vec<String> = bulk::check(&summary, &profiles)?
+                .into_iter()
+                .map(|problem| format!("{}: {problem}", summary.display()))
+                .collect();
+            if let Some(sections) = &sections {
+                problems.extend(
+                    bulk::check_sections(sections, &summary, &profiles)?
+                        .into_iter()
+                        .map(|problem| format!("{}: {problem}", sections.display())),
+                );
+            }
             for problem in &problems {
-                eprintln!("rfcspec bulk: {}: {problem}", summary.display());
+                eprintln!("rfcspec bulk: {problem}");
             }
             if !problems.is_empty() {
                 return Ok(ExitCode::FAILURE);

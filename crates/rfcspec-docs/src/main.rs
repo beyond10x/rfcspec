@@ -9,7 +9,10 @@
 //! - the protocol catalogue (`website/docs/catalog/`) and its downloads
 //!   (`website/static/downloads/`) from `profiles/` ([`catalog`]);
 //! - the RFC index (`website/docs/catalog/rfcs/`), an overview and one page per thousand RFC
-//!   numbers, from the bulk summary `bulk/rfc-summary.jsonl` and the profiles' locks ([`bulk`]).
+//!   numbers, from the bulk summary `bulk/rfc-summary.jsonl` and the profiles' locks ([`bulk`]);
+//! - the RFC explorer's data (`website/static/data/rfcs/`), one JSON shard per hundred RFC
+//!   numbers that hold a row, from the summary and its section sidecar `bulk/rfc-sections.jsonl`
+//!   ([`explorer`]).
 //!
 //! The catalogue directories hold nothing else: a file there that `generate` would not write is
 //! reported `unexpected` by `generate --check` and deleted by `generate`.
@@ -28,7 +31,7 @@ use std::{
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
-use rfcspec_docs::{bulk, catalog, page};
+use rfcspec_docs::{bulk, catalog, explorer, page};
 
 #[derive(Parser)]
 #[command(about = "Generate and check the derived pages of the RFCspec documentation site")]
@@ -69,6 +72,7 @@ type Owned = fn(&str) -> bool;
 const OWNED: &[(&str, Owned)] = &[
     (catalog::PAGES, |path| path.ends_with(".md")),
     (catalog::DOWNLOADS, |_| true),
+    (explorer::DIR, |_| true),
 ];
 
 /// Every generated file, by path relative to the repository root.
@@ -82,6 +86,7 @@ fn outputs(root: &Path) -> Result<BTreeMap<String, String>> {
     ]);
     out.extend(catalog::outputs(root)?);
     out.extend(bulk::outputs(root)?);
+    out.extend(explorer::outputs(root)?);
     Ok(out)
 }
 
@@ -253,7 +258,7 @@ fn scratch(name: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rfcspec_model::{BulkRow, bulk_summary};
+    use rfcspec_model::{BulkRow, SectionsRow, bulk_summary, sections_sidecar};
 
     #[test]
     fn provenance_names_the_commit_writes_routes_and_refuses_a_bad_commit() {
@@ -437,6 +442,21 @@ mod tests {
         .unwrap();
         fs::create_dir_all(root.join("bulk")).unwrap();
         fs::write(root.join(bulk::SUMMARY), text).unwrap();
+        let sidecar =
+            explorer::parse(&fs::read_to_string(repository.join(explorer::SECTIONS)).unwrap())
+                .unwrap();
+        let sections: Vec<SectionsRow> = sidecar
+            .rows
+            .into_iter()
+            .filter(|row| rfcs.contains(&row.rfc))
+            .collect();
+        let text = sections_sidecar(
+            &summary.header.index_sha256,
+            summary.header.extractor,
+            &sections,
+        )
+        .unwrap();
+        fs::write(root.join(explorer::SECTIONS), text).unwrap();
     }
 
     #[test]
@@ -487,8 +507,11 @@ mod tests {
         });
         assert_eq!(
             check(&root),
-            ["stale or edited website/docs/catalog/rfcs/06000.md"],
-            "a changed row makes its range page stale"
+            [
+                "stale or edited website/docs/catalog/rfcs/06000.md",
+                "stale or edited website/static/data/rfcs/06400.json"
+            ],
+            "a changed row makes its range page and its shard stale"
         );
 
         write_summary(&root, &[868, 6455], |_| {});
@@ -497,11 +520,32 @@ mod tests {
             [
                 format!("stale or edited {}", bulk::OVERVIEW),
                 "unexpected website/docs/catalog/rfcs/01000.md".to_owned(),
+                "unexpected website/static/data/rfcs/01000.json".to_owned(),
             ],
-            "a range that lost its last row is unexpected"
+            "a range that lost its last row is unexpected, page and shard"
         );
         write(&root, &super::outputs(&root).unwrap()).unwrap();
         assert!(!root.join("website/docs/catalog/rfcs/01000.md").exists());
+        assert!(!root.join("website/static/data/rfcs/01000.json").exists());
+
+        let shard = "website/static/data/rfcs/06400.json";
+        let mut bytes = fs::read(root.join(shard)).unwrap();
+        bytes.extend_from_slice(b" ");
+        fs::write(root.join(shard), &bytes).unwrap();
+        assert_eq!(check(&root), [format!("stale or edited {shard}")]);
+        let extra = "website/static/data/rfcs/05000.json";
+        fs::write(root.join(extra), "{}\n").unwrap();
+        assert_eq!(
+            check(&root),
+            [
+                format!("stale or edited {shard}"),
+                format!("unexpected {extra}")
+            ]
+        );
+        assert_eq!(
+            write(&root, &super::outputs(&root).unwrap()).unwrap(),
+            [extra]
+        );
         assert_eq!(check(&root), Vec::<String>::new());
         fs::remove_dir_all(root).unwrap();
     }
@@ -511,6 +555,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let mut outputs = catalog::outputs(&root).unwrap();
         outputs.extend(bulk::outputs(&root).unwrap());
+        outputs.extend(explorer::outputs(&root).unwrap());
         assert!(drift(&root, &outputs).is_empty());
         assert!(unexpected(&root, &outputs).unwrap().is_empty());
     }

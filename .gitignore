@@ -3,3 +3,6 @@
 /website/node_modules/
 /website/build/
 /website/.docusaurus/
+.ess-output/
+/explorer/node_modules/
+/website/static/explorer/

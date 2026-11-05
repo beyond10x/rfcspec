@@ -1,0 +1,472 @@
+{
+  "format": "ess-types-report/3",
+  "source_digest": "6e3653b8f09794e43fa325c40474ef22ffd92694710fbf58ba04d1b7237b88ea",
+  "input": {
+    "kind": "model",
+    "system": "rfcspec",
+    "specification_version": "v1",
+    "contract_digest": "slice-sha256/2:0eeb2d66c6876c4a55dcd5efe7e924c89600b7bde43d02eb88d5d2eaafb54193",
+    "projection_digest": "f8d54c6926ef9c0f21907b66c3d66d659e91ce95144c33ae724bb14775e60815"
+  },
+  "generator_version": "0.86.0",
+  "target": "typescript",
+  "configuration": {
+    "language": "typescript",
+    "declared_field_order": true
+  },
+  "roots": [
+    "rfcspec.catalogue.ExplorerShard"
+  ],
+  "declarations": {
+    "rfcspec.catalogue.Bcp14Level": "Bcp14Level",
+    "rfcspec.catalogue.Digest": "Digest",
+    "rfcspec.catalogue.ExplorerReference": "ExplorerReference",
+    "rfcspec.catalogue.ExplorerRfc": "ExplorerRfc",
+    "rfcspec.catalogue.ExplorerSection": "ExplorerSection",
+    "rfcspec.catalogue.ExplorerShard": "ExplorerShard",
+    "rfcspec.catalogue.LevelCount": "LevelCount",
+    "rfcspec.catalogue.ReferenceKind": "ReferenceKind",
+    "rfcspec.catalogue.RfcNumber": "RfcNumber",
+    "rfcspec.catalogue.SourceFormat": "SourceFormat",
+    "rfcspec.catalogue.YearMonth": "YearMonth"
+  },
+  "annotations": [
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Bcp14Level/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Bcp14Level/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Bcp14Level/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Bcp14Level/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Bcp14Level/x-ess-variants",
+      "rule": "x-ess-variants",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/properties/section/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/properties/target_rfc/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/properties/anchor/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/properties/number/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/properties/title/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/format/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/index_sha256/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/not_in_index/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/rfcs/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/start/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ReferenceKind/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ReferenceKind/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ReferenceKind/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ReferenceKind/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ReferenceKind/x-ess-variants",
+      "rule": "x-ess-variants",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.SourceFormat/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.SourceFormat/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.SourceFormat/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.SourceFormat/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.SourceFormat/x-ess-variants",
+      "rule": "x-ess-variants",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/description",
+      "rule": "description",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/title",
+      "rule": "title",
+      "detail": "retained in source.schema.json; no decoder behavior inferred"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/x-ess-kind",
+      "rule": "x-ess-kind",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/x-ess-name",
+      "rule": "x-ess-name",
+      "detail": "model identity and wire mapping retained in source.schema.json"
+    }
+  ],
+  "obligations": [
+    {
+      "pointer": "/",
+      "rule": "typescript_compiler_options",
+      "detail": "use strict and exactOptionalPropertyTypes; these declarations do not validate runtime JSON"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest",
+      "rule": "typescript_nominal_identity",
+      "detail": "structural TypeScript aliases do not enforce distinct model newtype identities"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.Digest/x-ess-alphabet",
+      "rule": "model_alphabet",
+      "detail": "enforce the retained model alphabet: every character of the text is one of it; structural codecs do not check characters"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/properties/target_rfc",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerReference/properties/target_rfc",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/obsoleted_by/items",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/obsoleted_by/items",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/obsoletes/items",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/obsoletes/items",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/updated_by/items",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/updated_by/items",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/updates/items",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerRfc/properties/updates/items",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerSection",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/not_in_index/items",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/not_in_index/items",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/start",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.ExplorerShard/properties/start",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount",
+      "rule": "closed_object",
+      "detail": "TypeScript structural assignability does not enforce exact object keys; validate additionalProperties at runtime"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/properties/count",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.LevelCount/properties/count",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber",
+      "rule": "integer",
+      "detail": "TypeScript number does not enforce integrality"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber",
+      "rule": "json_number_precision",
+      "detail": "TypeScript number cannot retain arbitrary JSON numeric precision; validate representability before decoding"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.RfcNumber",
+      "rule": "typescript_nominal_identity",
+      "detail": "structural TypeScript aliases do not enforce distinct model newtype identities"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth",
+      "rule": "typescript_nominal_identity",
+      "detail": "structural TypeScript aliases do not enforce distinct model newtype identities"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/x-ess-alphabet",
+      "rule": "model_alphabet",
+      "detail": "enforce the retained model alphabet: every character of the text is one of it; structural codecs do not check characters"
+    },
+    {
+      "pointer": "/$defs/rfcspec.catalogue.YearMonth/x-ess-invariants",
+      "rule": "model_invariants",
+      "detail": "enforce the retained model invariant statements; structural codecs do not evaluate predicates"
+    }
+  ]
+}

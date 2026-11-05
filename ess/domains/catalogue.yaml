@@ -316,6 +316,110 @@ types:
       - name: NotASpecification
         wire: K8
 
+  - name: rfcspec.catalogue.ExplorerSection
+    kind: struct
+    naming:
+      summary: >-
+        One section of an RFC as the RFC explorer shows it (a projection of Section and the
+        requirements it owns): its number and, read from RFCXML, its anchor, its title and its
+        mechanically extracted requirements counted by BCP 14 level. The one entry without a
+        number counts the requirements outside every numbered section; a level with none is not
+        listed.
+    fields:
+      - name: number
+        type: Optional<String>
+        summary: The section number (5.2, A.1), absent for the entry counting requirements outside every numbered section.
+      - name: anchor
+        type: Optional<String>
+        summary: The section anchor read from RFCXML; the text reader records none.
+      - name: title
+        type: Optional<String>
+        summary: The section heading without its number, absent where no heading was read.
+      - name: counts
+        type: List<rfcspec.catalogue.LevelCount>
+
+  - name: rfcspec.catalogue.ExplorerReference
+    kind: struct
+    naming:
+      summary: >-
+        One Reference of an RFC read from RFCXML as the RFC explorer shows it; the citing RFC is
+        the one that lists it.
+    fields:
+      - name: section
+        type: Optional<String>
+        summary: The anchor of the citing section, absent where the xref lies outside every section.
+      - name: target_rfc
+        type: Integer
+        summary: The cited RFC's number; it may name an RFC without a row in the bulk summary.
+      - name: target_section
+        type: Optional<String>
+      - name: kind
+        type: rfcspec.catalogue.ReferenceKind
+
+  - name: rfcspec.catalogue.ExplorerRfc
+    kind: struct
+    naming:
+      summary: >-
+        One Rfc of the bulk summary as the RFC explorer shows it: its index metadata, the source
+        read, its requirement counts by level, in total and by section, its update graph and its
+        References. No requirement text.
+    fields:
+      - name: rfc
+        type: rfcspec.catalogue.RfcNumber
+      - name: title
+        type: String
+      - name: status
+        type: String
+      - name: stream
+        type: String
+      - name: area
+        type: Optional<String>
+      - name: date
+        type: rfcspec.catalogue.YearMonth
+      - name: format
+        type: rfcspec.catalogue.SourceFormat
+      - name: sha256
+        type: rfcspec.catalogue.Digest
+      - name: counts
+        type: List<rfcspec.catalogue.LevelCount>
+      - name: obsoletes
+        type: List<Integer>
+      - name: obsoleted_by
+        type: List<Integer>
+      - name: updates
+        type: List<Integer>
+      - name: updated_by
+        type: List<Integer>
+      - name: sections
+        type: List<rfcspec.catalogue.ExplorerSection>
+      - name: references
+        type: List<rfcspec.catalogue.ExplorerReference>
+
+  - name: rfcspec.catalogue.ExplorerShard
+    kind: struct
+    naming:
+      summary: >-
+        The RFCs of one hundred RFC numbers as the RFC explorer reads them, one file per hundred
+        that holds a summary row, generated from the bulk summary and its section sidecar.
+    fields:
+      - name: format
+        type: String
+        summary: rfcspec-explorer/1.
+      - name: index_sha256
+        type: rfcspec.catalogue.Digest
+        summary: SHA-256 of the rfc-index.xml the bulk summary was read from.
+      - name: start
+        type: Integer
+        summary: The first number of the hundred, a multiple of 100.
+      - name: rfcs
+        type: List<rfcspec.catalogue.ExplorerRfc>
+        summary: Every summary row of the range, in number order.
+      - name: not_in_index
+        type: List<Integer>
+        summary: >-
+          The RFC numbers the shard's update graphs and References name that have no row in the
+          bulk summary, so the explorer shows them without a link.
+
 entities:
   - name: rfcspec.catalogue.Rfc
     naming:
