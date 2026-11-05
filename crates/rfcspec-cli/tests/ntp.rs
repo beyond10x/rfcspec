@@ -1,5 +1,6 @@
 //! The `ntp` profile (RFC 5905) as a user runs `rfcspec` on it: fetch, read, extract and check,
-//! and its entry in the protocol catalogue.
+//! generate, its entry in the protocol catalogue, and the generated `rfc5905-ntp` codec itself,
+//! compiled here from its committed source.
 
 use std::{
     fs,
@@ -12,6 +13,9 @@ use std::{
 
 use rfcspec_docs::catalog;
 use tempfile::TempDir;
+
+#[path = "../../../profiles/ntp/generated/rust/src/lib.rs"]
+mod rfc5905_ntp;
 
 const PROFILE: &str = "profiles/ntp";
 
@@ -202,9 +206,10 @@ fn the_profile_names_rfc_5905_with_five_sections_and_no_semantics() {
 }
 
 /// `rfcspec check` requires a status for every catalogue requirement in a scoped section, so
-/// the three BCP 14 requirements of section 9.2 are the overlay's only entries.
+/// the three BCP 14 requirements of section 9.2 are settled; the prose requirement `R-VN-1`
+/// (the version range of section 9.2) is satisfied by the `header` layout.
 #[test]
-fn the_overlay_is_k1_for_rfc_5905_and_settles_only_the_three_in_scope_requirements() {
+fn the_overlay_is_k1_for_rfc_5905_with_the_header_layout_and_four_reviewed_requirements() {
     let overlay: serde_json::Value = rfcspec_model::from_yaml(
         &fs::read_to_string(repository().join(PROFILE).join("overlay.yaml")).unwrap(),
     )
@@ -212,7 +217,8 @@ fn the_overlay_is_k1_for_rfc_5905_and_settles_only_the_three_in_scope_requiremen
     assert_eq!(overlay["format"], "rfcspec-overlay/1");
     assert_eq!(overlay["rfc"], 5905);
     assert_eq!(overlay["kind"], "K1");
-    for absent in ["layouts", "machines", "findings"] {
+    assert_eq!(overlay["layouts"][0]["name"], "header");
+    for absent in ["machines", "findings"] {
         assert!(
             overlay
                 .get(absent)
@@ -239,15 +245,17 @@ fn the_overlay_is_k1_for_rfc_5905_and_settles_only_the_three_in_scope_requiremen
         [
             ("R9.2-1", "capitals-text", "MAY", 1889, 1890),
             ("R9.2-2", "capitals-text", "MAY", 1924, 1925),
-            ("R9.2-3", "capitals-text", "SHOULD", 1926, 1927)
+            ("R9.2-3", "capitals-text", "SHOULD", 1926, 1927),
+            ("R-VN-1", "prose", "MUST", 1812, 1814)
         ]
     );
-    for requirement in overlay["requirements"].as_array().unwrap() {
-        assert!(
-            requirement["status"].get("satisfied").is_none(),
-            "{requirement}"
-        );
-    }
+    let satisfied: Vec<(&str, &str)> = overlay["requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|r| Some((r["id"].as_str()?, r["status"]["satisfied"].as_str()?)))
+        .collect();
+    assert_eq!(satisfied, [("R-VN-1", "layout.header")]);
 }
 
 #[test]
@@ -306,7 +314,7 @@ fn fetch_of_rfc_5905_twice_from_a_local_server_writes_the_committed_lock_and_cha
 }
 
 #[test]
-fn the_catalogue_lists_ntp_at_stage_s4_with_its_three_reviewed_requirements_and_writes_its_page() {
+fn the_catalogue_lists_ntp_at_stage_s6_with_its_four_reviewed_requirements_and_writes_its_page() {
     let outputs = catalog::outputs(&repository()).unwrap();
     let index = &outputs["website/docs/catalog/index.md"];
     let row = index
@@ -315,7 +323,7 @@ fn the_catalogue_lists_ntp_at_stage_s4_with_its_three_reviewed_requirements_and_
         .unwrap_or_else(|| panic!("{index}"));
     assert_eq!(
         row,
-        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S4 | 1 SHOULD, 2 MAY | 0 | 3 | 0 | 10 | no recorded run |"
+        "| [ntp](/docs/catalog/ntp) | RFC 5905 Network Time Protocol Version 4: Protocol and Algorithms Specification | K1 | S6 | 1 MUST, 1 SHOULD, 2 MAY | 1 | 3 | 0 | 10 | no recorded run |"
     );
     assert!(outputs.contains_key("website/docs/catalog/ntp.md"));
     for (path, text) in [
@@ -330,5 +338,170 @@ fn the_catalogue_lists_ntp_at_stage_s4_with_its_three_reviewed_requirements_and_
             text,
             "{path} is stale: run task docs-generate"
         );
+    }
+}
+
+#[test]
+fn check_reports_the_ntp_overlay_with_four_requirements_and_the_header_layout() {
+    let stdout = succeeded(&rfcspec(&["check", "--profile", PROFILE]));
+    assert!(
+        stdout.contains(
+            "profiles/ntp: overlay holds (4 requirements, 1 layouts, 0 machines, 0 findings, 0 layers, 0 recorded runs)"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn generate_check_passes_for_ntp_and_fails_on_drift() {
+    succeeded(&rfcspec(&["generate", "--profile", PROFILE, "--check"]));
+    let (_temp, profile) = scratch("generate");
+    let from = repository().join(PROFILE);
+    for file in catalog::files(&from).unwrap() {
+        fs::create_dir_all(profile.join(&file).parent().unwrap()).unwrap();
+        fs::copy(from.join(&file), profile.join(&file)).unwrap();
+    }
+    let lib = profile.join("generated/rust/src/lib.rs");
+    assert!(lib.is_file());
+    fs::write(&lib, "// edited\n").unwrap();
+    let output = rfcspec(&[
+        "generate",
+        "--profile",
+        profile.to_str().unwrap(),
+        "--check",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("src/lib.rs is missing or differs"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    fs::remove_dir_all(profile).unwrap();
+}
+
+#[test]
+fn the_ntp_codec_is_a_workspace_member_and_task_check_runs_the_ntp_task() {
+    let manifest = fs::read_to_string(repository().join("Cargo.toml")).unwrap();
+    assert!(
+        manifest.contains("\"profiles/ntp/generated/rust\""),
+        "{manifest}"
+    );
+    let generated =
+        fs::read_to_string(repository().join(PROFILE).join("generated/rust/Cargo.toml")).unwrap();
+    assert!(generated.contains("name = \"rfc5905-ntp\""), "{generated}");
+    let text = fs::read_to_string(repository().join("Taskfile.yml")).unwrap();
+    let taskfile: serde_json::Value = rfcspec_model::from_yaml(&text).unwrap();
+    assert!(
+        taskfile["tasks"]["check"]["cmds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|cmd| cmd["task"] == "ntp"),
+        "{text}"
+    );
+    let ntp: Vec<&str> = taskfile["tasks"]["ntp"]["cmds"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|cmd| cmd.as_str().or_else(|| cmd["cmd"].as_str()))
+        .collect();
+    assert_eq!(
+        ntp,
+        [
+            "cargo run -q --locked -p rfcspec-cli -- generate --profile profiles/ntp --check",
+            "cargo test -q --locked -p rfc5905-ntp",
+        ]
+    );
+}
+
+#[test]
+fn the_ntp_page_lists_the_crate_downloads_and_the_reviewed_requirement() {
+    let outputs = catalog::outputs(&repository()).unwrap();
+    let page = &outputs["website/docs/catalog/ntp.md"];
+    assert!(
+        page.contains(
+            "| R-VN-1 | MUST | all | Format checks require correct field length and alignment, acceptable version number (1-4) | lines 1812-1814 | satisfied | layout.header |"
+        ),
+        "{page}"
+    );
+    for file in ["rust/Cargo.toml", "rust/src/lib.rs"] {
+        assert!(
+            page.contains(&format!(
+                "| [`{file}`](pathname:///rfcspec/downloads/ntp/{file}) | generated Rust crate |"
+            )),
+            "{page}"
+        );
+        assert!(outputs.contains_key(&format!("website/static/downloads/ntp/{file}")));
+    }
+}
+
+/// A header of version 4, client mode, with every other field set, as octets.
+fn client_header() -> Vec<u8> {
+    let mut bytes = vec![0x23, 0x02, 0xfa, 0xec];
+    bytes.extend(4u8..48);
+    bytes
+}
+
+#[test]
+fn the_codec_parses_48_octets_prints_them_back_and_47_are_incomplete() {
+    let bytes = client_header();
+    let (header, used) = rfc5905_ntp::parse(&bytes).unwrap();
+    assert_eq!(used, 48);
+    assert_eq!(
+        (
+            header.leap,
+            header.version,
+            header.mode,
+            header.stratum,
+            header.poll,
+            header.precision
+        ),
+        (0, 4, 3, 2, -6, -20)
+    );
+    assert_eq!(header.rootdelay, 0x0405_0607);
+    assert_eq!(header.xmt, 0x2829_2a2b_2c2d_2e2f);
+    assert_eq!(rfc5905_ntp::print(&header), bytes);
+    assert_eq!(
+        rfc5905_ntp::parse(&bytes[..47]),
+        Err(rfc5905_ntp::Error::Incomplete)
+    );
+    let mut longer = bytes.clone();
+    longer.push(0);
+    assert_eq!(rfc5905_ntp::parse(&longer), Ok((header, 48)));
+}
+
+#[test]
+fn the_codec_round_trips_poll_and_precision_at_minus_128_minus_1_and_127() {
+    for (value, octet) in [(-128i8, 0x80u8), (-1, 0xff), (127, 0x7f)] {
+        let header = rfc5905_ntp::Header {
+            version: 4,
+            poll: value,
+            precision: value,
+            ..rfc5905_ntp::Header::default()
+        };
+        let bytes = rfc5905_ntp::print(&header);
+        assert_eq!(bytes.len(), 48);
+        assert_eq!((bytes[2], bytes[3]), (octet, octet));
+        assert_eq!(rfc5905_ntp::parse(&bytes), Ok((header, 48)));
+    }
+}
+
+#[test]
+fn the_codec_accepts_versions_1_to_4_and_refuses_0_and_5_to_7() {
+    for version in 0u8..8 {
+        let mut bytes = client_header();
+        bytes[0] = (bytes[0] & 0b1100_0111) | (version << 3);
+        let parsed = rfc5905_ntp::parse(&bytes);
+        if (1..=4).contains(&version) {
+            assert_eq!(parsed.map(|(h, _)| h.version), Ok(version));
+        } else {
+            assert_eq!(
+                parsed,
+                Err(rfc5905_ntp::Error::Constraint {
+                    field: "version",
+                    value: u64::from(version)
+                })
+            );
+        }
     }
 }

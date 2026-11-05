@@ -5,10 +5,11 @@
 //!   epoch; the crate gets a newtype, `parse` (exactly the field's octets, else an error) and
 //!   `print`, and one test per numeric example of the RFC. An example that does not fit the field
 //!   and has no finding is refused.
-//! - A layout without an epoch is a header of unsigned big-endian fields of 1 to 64 bits packed
-//!   most significant bit first, a field present only when an earlier one has a value, with value
-//!   constraints ([`fields`]); the crate gets a struct, `parse`, `print` and the length the layout
-//!   names, one test per octet example of the RFC, and the layout vectors of design section 11.
+//! - A layout without an epoch is a header of big-endian fields of 1 to 64 bits, unsigned or
+//!   two's-complement signed, packed most significant bit first, a field present only when an
+//!   earlier one has a value, with value constraints ([`fields`]); the crate gets a struct,
+//!   `parse`, `print` and the length the layout names, one test per octet example of the RFC, and
+//!   the layout vectors of design section 11.
 //!
 //! An example a review finding names is skipped by that finding.
 
@@ -692,6 +693,82 @@ mod tests {
     #[test]
     fn the_committed_dns_codec_equals_a_fresh_generation() {
         assert!(drift(&dns().join("generated/rust"), &dns_files()).is_empty());
+    }
+
+    fn ntp() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../profiles/ntp")
+    }
+
+    fn ntp_files() -> Vec<Generated> {
+        let source = fs::read_to_string(ntp().join("sources/rfc5905.txt")).unwrap();
+        let catalogue = rfcspec_extract::extract(&rfcspec_doc::read(5905, "digest", &source));
+        assert!(catalogue.octet_examples.is_empty());
+        let overlay: Overlay = read_yaml(&ntp().join("overlay.yaml")).unwrap();
+        rust(&overlay, &catalogue, "ntp").unwrap()
+    }
+
+    #[test]
+    fn the_ntp_header_crate_has_signed_poll_and_precision_and_the_version_range_vectors() {
+        let files = ntp_files();
+        assert!(files[0].text.contains("name = \"rfc5905-ntp\""));
+        let lib = library(&files);
+        assert!(lib.contains("pub struct Header {"));
+        assert!(lib.contains("pub fn parse(bytes: &[u8]) -> Result<(Header, usize), Error>"));
+        assert!(lib.contains("pub fn print(header: &Header) -> Vec<u8>"));
+        assert!(lib.contains("    pub poll: i8,\n"), "{lib}");
+        assert!(lib.contains("    pub precision: i8,\n"), "{lib}");
+        assert!(lib.contains("    pub version: u8,\n"), "{lib}");
+        assert!(lib.contains("    pub xmt: u64,\n"), "{lib}");
+        let tests: Vec<&str> = lib
+            .match_indices("#[test]\n    fn ")
+            .map(|(at, _)| {
+                let rest = &lib[at + "#[test]\n    fn ".len()..];
+                &rest[..rest.find('(').unwrap()]
+            })
+            .collect();
+        assert_eq!(
+            tests,
+            [
+                "no_octets_are_incomplete",
+                "vector_version_1_accepted",
+                "vector_version_4_accepted",
+                "vector_version_0_refused",
+                "vector_version_5_refused",
+                "vector_poll_minus_128_accepted",
+                "vector_poll_minus_1_accepted",
+                "vector_poll_127_accepted",
+                "vector_precision_minus_128_accepted",
+                "vector_precision_minus_1_accepted",
+                "vector_precision_127_accepted",
+            ]
+        );
+        let zeros = " 00".repeat(44);
+        assert_eq!(
+            test_body(lib, "vector_poll_minus_128_accepted"),
+            format!(
+                "fn vector_poll_minus_128_accepted() {{\n        let bytes = octets(\n            \"08 00 80 00{zeros}\",\n        );\n        let (header, used) = parse(&bytes).unwrap();\n        assert_eq!(header.poll, -128);\n        assert_eq!(used, bytes.len());\n        assert_eq!(print(&header), bytes);"
+            )
+        );
+        assert!(
+            test_body(lib, "vector_poll_minus_1_accepted")
+                .contains("let bytes = octets(\n            \"08 00 ff 00")
+        );
+        assert!(
+            test_body(lib, "vector_poll_127_accepted")
+                .contains("let bytes = octets(\n            \"08 00 7f 00")
+        );
+        assert_eq!(
+            test_body(lib, "vector_version_0_refused"),
+            format!(
+                "fn vector_version_0_refused() {{\n        let bytes = octets(\n            \"00 00 00 00{zeros}\",\n        );\n        assert_eq!(\n            parse(&bytes),\n            Err(Error::Constraint {{\n                field: \"version\",\n                value: 0\n            }})\n        );"
+            )
+        );
+        assert!(test_body(lib, "vector_version_5_refused").contains("value: 5\n"));
+    }
+
+    #[test]
+    fn the_committed_ntp_codec_equals_a_fresh_generation() {
+        assert!(drift(&ntp().join("generated/rust"), &ntp_files()).is_empty());
     }
 
     #[test]

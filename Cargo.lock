@@ -1085,6 +1085,10 @@ name = "rfc1035-dns"
 version = "0.1.0"
 
 [[package]]
+name = "rfc5905-ntp"
+version = "0.1.0"
+
+[[package]]
 name = "rfc6455-websocket"
 version = "0.1.0"
 

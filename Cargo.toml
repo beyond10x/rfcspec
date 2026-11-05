@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "profiles/dns/generated/rust", "profiles/time/generated/rust", "profiles/websocket/generated/rust"]
+members = ["crates/*", "profiles/dns/generated/rust", "profiles/ntp/generated/rust", "profiles/time/generated/rust", "profiles/websocket/generated/rust"]
 
 [workspace.package]
 version = "0.1.0"
