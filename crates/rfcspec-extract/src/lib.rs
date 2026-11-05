@@ -484,10 +484,14 @@ mod tests {
                 "may close.".into(),
             ],
             section: None,
+            anchor: None,
+            figure_type: None,
+            bcp14: vec![],
         };
         let document = Document {
             rfc: 1,
             sha256: String::new(),
+            format: Default::default(),
             furniture: vec![],
             blocks: vec![block],
         };

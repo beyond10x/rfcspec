@@ -10,7 +10,9 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use rfcspec_extract::{EXTRACTOR_VERSION, LEVELS, extract, level_counts};
-use rfcspec_model::{BULK_FORMAT, BulkHeader, BulkRow, LOCK_FILE, bulk_summary, sha256_hex};
+use rfcspec_model::{
+    BULK_FORMAT, BulkHeader, BulkRow, LOCK_FILE, SourceFormat, bulk_summary, sha256_hex,
+};
 use serde_json::Value;
 
 /// The counts by level of a text, by the extraction `rfcspec extract` runs.
@@ -208,6 +210,17 @@ pub fn check(summary: &Path, profiles: &Path) -> Result<Vec<String>> {
                     entry.sha256,
                     lock_path.display()
                 ));
+            }
+            if matches!(
+                rfcspec_source::format_of(&entry.file),
+                Ok(SourceFormat::Xml)
+            ) {
+                problems.push(format!(
+                    "{}: RFC {rfc} is locked as RFCXML ({}), and the bulk summary counts plain text only; story:bulk-xml-summary makes it read XML",
+                    lock_path.display(),
+                    entry.file
+                ));
+                continue;
             }
             let locked = rfcspec_source::read_locked(&profile, rfc)?;
             let expected = counts(rfc, &locked.entry.sha256, &locked.text);

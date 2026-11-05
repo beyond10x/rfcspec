@@ -106,14 +106,52 @@ impl std::fmt::Display for Span {
     }
 }
 
+/// The format of an RFC's locked source (design D7): RFCXML v3 or plain text.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SourceFormat {
+    Xml,
+    #[default]
+    Text,
+}
+
+impl SourceFormat {
+    /// The file extension of a source of this format, without the dot.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Xml => "xml",
+            Self::Text => "txt",
+        }
+    }
+
+    /// Whether this is plain text, the format a document omits.
+    pub fn is_text(&self) -> bool {
+        *self == Self::Text
+    }
+}
+
 /// The normalized document of one RFC.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Document {
     pub rfc: u32,
     pub sha256: String,
-    /// Source lines removed as page furniture (headers, footers, form feeds).
+    /// The format the document was read from; omitted for plain text, so a text document writes
+    /// the same bytes it did before the XML reader.
+    #[serde(default, skip_serializing_if = "SourceFormat::is_text")]
+    pub format: SourceFormat,
+    /// Source lines removed as page furniture (headers, footers, form feeds); always empty for
+    /// XML.
     pub furniture: Vec<usize>,
     pub blocks: Vec<Block>,
+}
+
+/// A `<bcp14>` element of an RFCXML source: its keyword and the byte offset at which it starts
+/// in its block's [`Block::text`].
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Bcp14Mark {
+    pub keyword: String,
+    pub offset: usize,
 }
 
 /// What a block of the document is.
@@ -138,6 +176,17 @@ pub struct Block {
     /// numbered heading and in an RFC without numbered sections.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
+    /// The anchor of the section the block lies in, read from an RFCXML source; the text reader
+    /// records none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    /// The `type` of a figure read from an RFCXML `<sourcecode>` or `<artwork>` (`abnf`,
+    /// `ascii-art`).
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    pub figure_type: Option<String>,
+    /// The block's `<bcp14>` marks, in source order; the text reader records none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bcp14: Vec<Bcp14Mark>,
 }
 
 impl Block {

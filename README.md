@@ -22,6 +22,17 @@ task check     # plan, ESS specification, example models, generated docs, fmt, c
 task website   # build the documentation site
 ```
 
+## Fetch and read
+
+`rfcspec fetch` locks an RFC's plain text, or with `--format xml` its RFCXML v3 source, into a
+profile; `rfcspec read` prints the normalized document of the locked file, from XML with each
+block's section anchor and BCP 14 marks.
+
+```console
+rfcspec fetch --profile <profile> --rfc 9220 --format xml
+rfcspec read --profile <profile> --rfc 9220
+```
+
 ## Propose and review
 
 A model may propose what the pipeline cannot derive mechanically, such as a requirement's

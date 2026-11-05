@@ -204,16 +204,27 @@ impl Workspace {
         let profile: Profile = read_yaml(&dir.join(PROFILE_FILE))?;
         let overlay: Overlay = read_yaml(&dir.join(OVERLAY_FILE))?;
         let locked = rfcspec_source::read_locked(dir, overlay.rfc)?;
-        let document = rfcspec_doc::read(overlay.rfc, &locked.entry.sha256, &locked.text);
+        let document = rfcspec_doc::read_format(
+            overlay.rfc,
+            locked.format,
+            &locked.entry.sha256,
+            &locked.text,
+        )
+        .with_context(|| format!("reading {}", locked.entry.file))?;
         Ok(Self {
             dir: dir.to_path_buf(),
             catalogue: rfcspec_extract::extract(&document),
-            furniture: rfcspec_doc::furniture_lines(&locked.text),
+            furniture: document.furniture.clone(),
             source: locked.text,
             document,
             profile,
             overlay,
         })
+    }
+
+    /// The normalized document of the locked source, read by the reader of its format.
+    pub fn source_document(&self) -> &Document {
+        &self.document
     }
 
     /// Whether the overlay holds a decision on `subject` judging its current text.

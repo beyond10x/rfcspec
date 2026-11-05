@@ -1,6 +1,6 @@
 [package]
 name = "rfcspec-doc"
-description = "Reads an RFC's plain text into a normalized document: page furniture removed, headings, paragraphs and indented figures with their source lines."
+description = "Reads an RFC's plain text or RFCXML v3 source into a normalized document: headings, paragraphs and figures with their source lines; page furniture removed from text, section anchors and BCP 14 marks kept from XML."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 rfcspec-model = { path = "../rfcspec-model" }
+roxmltree = "0.21"
 
 [lints]
 workspace = true

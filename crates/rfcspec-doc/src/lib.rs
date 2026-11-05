@@ -21,7 +21,23 @@
 //! A numbered heading is an unindented line `N.  Title`, `N.M.  Title`, ...; every block from it to
 //! the next one carries its number.
 
-use rfcspec_model::{Block, BlockKind, Document, Span};
+pub mod xml;
+
+use rfcspec_model::{Block, BlockKind, Document, SourceFormat, Span};
+
+/// Read a locked source into a normalized document by the reader of its format: [`read`] for
+/// plain text, [`xml::read`] for RFCXML v3.
+pub fn read_format(
+    rfc: u32,
+    format: SourceFormat,
+    sha256: &str,
+    text: &str,
+) -> Result<Document, xml::XmlError> {
+    match format {
+        SourceFormat::Text => Ok(read(rfc, sha256, text)),
+        SourceFormat::Xml => xml::read(rfc, sha256, text),
+    }
+}
 
 /// Read an RFC's plain text into a normalized document.
 pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
@@ -121,12 +137,16 @@ pub fn read(rfc: u32, sha256: &str, text: &str) -> Document {
             },
             lines: block_lines,
             section: sections[start].clone(),
+            anchor: None,
+            figure_type: None,
+            bcp14: Vec::new(),
         });
     }
 
     Document {
         rfc,
         sha256: sha256.to_string(),
+        format: SourceFormat::Text,
         furniture,
         blocks,
     }
