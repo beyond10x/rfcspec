@@ -87,7 +87,7 @@ pub fn explore(model: &Path, inputs: &Path) -> Result<serde_json::Value> {
         .arg("--inputs")
         .arg(inputs)
         .output()
-        .context("running `ess protocol explore` (is ess 0.86.0 on PATH?)")?;
+        .context("running `ess protocol explore` (is ess 0.87.0 on PATH?)")?;
     serde_json::from_slice(&output.stdout).with_context(|| {
         format!(
             "`ess protocol explore` printed no report for {}: {}",
