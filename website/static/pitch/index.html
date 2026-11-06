@@ -84,7 +84,7 @@
 
 <!-- 1 -->
 <section class="slide title-slide">
-  <p class="eyebrow">RFCspec · design proposal · November 2026</p>
+  <p class="eyebrow">RFCspec · v0.2.0 · November 2026</p>
   <h1>Every RFC,<br><span class="accent">executable.</span></h1>
   <p class="muted" style="max-width: 880px; font-size: 24px;">Take an RFC from the RFC Editor. Get a requirement catalogue with a citation for every item, an ESS model of its protocol, a generated protocol core and a conformance suite that any implementation can be held to.</p>
   <div class="foot"><span>beyond10x / rfcspec</span><span>Apache-2.0 · Rust · ESS</span></div>
@@ -264,15 +264,15 @@
     <div>
       <table style="font-size: 15px;">
         <tr><th>Format or status</th><th style="text-align:right">RFCs</th></tr>
-        <tr><td>plain text</td><td class="n">9,847</td></tr>
-        <tr><td>RFCXML v3 (RFC 8650 onward)</td><td class="n">1,390</td></tr>
+        <tr><td>read from plain text</td><td class="n">8,457</td></tr>
+        <tr><td>read from RFCXML v3</td><td class="n">1,390</td></tr>
         <tr><td>Proposed Standard</td><td class="n">4,434</td></tr>
         <tr><td>Informational</td><td class="n">3,013</td></tr>
         <tr><td>Experimental</td><td class="n">559</td></tr>
         <tr><td>Best Current Practice</td><td class="n">337</td></tr>
         <tr><td>Internet Standard</td><td class="n">133</td></tr>
       </table>
-      <p class="faint" style="font-size: 13px; margin-top: 10px;">Counted from rfc-index.xml, 4 November 2026.</p>
+      <p class="faint" style="font-size: 13px; margin-top: 10px;">9,847 RFCs in bulk/rfc-summary.jsonl, from rfc-index.xml read 5 November 2026.</p>
     </div>
     <div>
       <table style="font-size: 15px;">
@@ -369,7 +369,7 @@ frame-rsv1 = %x0 / %x1
     <tr><td class="mono accent">G8</td><td>wire layer</td><td class="muted">every wire protocol and data format</td></tr>
     <tr><td class="mono accent">G9</td><td>close discards in-flight transmissions</td><td class="muted">WebSocket §7.1.7, every teardown</td></tr>
   </table>
-  <p class="muted" style="font-size: 17px; margin-top: 14px;">Until a gap closes, the requirement shows as <code>unsupported: ess-gap Gn</code>. Nothing is lowered that silently loses a rule.</p>
+  <p class="muted" style="font-size: 17px; margin-top: 14px;">G10 to G14 were found by the WebSocket ping and NTP models. Until a gap closes, the requirement shows as <code>unsupported: ess-gap Gn</code>. Nothing is lowered that silently loses a rule.</p>
   <div class="foot"><span>RFCspec</span><span>10 · ESS gaps</span></div>
 </section>
 
@@ -396,14 +396,14 @@ frame-rsv1 = %x0 / %x1
   <p class="eyebrow">Roadmap</p>
   <h2>Simplest path first.</h2>
   <table style="font-size: 16px;">
-    <tr><th>#</th><th>Deliverable</th><th>Proves</th><th>v0.1.0</th></tr>
-    <tr><td class="mono accent">M0</td><td>read RFC 6455 (text) and 9220 (XML); survey every RFC by kind</td><td class="muted">the corpus can be read and counted</td><td><span class="tag half">text read; 9,847 RFCs counted by BCP 14 level</span></td></tr>
-    <tr><td class="mono accent">M1</td><td>ABNF and wire layer; generated WebSocket codec with vectors</td><td class="muted">the wire layer</td><td><span class="tag half">layouts and codecs; no ABNF yet</span></td></tr>
-    <tr><td class="mono accent">M2</td><td>recorded AI proposals, review overlay, lowering that <code>ess</code> accepts</td><td class="muted">AI with a cited trail; ESS as the target</td><td><span class="tag on">shipped</span></td></tr>
+    <tr><th>#</th><th>Deliverable</th><th>Proves</th><th>v0.2.0</th></tr>
+    <tr><td class="mono accent">M0</td><td>read RFC 6455 (text) and 9220 (XML); survey every RFC by kind</td><td class="muted">the corpus can be read and counted</td><td><span class="tag half">text and XML read; 9,847 RFCs counted; no survey by kind</span></td></tr>
+    <tr><td class="mono accent">M1</td><td>ABNF and wire layer; generated WebSocket codec with vectors</td><td class="muted">the wire layer</td><td><span class="tag half">ABNF parse and match; next: bit ABNF, diagrams, agreement, handshake codec</span></td></tr>
+    <tr><td class="mono accent">M2</td><td>recorded AI proposals, review overlay, lowering that <code>ess</code> accepts</td><td class="muted">AI with a cited trail; ESS as the target</td><td><span class="tag half">status proposals, review and lowering; next: proposals for parties, semantics and machines</span></td></tr>
     <tr><td class="mono accent">M3</td><td>generated WebSocket crate, Autobahn run, requirement matrix</td><td class="muted">generated clients and conformance tests</td><td><span class="tag half">frame codec; no Autobahn run</span></td></tr>
     <tr><td class="mono accent">M4</td><td>DNS over UDP; ESS gap proposals G1, G3, G4</td><td class="muted">a binary protocol; upstreaming the wire format</td><td><span class="tag half">DNS header and query machine</span></td></tr>
     <tr><td class="mono accent">M5</td><td>WebSocket codec as a Spindle <code>call_pure</code> module and port</td><td class="muted">the Spindle path</td><td><span class="tag">not started</span></td></tr>
-    <tr><td class="mono accent">M6</td><td>TCP: modular arithmetic, windows, measured timers</td><td class="muted">whether the approach reaches a transport</td><td><span class="tag">not started; NTP timers come first</span></td></tr>
+    <tr><td class="mono accent">M6</td><td>TCP: modular arithmetic, windows, measured timers</td><td class="muted">whether the approach reaches a transport</td><td><span class="tag">not started; NTP timers modelled</span></td></tr>
   </table>
   <div class="foot"><span>RFCspec</span><span>12 · roadmap</span></div>
 </section>
@@ -441,20 +441,21 @@ claim: no  (1 gap, 0 failures, 1 inconclusive)</pre>
 
 <!-- 14 -->
 <section class="slide">
-  <p class="eyebrow">Release v0.1.0</p>
-  <h2>Three RFCs, end to end. Every RFC, indexed.</h2>
+  <p class="eyebrow">Release v0.2.0</p>
+  <h2>Four RFCs, end to end. Every RFC, explorable.</h2>
   <table style="font-size: 16px;">
     <tr><th>Profile</th><th>RFC</th><th>Models</th><th>Generated</th></tr>
     <tr><td class="mono">time</td><td>868 Time Protocol</td><td class="muted">request and reply over TCP and over UDP</td><td class="muted"><code>rfc868-time</code> codec</td></tr>
     <tr><td class="mono">websocket</td><td>6455 WebSocket</td><td class="muted"><code>close</code>, <code>ping</code> and <code>fragments</code> machines, frame-header layout</td><td class="muted"><code>rfc6455-websocket</code> frame codec</td></tr>
     <tr><td class="mono">dns</td><td>1035 DNS</td><td class="muted"><code>query</code> machine matched by id over UDP, header layout</td><td class="muted"><code>rfc1035-dns</code> header codec</td></tr>
+    <tr><td class="mono">ntp</td><td>5905 NTP</td><td class="muted"><code>exchange</code> over lossy UDP, <code>poll</code> with capped backoff</td><td class="muted"><code>rfc5905-ntp</code> header codec</td></tr>
   </table>
   <ul style="margin-top: 18px;">
-    <li>9,847 RFCs indexed, each with its BCP 14 requirement counts, browsable on the site.</li>
-    <li>AI proposals recorded from a model on a local GPU, each settled by review, replayed offline in CI.</li>
-    <li>Every model passes bounded exploration in <code>ess</code>; every codec is tested in the gate.</li>
+    <li>9,847 RFCs counted by level and section, 1,390 from RFCXML with 60,027 references; the RFC explorer searches them all.</li>
+    <li>114 status proposals for RFC 6455 from a model on a local GPU: 85 accepted or edited, 29 rejected, replayed offline in CI.</li>
+    <li>Every model passes bounded exploration in <code>ess</code>; 624 Rust tests pass in the gate. The ABNF reader starts the wire layer.</li>
   </ul>
-  <div class="foot"><span>RFCspec</span><span>14 · v0.1.0</span></div>
+  <div class="foot"><span>RFCspec</span><span>14 · v0.2.0</span></div>
 </section>
 
 <!-- 15 -->
@@ -463,7 +464,7 @@ claim: no  (1 gap, 0 failures, 1 inconclusive)</pre>
   <h1 style="font-size: 64px;">Read the design.<br><span class="accent">Follow the build.</span></h1>
   <p style="font-size: 22px;"><a href="https://github.com/beyond10x/rfcspec">github.com/beyond10x/rfcspec</a></p>
   <p style="font-size: 22px;"><a href="https://beyond10x.github.io/rfcspec/">beyond10x.github.io/rfcspec</a></p>
-  <p class="muted" style="margin-top: 22px; font-size: 18px;">Built on ESS. Runs natively; Spindle is planned. Status: v0.1.0, three profiles.</p>
+  <p class="muted" style="margin-top: 22px; font-size: 18px;">Built on ESS. Runs natively; Spindle is planned. Status: v0.2.0, four profiles.</p>
   <div class="foot"><span>beyond10x / rfcspec</span><span>Apache-2.0</span></div>
 </section>
 

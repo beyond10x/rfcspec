@@ -1,9 +1,10 @@
 //! The status data, `website/data/status.json` (`b10x-status/1`), and the status page,
 //! `website/docs/status.md`, both from [`CAPABILITIES`].
 //!
-//! RFCspec is at the design stage: every capability is `decided` (a design decision, design §0) or
-//! `planned` (a milestone, design §14). Nothing is `shipped`, and a test refuses a shipped item
-//! until one names the test that holds it.
+//! A capability is `shipped` (it exists in the release named by [`RELEASE`] and names the gate
+//! step or test that holds it), `decided` (a design decision, design §0) or `planned` (a
+//! milestone of design §14, or what remains of one). A test refuses a shipped item without its
+//! evidence, and a test path that does not exist.
 
 use serde_json::json;
 
@@ -14,18 +15,40 @@ pub const DATA: &str = "website/data/status.json";
 /// Where the status page lands, relative to the repository root.
 pub const PAGE: &str = "website/docs/status.md";
 
-/// The date the list below was last checked against the design.
-const AS_OF: &str = "2026-11-04";
+/// The date the list below was last checked against the repository.
+const AS_OF: &str = "2026-11-06";
+/// The release the shipped rows were checked against.
+const RELEASE: &str = "v0.2.0";
 
 /// One capability on the status page.
 pub struct Capability {
     pub area: &'static str,
     pub label: &'static str,
     pub detail: &'static str,
-    /// `decided` or `planned`.
+    /// `shipped`, `decided` or `planned`.
     pub status: &'static str,
     /// The documentation route that explains it, `/docs/...`.
     pub href: &'static str,
+    /// For a shipped capability, what holds it: `task <name>` (a step of `task check` or
+    /// `task website`) or a test file relative to the repository root. Empty otherwise.
+    pub evidence: &'static str,
+}
+
+const fn shipped(
+    area: &'static str,
+    label: &'static str,
+    detail: &'static str,
+    href: &'static str,
+    evidence: &'static str,
+) -> Capability {
+    Capability {
+        area,
+        label,
+        detail,
+        status: "shipped",
+        href,
+        evidence,
+    }
 }
 
 const fn decided(
@@ -40,6 +63,7 @@ const fn decided(
         detail,
         status: "decided",
         href,
+        evidence: "",
     }
 }
 
@@ -55,11 +79,61 @@ const fn planned(
         detail,
         status: "planned",
         href,
+        evidence: "",
     }
 }
 
 /// Every capability the site claims, in the order the status table lists them.
 pub const CAPABILITIES: &[Capability] = &[
+    shipped(
+        "Read",
+        "Plain text and RFCXML",
+        "Fetch and lock an RFC's plain text or RFCXML v3 source, read it into one document model, and extract its BCP 14 requirements with cited spans; RFC 9220 is the RFCXML test case.",
+        "/docs/concepts/catalogue",
+        "crates/rfcspec-cli/tests/rfcxml.rs",
+    ),
+    shipped(
+        "Read",
+        "The whole RFC index",
+        "Every RFC the index publishes as RFCXML or plain text, with its requirement counts by level and section and its RFCXML references, unreviewed.",
+        "/docs/catalog/rfcs",
+        "task bulk",
+    ),
+    shipped(
+        "Profiles",
+        "Four profiles end to end",
+        "RFC 868, RFC 6455, RFC 1035 and RFC 5905: a reviewed overlay, lowered models that pass bounded exploration, and a generated codec crate with its tests.",
+        "/docs/catalog",
+        "task time, task websocket, task dns, task ntp",
+    ),
+    shipped(
+        "Profiles",
+        "Recorded proposals and review",
+        "Status proposals from a model, recorded with their cited spans, settled by review into the overlay and replayed offline in the gate.",
+        "/docs/concepts/ai-proposals",
+        "task websocket",
+    ),
+    shipped(
+        "Site",
+        "The RFC explorer",
+        "Search and filter the RFC index, open an RFC's requirements by section, update graph and references, and see a profiled RFC's reviewed layer.",
+        "/docs/catalog/rfcs",
+        "task explorer",
+    ),
+    shipped(
+        "Wire",
+        "ABNF parse, resolve and match",
+        "RFC 5234 and RFC 7405 ABNF parsed, references resolved to rules, core rules and RFC imports, and input matched against a rule.",
+        "/docs/concepts/lowering-to-ess",
+        "crates/rfcspec-abnf/tests/rfc6455_core.rs",
+    ),
+    shipped(
+        "Wire",
+        "Catalogue grammars",
+        "Each section's ABNF figures collected into one catalogue grammar, from plain text and RFCXML.",
+        "/docs/concepts/catalogue",
+        "crates/rfcspec-wire/tests/grammars.rs",
+    ),
     decided(
         "Design",
         "The catalogue, rfcspec/1",
@@ -98,32 +172,32 @@ pub const CAPABILITIES: &[Capability] = &[
     ),
     planned(
         "M0 Read",
-        "Fetch, read and extract",
-        "RFC 6455 from plain text and RFC 9220 from RFCXML: sections, requirements, ABNF and defined terms; a survey classifying every RFC in the index by kind.",
+        "Defined terms and a survey by kind",
+        "What remains of M0: defined terms in the catalogue, and a survey classifying every RFC in the index by kind.",
         "/docs/design",
     ),
     planned(
         "M1 Wire",
-        "ABNF and the wire layer",
-        "The RFC 6455 handshake grammar and frame bit-level ABNF and diagram, an agreement check between them, and a generated codec with round-trip and mutation vectors.",
+        "The rest of the wire layer",
+        "What remains of M1: the RFC 2616 and bit-level ABNF dialects, packet diagrams read into layouts, the RFC 6455 frame agreement check, and the handshake codec and frame codec vectors.",
         "/docs/examples/websocket",
     ),
     planned(
         "M2 Lower",
-        "Proposals, review and lowering",
-        "Recorded proposals for parties, semantics and the WebSocket machines, overlay review, and lowering that ess specify validate and ess protocol explore accept.",
-        "/docs/concepts/lowering-to-ess",
+        "Proposals for parties, semantics and machines",
+        "What remains of M2: recorded proposals for the parties, the communication semantics and the WebSocket machines; status proposals, review and lowering are shipped.",
+        "/docs/concepts/ai-proposals",
     ),
     planned(
         "M3 Generate",
         "A generated WebSocket core",
-        "A generated sans-IO Rust crate with codec, machine, limits and roles, an Autobahn run and the requirement matrix.",
+        "What remains of M3: machine, limits and roles in the generated crate, an Autobahn run and a recorded requirement matrix; the frame codec is shipped.",
         "/docs/examples/websocket",
     ),
     planned(
         "M4 DNS",
-        "A second, binary protocol",
-        "DNS over UDP: binary layouts, correlation by id, concurrent sessions; the ESS gap proposals with WebSocket and DNS as evidence.",
+        "Concurrent DNS sessions and the gap proposals",
+        "What remains of M4: concurrent sessions, and the ESS gap proposals G1, G3 and G4 with WebSocket and DNS as evidence; the header codec and query machine are shipped.",
         "/docs/concepts/lowering-to-ess",
     ),
     planned(
@@ -140,6 +214,15 @@ pub const CAPABILITIES: &[Capability] = &[
     ),
 ];
 
+/// A capability's detail, with what holds it when it is shipped.
+fn detail(c: &Capability) -> String {
+    if c.evidence.is_empty() {
+        c.detail.to_owned()
+    } else {
+        format!("{} Held by {}.", c.detail, c.evidence)
+    }
+}
+
 /// `website/data/status.json`.
 pub fn data() -> String {
     let items: Vec<_> = CAPABILITIES
@@ -148,13 +231,18 @@ pub fn data() -> String {
             json!({
                 "area": c.area,
                 "label": c.label,
-                "detail": c.detail,
+                "detail": detail(c),
                 "status": c.status,
                 "href": c.href,
             })
         })
         .collect();
-    let document = json!({"format": "b10x-status/1", "asOf": AS_OF, "items": items});
+    let document = json!({
+        "format": "b10x-status/1",
+        "asOf": AS_OF,
+        "source": format!("rfcspec-docs generate (crates/rfcspec-docs/src/status.rs), checked against {RELEASE}"),
+        "items": items,
+    });
     serde_json::to_string_pretty(&document).expect("status data serializes") + "\n"
 }
 
@@ -163,26 +251,38 @@ pub fn page() -> String {
     let mut page = front_matter(&Meta {
         title: "Status",
         label: "Status",
-        description: "What RFCspec has decided and what it plans. Nothing is shipped yet.",
+        description: "What RFCspec has shipped, what it has decided and what it plans.",
         position: 30,
     });
     let count = |status: &str| CAPABILITIES.iter().filter(|c| c.status == status).count();
     page.push_str(&format!(
-        "Checked against the design on {AS_OF}. RFCspec is at the design stage: {} decisions, {} \
-         planned milestones, nothing shipped. **Decided** is a decision in the design; **planned** \
-         is a milestone of the design's section 14 and nothing more.\n\n\
-         | Area | Capability | Status | What it means |\n|---|---|---|---|\n",
+        "Checked against {RELEASE} on {AS_OF}: {} shipped, {} decided, {} planned. **Shipped** \
+         exists in {RELEASE} and names the gate step (`task <name>`) or the test that holds it; \
+         **decided** is a decision in the design; **planned** is a milestone of the design's \
+         section 14, or what remains of one, and nothing more.\n\n\
+         | Area | Capability | Status | What it means | Held by |\n|---|---|---|---|---|\n",
+        count("shipped"),
         count("decided"),
         count("planned"),
     ));
     for c in CAPABILITIES {
+        let held = if c.evidence.is_empty() {
+            "-".to_owned()
+        } else {
+            c.evidence
+                .split(", ")
+                .map(|e| format!("`{e}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
         page.push_str(&format!(
-            "| {} | [{}]({}) | {} | {} |\n",
+            "| {} | [{}]({}) | {} | {} | {} |\n",
             cell(c.area),
             cell(c.label),
             c.href,
             c.status,
-            cell(c.detail)
+            cell(c.detail),
+            held,
         ));
     }
     page
@@ -191,17 +291,41 @@ pub fn page() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
-    fn nothing_is_claimed_as_shipped_and_every_route_is_a_doc() {
+    fn every_status_is_known_and_every_route_is_a_doc() {
         for c in CAPABILITIES {
             assert!(
-                c.status == "decided" || c.status == "planned",
+                matches!(c.status, "shipped" | "decided" | "planned"),
                 "{}: {}",
                 c.label,
                 c.status
             );
             assert!(c.href.starts_with("/docs/"), "{}", c.href);
+        }
+    }
+
+    #[test]
+    fn a_shipped_item_names_evidence_that_exists_and_no_other_item_does() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let taskfile = std::fs::read_to_string(root.join("Taskfile.yml")).unwrap();
+        for c in CAPABILITIES {
+            if c.status != "shipped" {
+                assert!(c.evidence.is_empty(), "{}", c.label);
+                continue;
+            }
+            assert!(!c.evidence.is_empty(), "{} names no evidence", c.label);
+            for e in c.evidence.split(", ") {
+                match e.strip_prefix("task ") {
+                    Some(task) => assert!(
+                        taskfile.contains(&format!("\n  {task}:\n")),
+                        "{}: no task {task}",
+                        c.label
+                    ),
+                    None => assert!(root.join(e).is_file(), "{}: no file {e}", c.label),
+                }
+            }
         }
     }
 

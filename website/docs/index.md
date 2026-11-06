@@ -14,10 +14,12 @@ types, plus a wire-format sidecar for its bytes and bits. From those, RFCspec ge
 protocol core (codec, state machine, limits, roles) and a conformance suite that any
 implementation can be held to.
 
-:::caution[Design stage]
-Nothing of the pipeline is implemented yet. This site describes the design and the first worked
-example, WebSocket (RFC 6455). The [status page](/docs/status) lists what is decided and what is
-planned.
+:::note[v0.2.0]
+The pipeline runs end to end for four profiles: Time (RFC 868), WebSocket (RFC 6455), DNS
+(RFC 1035) and NTP (RFC 5905), listed in the [protocol catalogue](/docs/catalog). It reads plain
+text and RFCXML, and counts the requirements of every RFC in the index, which the
+[RFC explorer](pathname:///rfcspec/explorer/) searches. The wire layer has started with an ABNF
+reader and matcher. The [status page](/docs/status) lists what is shipped, decided and planned.
 :::
 
 ## What RFCspec is not
@@ -44,6 +46,8 @@ planned.
 | You want | Read |
 |---|---|
 | What exists and how to look at it | [Getting started](./getting-started.md) |
+| The profiles and their requirement matrices | [Protocol catalogue](/docs/catalog) |
+| Any RFC's requirements by section, and its references | [RFC explorer](pathname:///rfcspec/explorer/) |
 | Which RFCs are worth modelling | [Kinds of RFC](./concepts/rfc-kinds.md) |
 | What an RFC becomes | [The catalogue](./concepts/catalogue.md) |
 | Request-response, sessions, duplex, streams | [Communication semantics](./concepts/communication-semantics.md) |

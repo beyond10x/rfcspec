@@ -1082,23 +1082,23 @@ dependencies = [
 
 [[package]]
 name = "rfc1035-dns"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "rfc5905-ntp"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "rfc6455-websocket"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "rfc868-time"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "rfcspec-abnf"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rfcspec-doc",
  "rfcspec-model",
@@ -1106,7 +1106,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-conformance"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "rfc868-time",
@@ -1136,7 +1136,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-doc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rfcspec-model",
  "roxmltree",
@@ -1144,7 +1144,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-docs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-ess"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "rfcspec-model",
@@ -1188,7 +1188,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-extract"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rfcspec-doc",
  "rfcspec-model",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-gen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "rfc6455-websocket",
@@ -1210,7 +1210,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-model"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -1221,7 +1221,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-propose"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "llm-core",
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-source"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "rfcspec-doc",
@@ -1254,7 +1254,7 @@ dependencies = [
 
 [[package]]
 name = "rfcspec-wire"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rfcspec-abnf",
  "rfcspec-doc",
