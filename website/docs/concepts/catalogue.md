@@ -8,8 +8,11 @@ source_url: https://github.com/beyond10x/rfcspec/blob/main/docs/design/rfcspec.m
 status: decided
 ---
 
-:::caution[Decided, not built]
-The catalogue format `rfcspec/1` is a design decision. No code reads or writes it yet.
+:::note[Built in part, v0.2.0]
+`rfcspec read` gives an RFC's sections, from plain text or RFCXML, and the RFCXML reader also
+records its references; `rfcspec extract` writes its requirements and grammars. Layouts, machines and statuses are authored in a
+profile's overlay; layouts are not yet read from packet diagrams. Defined terms, registries and
+limits are not built yet. See [Status](/docs/status).
 :::
 
 ## From RFC to catalogue
@@ -35,7 +38,8 @@ Everything after S0 reads only locked files and runs offline.
 | `Section` | anchor or number, title, parent, span |
 | `Requirement` | level (one of the eleven BCP 14 keywords), party, text, span, and where it was found: an XML `bcp14` mark, capitals in plain text, an ABNF comment, or prose for RFCs before BCP 14 |
 | `DefinedTerm` | a phrase the RFC defines and invokes, such as RFC 6455's `_Fail the WebSocket Connection_`; it becomes a named procedure in a machine |
-| `Grammar` | ABNF rules verbatim, their imports, their dialect |
+| `Reference` | a citation of another RFC, from an RFCXML `<xref>`: citing section, target RFC and section, normative or informative |
+| `Grammar` | ABNF rules verbatim, their imports, their dialect; one per section with ABNF figures, id `rfc<N>/grammar/<section>` |
 | `Layout` | a packet diagram as fields with bit widths, dependent lengths and conditions |
 | `Registry` | IANA's entries, read from IANA's XML, never from the RFC's IANA section |
 | `Limit` | a quantity the RFC leaves to the implementation, with any stated minimum |

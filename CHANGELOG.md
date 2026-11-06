@@ -2,8 +2,52 @@
 
 ## Unreleased
 
+## 0.2.0 (2026-11-06)
+
+- NTP, the fourth profile: `profiles/ntp` takes RFC 5905 sections 7.2, 7.3, 8, 9.2 and 13 through
+  the pipeline. It has the generated `rfc5905-ntp` header codec with signed fields, and the
+  `exchange` machine: origin check and replay protection over a lossy UDP layer on port 123. Its
+  `poll` machine covers reach, unreachable and a backoff doubling up to 2^MAXPOLL s, ended at a
+  48 s model horizon. The `ntp` task checks it. ESS gaps G11 to G14 are recorded in the design.
+- Overlay machines: capped backoff timers (`backoff: {factor, ceiling_ms}`), lossy channels
+  (`loss: true`) and a layer `port`.
+- RFCXML v3: `rfcspec fetch --format xml` locks `sources/rfc<N>.xml`. `rfcspec read` reads it with
+  section anchors, figure types and `<bcp14>` marks. `rfcspec extract` takes one requirement per
+  sentence holding a `<bcp14>` element (`bcp14-xml`). RFC 9220 is the test case.
+- References: RFCXML `<xref>` citations of other RFCs become References, normative or
+  informative. `ess/` declares them as `rfcspec.catalogue.Reference`.
+- Bulk over the whole RFC index: `bulk/rfc-summary.jsonl` reads the RFCXML where the index lists
+  it (1,390 of 9,847 rows) and the plain text otherwise. The new sidecar `bulk/rfc-sections.jsonl`
+  (`rfcspec-sections/1`) counts requirements per section and holds each RFCXML row's References.
+  `rfcspec bulk check --sections` checks it. The RFC index pages gain a Source column.
+- Text reader: appendix headings, `*`, `-`, `o` and `+` list items, `|` asides and
+  table-of-contents lines, so text ids match the RFCXML reader's (extractor version 2).
+  `rfcspec bulk compare` lists the RFCs whose text and RFCXML requirement ids differ.
+- The RFC explorer at `/rfcspec/explorer/`, a Vue 3 app in the documentation site's look. It
+  searches and filters the whole index and shows an RFC's metadata, update graph, requirements by
+  section and References. For a profiled RFC it also shows the reviewed layer: statuses, review
+  decisions, machines and layouts. Its data and its Rust and TypeScript types are generated from
+  `ess/` and drift-checked by `task types-check`.
+- `rfcspec check` refuses a send payload typed differently from its message field, and a fixed
+  timer arm of 0 ms or above the machine's `max_time_ms`.
+- The wire layer starts (milestone M1). `rfcspec-abnf` parses RFC 5234 and RFC 7405 ABNF, resolves
+  references to rules, core rules and RFC imports, and matches input against a rule.
+  `rfcspec-wire` collects each section's ABNF figures into a catalogue grammar; RFC 6455 gives six.
+- RFC 6455: 104 more recorded status proposals, 114 in all, 85 accepted or edited and 29 rejected.
+  Reviewed requirements go from 77 to 155.
+- ESS pinned at 0.87.0.
+
+## 0.1.0 (2026-11-05)
+
 - The design: `docs/design/rfcspec.md`.
 - RFCspec's own ESS domain in `ess/`.
+- The pipeline end to end for three profiles: `profiles/time` (RFC 868), `profiles/websocket`
+  (RFC 6455) and `profiles/dns` (RFC 1035), each with a reviewed overlay, lowered
+  `ess-protospec/1` models and a generated codec crate.
+- Recorded AI proposals (`rfcspec propose`, replayed offline) and their review into the overlay
+  (`rfcspec review`); ten recorded for RFC 6455 sections 5.1 and 5.3.
+- `rfcspec bulk`: the summary `bulk/rfc-summary.jsonl` of every RFC the index publishes as plain
+  text, with requirement counts by BCP 14 level.
 - The documentation site under `website/`, generated pages from `crates/rfcspec-docs`.
 - The protocol catalogue at `/docs/catalog/`: an index of every profile under `profiles/` and one
   page per profile (RFCs, communication semantics, requirement matrix, ESS gaps, conformance,

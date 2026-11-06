@@ -8,8 +8,13 @@ source_url: https://github.com/beyond10x/rfcspec/blob/main/docs/design/rfcspec.m
 status: decided
 ---
 
-:::caution[Decided, not built]
-The proposal contract is a design decision. No proposal stage exists yet.
+:::note[Built, v0.2.0]
+`rfcspec propose` records proposals for five tasks (`status`, `requirement-from-prose`,
+`machine`, `bit-widths`, `requirement-link`) and `rfcspec review` settles each into the overlay.
+The [WebSocket profile](/docs/catalog/websocket) holds 114 recorded `status` proposals from a
+model served on a local GPU: 85 accepted or edited, 29 rejected with their reason. The gate
+replays them offline. Of the design's tasks in the table below, machines and bit widths have prompts today;
+the others do not.
 :::
 
 ## Where a model helps

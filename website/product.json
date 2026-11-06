@@ -3,7 +3,7 @@
   "product": {
     "name": "RFCspec",
     "mark": "RS",
-    "eyebrow": "Design stage · nothing shipped yet",
+    "eyebrow": "v0.2.0 · four RFCs end to end · the whole index read",
     "promise": [
       "Internet RFCs,",
       "as specifications that run."
@@ -25,8 +25,8 @@
         "href": "https://github.com/beyond10x/rfcspec"
       }
     ],
-    "meta": "Design stage · ESS · Rust · Apache-2.0",
-    "kpis": ["decided", "planned"]
+    "meta": "v0.2.0 · ESS · Rust · Apache-2.0",
+    "kpis": ["shipped", "decided", "planned"]
   },
   "sections": [
     {
@@ -45,21 +45,21 @@
     {
       "kind": "features",
       "eyebrow": "What is decided",
-      "title": "The design, decided before the code.",
-      "lede": "Nothing is built yet. These are the decisions the first milestones implement.",
+      "title": "The decisions everything is built on.",
+      "lede": "Decided in the design before the code; the four profiles are built on them.",
       "items": [
         {"title": "A cited catalogue", "description": "Every item carries the RFC, section, byte range and digest of the text it came from.", "status": "decided", "href": "/docs/concepts/catalogue"},
         {"title": "ESS as the target", "description": "Machines lower to ess-protospec/1 and are explored; what ESS cannot carry is a named gap.", "status": "decided", "href": "/docs/concepts/lowering-to-ess"},
         {"title": "Communication semantics", "description": "Request-response or session, half or full duplex, one stream or many: one value per axis, checked in the lowering.", "status": "decided", "href": "/docs/concepts/communication-semantics"},
         {"title": "AI proposes, review decides", "description": "Every proposal quotes its source, is checked mechanically, recorded, replayed, and changes nothing until reviewed.", "status": "decided", "href": "/docs/concepts/ai-proposals"},
         {"title": "Which RFCs are modelled", "description": "Wire protocols, data formats, extensions and registries in full; algorithms as signatures with test vectors.", "status": "decided", "href": "/docs/concepts/rfc-kinds"},
-        {"title": "WebSocket first", "description": "RFC 6455 end to end: codec, machines, generated crate, Autobahn run.", "status": "planned", "href": "/docs/examples/websocket"}
+        {"title": "A WebSocket core", "description": "RFC 6455: the frame codec and the close, ping and fragments machines exist; the handshake codec, generated roles and an Autobahn run are planned.", "status": "planned", "href": "/docs/examples/websocket"}
       ]
     },
     {
       "kind": "status",
       "eyebrow": "Status",
-      "title": "Decided and planned.",
+      "title": "Shipped, decided and planned.",
       "items": "data/status.json"
     },
     {

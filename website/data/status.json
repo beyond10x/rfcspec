@@ -1,7 +1,56 @@
 {
-  "asOf": "2026-11-04",
+  "asOf": "2026-11-06",
   "format": "b10x-status/1",
   "items": [
+    {
+      "area": "Read",
+      "detail": "Fetch and lock an RFC's plain text or RFCXML v3 source, read it into one document model, and extract its BCP 14 requirements with cited spans; RFC 9220 is the RFCXML test case. Held by crates/rfcspec-cli/tests/rfcxml.rs.",
+      "href": "/docs/concepts/catalogue",
+      "label": "Plain text and RFCXML",
+      "status": "shipped"
+    },
+    {
+      "area": "Read",
+      "detail": "Every RFC the index publishes as RFCXML or plain text, with its requirement counts by level and section and its RFCXML references, unreviewed. Held by task bulk.",
+      "href": "/docs/catalog/rfcs",
+      "label": "The whole RFC index",
+      "status": "shipped"
+    },
+    {
+      "area": "Profiles",
+      "detail": "RFC 868, RFC 6455, RFC 1035 and RFC 5905: a reviewed overlay, lowered models that pass bounded exploration, and a generated codec crate with its tests. Held by task time, task websocket, task dns, task ntp.",
+      "href": "/docs/catalog",
+      "label": "Four profiles end to end",
+      "status": "shipped"
+    },
+    {
+      "area": "Profiles",
+      "detail": "Status proposals from a model, recorded with their cited spans, settled by review into the overlay and replayed offline in the gate. Held by task websocket.",
+      "href": "/docs/concepts/ai-proposals",
+      "label": "Recorded proposals and review",
+      "status": "shipped"
+    },
+    {
+      "area": "Site",
+      "detail": "Search and filter the RFC index, open an RFC's requirements by section, update graph and references, and see a profiled RFC's reviewed layer. Held by task explorer.",
+      "href": "/docs/catalog/rfcs",
+      "label": "The RFC explorer",
+      "status": "shipped"
+    },
+    {
+      "area": "Wire",
+      "detail": "RFC 5234 and RFC 7405 ABNF parsed, references resolved to rules, core rules and RFC imports, and input matched against a rule. Held by crates/rfcspec-abnf/tests/rfc6455_core.rs.",
+      "href": "/docs/concepts/lowering-to-ess",
+      "label": "ABNF parse, resolve and match",
+      "status": "shipped"
+    },
+    {
+      "area": "Wire",
+      "detail": "Each section's ABNF figures collected into one catalogue grammar, from plain text and RFCXML. Held by crates/rfcspec-wire/tests/grammars.rs.",
+      "href": "/docs/concepts/catalogue",
+      "label": "Catalogue grammars",
+      "status": "shipped"
+    },
     {
       "area": "Design",
       "detail": "An RFC becomes requirements, grammars, layouts, registries, defined procedures and limits, each with a source span and a digest (design D1).",
@@ -46,37 +95,37 @@
     },
     {
       "area": "M0 Read",
-      "detail": "RFC 6455 from plain text and RFC 9220 from RFCXML: sections, requirements, ABNF and defined terms; a survey classifying every RFC in the index by kind.",
+      "detail": "What remains of M0: defined terms in the catalogue, and a survey classifying every RFC in the index by kind.",
       "href": "/docs/design",
-      "label": "Fetch, read and extract",
+      "label": "Defined terms and a survey by kind",
       "status": "planned"
     },
     {
       "area": "M1 Wire",
-      "detail": "The RFC 6455 handshake grammar and frame bit-level ABNF and diagram, an agreement check between them, and a generated codec with round-trip and mutation vectors.",
+      "detail": "What remains of M1: the RFC 2616 and bit-level ABNF dialects, packet diagrams read into layouts, the RFC 6455 frame agreement check, and the handshake codec and frame codec vectors.",
       "href": "/docs/examples/websocket",
-      "label": "ABNF and the wire layer",
+      "label": "The rest of the wire layer",
       "status": "planned"
     },
     {
       "area": "M2 Lower",
-      "detail": "Recorded proposals for parties, semantics and the WebSocket machines, overlay review, and lowering that ess specify validate and ess protocol explore accept.",
-      "href": "/docs/concepts/lowering-to-ess",
-      "label": "Proposals, review and lowering",
+      "detail": "What remains of M2: recorded proposals for the parties, the communication semantics and the WebSocket machines; status proposals, review and lowering are shipped.",
+      "href": "/docs/concepts/ai-proposals",
+      "label": "Proposals for parties, semantics and machines",
       "status": "planned"
     },
     {
       "area": "M3 Generate",
-      "detail": "A generated sans-IO Rust crate with codec, machine, limits and roles, an Autobahn run and the requirement matrix.",
+      "detail": "What remains of M3: machine, limits and roles in the generated crate, an Autobahn run and a recorded requirement matrix; the frame codec is shipped.",
       "href": "/docs/examples/websocket",
       "label": "A generated WebSocket core",
       "status": "planned"
     },
     {
       "area": "M4 DNS",
-      "detail": "DNS over UDP: binary layouts, correlation by id, concurrent sessions; the ESS gap proposals with WebSocket and DNS as evidence.",
+      "detail": "What remains of M4: concurrent sessions, and the ESS gap proposals G1, G3 and G4 with WebSocket and DNS as evidence; the header codec and query machine are shipped.",
       "href": "/docs/concepts/lowering-to-ess",
-      "label": "A second, binary protocol",
+      "label": "Concurrent DNS sessions and the gap proposals",
       "status": "planned"
     },
     {
@@ -93,5 +142,6 @@
       "label": "A transport",
       "status": "planned"
     }
-  ]
+  ],
+  "source": "rfcspec-docs generate (crates/rfcspec-docs/src/status.rs), checked against v0.2.0"
 }

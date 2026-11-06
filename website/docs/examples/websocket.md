@@ -8,9 +8,13 @@ source_url: https://github.com/beyond10x/rfcspec/tree/main/examples/websocket
 status: planned
 ---
 
-:::caution[Design stage]
-The model on this page is written by hand and checked with `ess`. Extraction, proposals, the
-generated crate and the Autobahn run are planned; see [Status](/docs/status).
+:::note[Built in part, v0.2.0]
+`profiles/websocket` takes RFC 6455 through the pipeline: the locked text and its catalogue
+(196 requirements, six grammars), an overlay that gives 155 requirements a status, the `close`,
+`ping` and `fragments` machines lowered and explored, and the generated `rfc6455-websocket` frame
+codec. Its [catalogue page](/docs/catalog/websocket) holds the requirement matrix. The model on
+this page is the earlier hand-written one. The handshake codec, the generated roles and the
+Autobahn run are planned; see [Status](/docs/status).
 :::
 
 ## Profile
@@ -104,7 +108,7 @@ properties:
 ```
 
 `ess protocol explore` with the witness in `close.inputs.json`, a client `close` with code 1000,
-returns `"verdict": "passed"` with 10 states and 11 transitions (ess 0.86.0, 4 November 2026). The
+returns `"verdict": "passed"` with 10 states and 11 transitions (ess 0.87.0, 6 November 2026). The
 full command and output are on [Getting started](../getting-started.md).
 
 ## What exploration found: gap G9
@@ -125,9 +129,11 @@ missing rule is gap G9. Exploration found it on the first run.
 | a server receiving an unmasked client frame fails the connection | yes: a guard on the received message's `masked` field |
 | the close code is in 1000 to 4999 and not reserved | no: needs gap G1, guards beyond equality |
 
-## Generated crate (planned)
+## Generated crate (in part)
 
-`rfcspec-websocket`, generated and never edited by hand:
+Today `rfcspec generate` writes `rfc6455-websocket`, the frame-header codec from the overlay's
+`frame-header` layout, tested with the section 5.7 examples. The full crate the design plans,
+generated and never edited by hand:
 
 | Module | Holds |
 |---|---|

@@ -8,9 +8,11 @@ source_url: https://github.com/beyond10x/rfcspec/blob/main/docs/design/rfcspec.m
 status: decided
 ---
 
-:::caution[Decided, not built]
-The vocabulary is a design decision. The values in the table below are design input, to be
-confirmed against each RFC when it is imported.
+:::note[Built in part, v0.2.0]
+Each profile declares the semantics of its layers in `profile.yaml`, `rfcspec check` checks them,
+and the [catalogue](/docs/catalog) page shows them; the four profiles cover Time, WebSocket, DNS
+and NTP. The other rows of the table below are design input, to be confirmed against each RFC
+when it is imported.
 :::
 
 ## The axes

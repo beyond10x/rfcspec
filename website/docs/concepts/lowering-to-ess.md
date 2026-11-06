@@ -8,9 +8,11 @@ source_url: https://github.com/beyond10x/rfcspec/blob/main/docs/design/rfcspec.m
 status: decided
 ---
 
-:::caution[Decided, not built]
-The lowering is a design decision. The only lowered document today is the hand-written
-[WebSocket closing-handshake model](./../examples/websocket.md).
+:::note[Built in part, v0.2.0]
+`rfcspec lower` turns each profile's overlay machines into `ess-protospec/1` models, eight across
+the four profiles, and each passes `ess protocol explore` with its input witness in the gate.
+`rfcspec generate` writes a Rust codec crate per profile from its layout. Types and registries in
+an `ess/N` system, the wire sidecar and the Spindle path are not built yet.
 :::
 
 ## What becomes what
@@ -40,6 +42,11 @@ lowering marks the requirement unsupported with the gap's id, so the matrix show
 | G7 timers whose duration comes from a field | NTP poll interval, TCP retransmission timeout |
 | G8 the wire layer | every wire protocol and data format |
 | G9 a close that discards what is in flight to the closed side | WebSocket's closing timeout; every connection teardown |
+| G10 a guard on a message pending on an incoming channel | WebSocket's Pong for only the most recent Ping |
+| G11 a timer re-armed on every expiry that still passes exploration | the NTP poll process, which runs continuously |
+| G12 duplication on a channel that does not exhaust exploration | NTP over UDP |
+| G13 a send to a full channel on a lossy layer that drops instead of stopping | NTP over UDP |
+| G14 a property that an event or state is reached | the NTP reach register |
 
 G9 was found by `ess protocol explore` on the first draft of the WebSocket model; the
 [WebSocket](./../examples/websocket.md) page tells how.
@@ -50,7 +57,10 @@ ESS's protocol format excludes binary parsing. RFCspec keeps bytes and bits in `
 ABNF verbatim (RFC 5234, RFC 7405, and RFC 2616's older notation that RFC 6455 still uses),
 bit-level ABNF such as RFC 6455 section 5.2, and packet layouts. Each rule bound to a type gets an
 incremental parser that resumes across reads and a printer that emits only what the parser
-accepts, both bounded by the protocol's limits. The sidecar moves to ESS as a proposal once two
+accepts, both bounded by the protocol's limits. Built so far: `rfcspec-abnf` parses RFC 5234 and
+RFC 7405 ABNF, resolves references to rules, core rules and imports from other RFCs, and matches
+input against a rule; `rfcspec-wire` collects each section's ABNF figures into a catalogue
+grammar. The sidecar moves to ESS as a proposal once two
 protocols with different notations, WebSocket and DNS, prove it.
 
 ## Synthesis
